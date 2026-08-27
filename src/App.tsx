@@ -749,7 +749,10 @@ function App() {
                         ease: [0.18, 0.82, 0.22, 1],
                       }}
                     >
-                      <SignalPlaceStage signalLabel={suggestion.title} />
+                      <SignalPlaceStage
+                        signalId={suggestion.id}
+                        signalLabel={suggestion.title}
+                      />
                     </motion.div>
                   )}
                 </AnimatePresence>

@@ -24,7 +24,7 @@ const imageUrl = (photoId: string) =>
 const avatarUrl = (id: string) =>
   ['https:', '//i.pravatar.cc/100?img=', id].join('')
 
-const places: SignalPlace[] = [
+const basePlaces: SignalPlace[] = [
   {
     placeId: 'mock-julian-b-lane',
     name: 'Julian B. Lane Riverfront Park',
@@ -72,9 +72,49 @@ const places: SignalPlace[] = [
   },
 ]
 
-type SignalPlaceStageProps = { signalLabel: string }
+const venueProfiles = {
+  basketball: [
+    { name: "Julian B. Lane Riverfront Park", address: "1001 N Blvd, Tampa, FL", category: "Outdoor basketball courts" },
+    { name: "Cuscaden Park", address: "2900 N 15th St, Tampa, FL", category: "Basketball courts" },
+    { name: "Kate Jackson Park", address: "821 S Rome Ave, Tampa, FL", category: "Neighborhood basketball court" },
+  ],
+  rooftop: [
+    { name: "Skyline Rooftop", address: "Downtown Tampa", category: "Rooftop bar" },
+    { name: "Bay View Social", address: "Water Street, Tampa", category: "Rooftop lounge" },
+    { name: "Moon Deck", address: "Ybor City, Tampa", category: "Nightlife rooftop" },
+  ],
+  paint: [
+    { name: "Color Social Studio", address: "Downtown Tampa", category: "Paint & sip studio" },
+    { name: "The Canvas Room", address: "Hyde Park, Tampa", category: "Creative studio" },
+    { name: "Art House Social", address: "Seminole Heights, Tampa", category: "Art workshop" },
+  ],
+  music: [
+    { name: "The Live Room", address: "Downtown Tampa", category: "Live music venue" },
+    { name: "Ybor Stage", address: "Ybor City, Tampa", category: "Music bar" },
+    { name: "River Sessions", address: "Tampa Riverwalk", category: "Live performance" },
+  ],
+} as const
 
-export default function SignalPlaceStage({ signalLabel }: SignalPlaceStageProps) {
+type SignalVenueKey = keyof typeof venueProfiles
+
+type SignalPlaceStageProps = {
+  signalId: string
+  signalLabel: string
+}
+
+export default function SignalPlaceStage({
+  signalId,
+  signalLabel,
+}: SignalPlaceStageProps) {
+  const venueKey = (
+    signalId in venueProfiles ? signalId : "basketball"
+  ) as SignalVenueKey
+
+  const places = basePlaces.map((place, index) => ({
+    ...place,
+    ...venueProfiles[venueKey][index],
+    placeId: `${venueKey}-${index + 1}`,
+  }))
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
 
   const votes = useMemo(() => {
