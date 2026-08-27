@@ -2662,3 +2662,839 @@ button {
   isolation: isolate;
 }
 
+
+
+/* ============================================================
+   SIGNAL — G4.4B-6 LOCKED BAR TRANSFORMATION
+   Formation system above is intentionally untouched.
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   FULL STATE TRANSFORMATION
+
+   Once SIGNAL reaches 6/6 this should no longer feel like
+   the original I'M BORED control.
+   ------------------------------------------------------------ */
+
+.bored.locked {
+  position: relative;
+
+  min-height: 86px;
+
+  overflow: hidden;
+
+  cursor: pointer;
+
+  border:
+    1px solid rgba(87, 188, 255, .52);
+
+  background:
+    radial-gradient(
+      circle at 12% 50%,
+      rgba(52, 176, 255, .19),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 82% 50%,
+      rgba(136, 78, 255, .14),
+      transparent 34%
+    ),
+    linear-gradient(
+      96deg,
+      rgba(7, 16, 27, .99),
+      rgba(18, 27, 48, .99) 48%,
+      rgba(28, 18, 52, .99)
+    );
+
+  box-shadow:
+    0 20px 56px rgba(0,0,0,.34),
+    0 0 0 1px rgba(76,181,255,.055),
+    0 0 26px rgba(48,169,255,.15),
+    0 0 48px rgba(120,76,255,.10);
+
+  animation:
+    lockedBarArrival .78s cubic-bezier(.18,.82,.22,1);
+}
+
+
+/* ------------------------------------------------------------
+   ELECTRICAL SWEEP WHEN LOCK HAPPENS
+   ------------------------------------------------------------ */
+
+.bored.locked::after {
+  content: "";
+
+  position: absolute;
+  z-index: 2;
+
+  top: -45%;
+  bottom: -45%;
+
+  width: 90px;
+
+  opacity: 0;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(112, 215, 255, .08),
+      rgba(255,255,255,.58),
+      rgba(137, 111, 255, .30),
+      transparent
+    );
+
+  filter: blur(1px);
+
+  transform: skewX(-18deg);
+
+  animation:
+    lockedEnergySweep .85s ease-out forwards;
+
+  pointer-events: none;
+}
+
+
+/* ------------------------------------------------------------
+   LEFT ICON
+
+   Hide existing lightning SVG visually and transform the same
+   container into the permanent lock state.
+
+   No JSX edits required.
+   ------------------------------------------------------------ */
+
+.bored.locked .bored-bolt {
+  position: relative;
+  z-index: 5;
+
+  display: grid;
+
+  width: 50px;
+  height: 50px;
+
+  flex: 0 0 50px;
+
+  place-items: center;
+
+  border:
+    1px solid rgba(96, 198, 255, .48);
+
+  border-radius: 16px;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(62, 184, 255, .24),
+      rgba(71, 95, 185, .10) 58%,
+      rgba(7, 12, 22, .5)
+    );
+
+  box-shadow:
+    0 0 0 5px rgba(67,186,255,.035),
+    0 0 15px rgba(73,192,255,.38),
+    0 0 30px rgba(115,88,255,.17);
+
+  animation:
+    lockHousingArrival .72s cubic-bezier(.18,.82,.22,1);
+}
+
+
+/* Original bolt disappears ONLY after lock */
+
+.bored.locked .bored-bolt > svg {
+  opacity: 0;
+  transform: scale(.55);
+}
+
+
+/* Actual lock symbol */
+
+.bored.locked .bored-bolt::before {
+  content: "🔒";
+
+  position: absolute;
+
+  display: grid;
+
+  inset: 0;
+
+  place-items: center;
+
+  color: white;
+
+  font-size: 22px;
+
+  line-height: 1;
+
+  filter:
+    saturate(.15)
+    brightness(1.4)
+    drop-shadow(0 0 8px rgba(111,211,255,.72));
+
+  animation:
+    signalLockDrop .72s cubic-bezier(.18,.82,.22,1);
+
+  pointer-events: none;
+}
+
+
+/* Subtle lock shockwave */
+
+.bored.locked .bored-bolt::after {
+  content: "";
+
+  position: absolute;
+
+  inset: -7px;
+
+  border:
+    1px solid rgba(88, 196, 255, .30);
+
+  border-radius: 20px;
+
+  opacity: 0;
+
+  animation:
+    signalLockShockwave .9s ease-out forwards;
+
+  pointer-events: none;
+}
+
+
+/* ------------------------------------------------------------
+   COPY
+
+   Make SIGNAL LOCKED feel final, premium and actionable.
+   ------------------------------------------------------------ */
+
+.bored.locked .bored-copy {
+  position: relative;
+  z-index: 5;
+}
+
+.bored.locked .bored-copy strong {
+  color: #ffffff;
+
+  font-size: 15px;
+  font-weight: 950;
+
+  letter-spacing: .075em;
+
+  text-shadow:
+    0 0 12px rgba(85, 195, 255, .30);
+}
+
+.bored.locked .bored-copy small {
+  margin-top: 4px;
+
+  color: #b8c7d5;
+
+  font-size: 8px;
+  font-weight: 700;
+
+  letter-spacing: .025em;
+}
+
+
+/* ------------------------------------------------------------
+   RIGHT ARROW
+
+   Existing Chevron becomes the obvious doorway into the Signal.
+   ------------------------------------------------------------ */
+
+.bored.locked > svg:last-child {
+  position: relative;
+  z-index: 6;
+
+  width: 29px;
+  height: 29px;
+
+  margin-left: auto;
+
+  color: #b9eaff;
+
+  stroke-width: 2.6;
+
+  filter:
+    drop-shadow(0 0 7px rgba(74,190,255,.65));
+
+  animation:
+    signalEnterArrow 1.55s ease-in-out infinite;
+}
+
+
+/* Add tiny VIEW cue immediately before arrow */
+
+.bored.locked::before {
+  content: "VIEW";
+
+  position: absolute;
+  z-index: 5;
+
+  right: 45px;
+  top: 50%;
+
+  color: rgba(124, 208, 255, .92);
+
+  font-size: 6px;
+  font-weight: 950;
+
+  letter-spacing: .15em;
+
+  transform: translateY(-50%);
+
+  pointer-events: none;
+}
+
+
+/* ------------------------------------------------------------
+   LOCKED FREQUENCY
+
+   Searching chaos settles once group is secured.
+   ------------------------------------------------------------ */
+
+.bored.locked .frequency-wave {
+  opacity: .48;
+
+  filter:
+    brightness(1.18)
+    saturate(1.05);
+}
+
+.bored.locked .frequency-wave i {
+  animation-duration: 1.9s !important;
+
+  opacity: .60;
+
+  transform: scaleY(.58);
+}
+
+
+/* ------------------------------------------------------------
+   ANIMATIONS
+   ------------------------------------------------------------ */
+
+@keyframes lockedBarArrival {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.012);
+  }
+
+  68% {
+    transform: scale(.998);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+
+@keyframes lockedEnergySweep {
+  0% {
+    left: -120px;
+    opacity: 0;
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  100% {
+    left: calc(100% + 120px);
+    opacity: 0;
+  }
+}
+
+
+@keyframes lockHousingArrival {
+  0% {
+    transform: scale(.78);
+  }
+
+  48% {
+    transform: scale(1.12);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+
+@keyframes signalLockDrop {
+  0% {
+    opacity: 0;
+    transform:
+      translateY(-8px)
+      scale(.55)
+      rotate(-7deg);
+  }
+
+  52% {
+    opacity: 1;
+    transform:
+      translateY(1px)
+      scale(1.18)
+      rotate(2deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1)
+      rotate(0);
+  }
+}
+
+
+@keyframes signalLockShockwave {
+  0% {
+    opacity: .8;
+    transform: scale(.65);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+
+@keyframes signalEnterArrow {
+  0%,
+  100% {
+    opacity: .76;
+    transform: translateX(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(5px);
+  }
+}
+
+
+
+/* ============================================================
+   SIGNAL — G4.4B-6 LOCKED BAR TRANSFORMATION
+   Formation system above is intentionally untouched.
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   FULL STATE TRANSFORMATION
+
+   Once SIGNAL reaches 6/6 this should no longer feel like
+   the original I'M BORED control.
+   ------------------------------------------------------------ */
+
+.bored.locked {
+  position: relative;
+
+  min-height: 86px;
+
+  overflow: hidden;
+
+  cursor: pointer;
+
+  border:
+    1px solid rgba(87, 188, 255, .52);
+
+  background:
+    radial-gradient(
+      circle at 12% 50%,
+      rgba(52, 176, 255, .19),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 82% 50%,
+      rgba(136, 78, 255, .14),
+      transparent 34%
+    ),
+    linear-gradient(
+      96deg,
+      rgba(7, 16, 27, .99),
+      rgba(18, 27, 48, .99) 48%,
+      rgba(28, 18, 52, .99)
+    );
+
+  box-shadow:
+    0 20px 56px rgba(0,0,0,.34),
+    0 0 0 1px rgba(76,181,255,.055),
+    0 0 26px rgba(48,169,255,.15),
+    0 0 48px rgba(120,76,255,.10);
+
+  animation:
+    lockedBarArrival .78s cubic-bezier(.18,.82,.22,1);
+}
+
+
+/* ------------------------------------------------------------
+   ELECTRICAL SWEEP WHEN LOCK HAPPENS
+   ------------------------------------------------------------ */
+
+.bored.locked::after {
+  content: "";
+
+  position: absolute;
+  z-index: 2;
+
+  top: -45%;
+  bottom: -45%;
+
+  width: 90px;
+
+  opacity: 0;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(112, 215, 255, .08),
+      rgba(255,255,255,.58),
+      rgba(137, 111, 255, .30),
+      transparent
+    );
+
+  filter: blur(1px);
+
+  transform: skewX(-18deg);
+
+  animation:
+    lockedEnergySweep .85s ease-out forwards;
+
+  pointer-events: none;
+}
+
+
+/* ------------------------------------------------------------
+   LEFT ICON
+
+   Hide existing lightning SVG visually and transform the same
+   container into the permanent lock state.
+
+   No JSX edits required.
+   ------------------------------------------------------------ */
+
+.bored.locked .bored-bolt {
+  position: relative;
+  z-index: 5;
+
+  display: grid;
+
+  width: 50px;
+  height: 50px;
+
+  flex: 0 0 50px;
+
+  place-items: center;
+
+  border:
+    1px solid rgba(96, 198, 255, .48);
+
+  border-radius: 16px;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(62, 184, 255, .24),
+      rgba(71, 95, 185, .10) 58%,
+      rgba(7, 12, 22, .5)
+    );
+
+  box-shadow:
+    0 0 0 5px rgba(67,186,255,.035),
+    0 0 15px rgba(73,192,255,.38),
+    0 0 30px rgba(115,88,255,.17);
+
+  animation:
+    lockHousingArrival .72s cubic-bezier(.18,.82,.22,1);
+}
+
+
+/* Original bolt disappears ONLY after lock */
+
+.bored.locked .bored-bolt > svg {
+  opacity: 0;
+  transform: scale(.55);
+}
+
+
+/* Actual lock symbol */
+
+.bored.locked .bored-bolt::before {
+  content: "🔒";
+
+  position: absolute;
+
+  display: grid;
+
+  inset: 0;
+
+  place-items: center;
+
+  color: white;
+
+  font-size: 22px;
+
+  line-height: 1;
+
+  filter:
+    saturate(.15)
+    brightness(1.4)
+    drop-shadow(0 0 8px rgba(111,211,255,.72));
+
+  animation:
+    signalLockDrop .72s cubic-bezier(.18,.82,.22,1);
+
+  pointer-events: none;
+}
+
+
+/* Subtle lock shockwave */
+
+.bored.locked .bored-bolt::after {
+  content: "";
+
+  position: absolute;
+
+  inset: -7px;
+
+  border:
+    1px solid rgba(88, 196, 255, .30);
+
+  border-radius: 20px;
+
+  opacity: 0;
+
+  animation:
+    signalLockShockwave .9s ease-out forwards;
+
+  pointer-events: none;
+}
+
+
+/* ------------------------------------------------------------
+   COPY
+
+   Make SIGNAL LOCKED feel final, premium and actionable.
+   ------------------------------------------------------------ */
+
+.bored.locked .bored-copy {
+  position: relative;
+  z-index: 5;
+}
+
+.bored.locked .bored-copy strong {
+  color: #ffffff;
+
+  font-size: 15px;
+  font-weight: 950;
+
+  letter-spacing: .075em;
+
+  text-shadow:
+    0 0 12px rgba(85, 195, 255, .30);
+}
+
+.bored.locked .bored-copy small {
+  margin-top: 4px;
+
+  color: #b8c7d5;
+
+  font-size: 8px;
+  font-weight: 700;
+
+  letter-spacing: .025em;
+}
+
+
+/* ------------------------------------------------------------
+   RIGHT ARROW
+
+   Existing Chevron becomes the obvious doorway into the Signal.
+   ------------------------------------------------------------ */
+
+.bored.locked > svg:last-child {
+  position: relative;
+  z-index: 6;
+
+  width: 29px;
+  height: 29px;
+
+  margin-left: auto;
+
+  color: #b9eaff;
+
+  stroke-width: 2.6;
+
+  filter:
+    drop-shadow(0 0 7px rgba(74,190,255,.65));
+
+  animation:
+    signalEnterArrow 1.55s ease-in-out infinite;
+}
+
+
+/* Add tiny VIEW cue immediately before arrow */
+
+.bored.locked::before {
+  content: "VIEW";
+
+  position: absolute;
+  z-index: 5;
+
+  right: 45px;
+  top: 50%;
+
+  color: rgba(124, 208, 255, .92);
+
+  font-size: 6px;
+  font-weight: 950;
+
+  letter-spacing: .15em;
+
+  transform: translateY(-50%);
+
+  pointer-events: none;
+}
+
+
+/* ------------------------------------------------------------
+   LOCKED FREQUENCY
+
+   Searching chaos settles once group is secured.
+   ------------------------------------------------------------ */
+
+.bored.locked .frequency-wave {
+  opacity: .48;
+
+  filter:
+    brightness(1.18)
+    saturate(1.05);
+}
+
+.bored.locked .frequency-wave i {
+  animation-duration: 1.9s !important;
+
+  opacity: .60;
+
+  transform: scaleY(.58);
+}
+
+
+/* ------------------------------------------------------------
+   ANIMATIONS
+   ------------------------------------------------------------ */
+
+@keyframes lockedBarArrival {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.012);
+  }
+
+  68% {
+    transform: scale(.998);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+
+@keyframes lockedEnergySweep {
+  0% {
+    left: -120px;
+    opacity: 0;
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  100% {
+    left: calc(100% + 120px);
+    opacity: 0;
+  }
+}
+
+
+@keyframes lockHousingArrival {
+  0% {
+    transform: scale(.78);
+  }
+
+  48% {
+    transform: scale(1.12);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+
+@keyframes signalLockDrop {
+  0% {
+    opacity: 0;
+    transform:
+      translateY(-8px)
+      scale(.55)
+      rotate(-7deg);
+  }
+
+  52% {
+    opacity: 1;
+    transform:
+      translateY(1px)
+      scale(1.18)
+      rotate(2deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1)
+      rotate(0);
+  }
+}
+
+
+@keyframes signalLockShockwave {
+  0% {
+    opacity: .8;
+    transform: scale(.65);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+
+@keyframes signalEnterArrow {
+  0%,
+  100% {
+    opacity: .76;
+    transform: translateX(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateX(5px);
+  }
+}
+
