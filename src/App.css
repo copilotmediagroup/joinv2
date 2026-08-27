@@ -3981,3 +3981,175 @@ button {
   cursor: pointer;
 }
 
+
+
+/* ============================================================
+   SIGNAL — G4.6D INTERACTION POLISH
+   Do not change established timing.
+   Only improve feel.
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   CLICKABLE = HAND CURSOR
+   ------------------------------------------------------------ */
+
+button,
+a,
+[role="button"],
+.room-next,
+.bored,
+.bored.locked,
+.signal-venue-card,
+.bottom-nav button,
+.bottom-nav a {
+  cursor: pointer !important;
+}
+
+
+/* Disabled interactions communicate correctly */
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed !important;
+}
+
+
+/* ------------------------------------------------------------
+   PICK THE PLACE DOORWAY
+
+   Make it feel alive before the click.
+   ------------------------------------------------------------ */
+
+.room-next {
+  user-select: none;
+
+  transform: translateZ(0);
+
+  transition:
+    transform .28s cubic-bezier(.18,.82,.22,1),
+    border-color .28s ease,
+    background .28s ease,
+    box-shadow .28s ease,
+    filter .28s ease;
+}
+
+
+.room-next:hover {
+  transform:
+    translateY(-2px)
+    translateZ(0);
+
+  border-color:
+    rgba(100, 205, 255, .42);
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(38, 128, 185, .25),
+      rgba(78, 78, 190, .19)
+    );
+
+  box-shadow:
+    0 8px 24px rgba(0,0,0,.18),
+    0 0 24px rgba(56,177,255,.10);
+}
+
+
+.room-next:active {
+  transform:
+    translateY(0)
+    scale(.988);
+}
+
+
+/* Arrow gently responds to user intent */
+
+.room-next > span:last-child {
+  transition:
+    transform .28s cubic-bezier(.18,.82,.22,1),
+    opacity .28s ease;
+}
+
+
+.room-next:hover > span:last-child {
+  transform: translateX(5px);
+}
+
+
+/* ------------------------------------------------------------
+   SIGNAL ROOM SURFACE
+
+   Hardware-promote the main reveal so the browser does not
+   visually stutter between scene states.
+   ------------------------------------------------------------ */
+
+.threshold-room,
+.threshold-room-inner {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+
+  transform-style: preserve-3d;
+
+  will-change: opacity, transform;
+}
+
+
+/* Prevent little visual jumps while content changes */
+
+.threshold-room-inner {
+  transition:
+    border-color .35s ease,
+    box-shadow .35s ease,
+    background .35s ease;
+}
+
+
+/* Smooth scrolling where the room legitimately scrolls */
+
+.threshold-room {
+  scroll-behavior: smooth;
+}
+
+
+/* ------------------------------------------------------------
+   BUTTON / NAV MICRO FEEDBACK
+   ------------------------------------------------------------ */
+
+.bottom-nav button,
+.bottom-nav a,
+.bored,
+.bored.locked {
+  transition:
+    transform .22s cubic-bezier(.18,.82,.22,1),
+    filter .22s ease,
+    opacity .22s ease;
+}
+
+
+.bottom-nav button:hover,
+.bottom-nav a:hover {
+  transform: translateY(-1px);
+}
+
+
+.bored:hover,
+.bored.locked:hover {
+  filter: brightness(1.06);
+}
+
+
+/* ============================================================
+   TOUCH DEVICES
+
+   No fake hover behavior on phones.
+   ============================================================ */
+
+@media (hover: none) {
+  .room-next:hover,
+  .bottom-nav button:hover,
+  .bottom-nav a:hover {
+    transform: none;
+  }
+}
+

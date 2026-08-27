@@ -1,0 +1,230 @@
+import { useMemo, useState } from 'react'
+import { Check, MapPin, Star, Zap } from 'lucide-react'
+import './SignalPlaceStage.css'
+
+type SignalPlace = {
+  placeId: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+  distanceMiles: number
+  rating: number
+  ratingCount: number
+  category: string
+  openNow: boolean
+  photoUrl: string
+  baseVotes: number
+  voterIds: string[]
+}
+
+const imageUrl = (photoId: string) =>
+  ['https:', '//images.unsplash.com/photo-', photoId, '?auto=format&fit=crop&w=1400&q=88'].join('')
+
+const avatarUrl = (id: string) =>
+  ['https:', '//i.pravatar.cc/100?img=', id].join('')
+
+const places: SignalPlace[] = [
+  {
+    placeId: 'mock-julian-b-lane',
+    name: 'Julian B. Lane Riverfront Park',
+    address: '1001 N Blvd, Tampa, FL',
+    lat: 27.9594,
+    lng: -82.4697,
+    distanceMiles: 2.1,
+    rating: 4.7,
+    ratingCount: 842,
+    category: 'Outdoor courts',
+    openNow: true,
+    photoUrl: imageUrl('1546519638-68e109498ffc'),
+    baseVotes: 3,
+    voterIds: ['8', '13', '15'],
+  },
+  {
+    placeId: 'mock-cuscaden-park',
+    name: 'Cuscaden Park',
+    address: '2900 N 15th St, Tampa, FL',
+    lat: 27.9717,
+    lng: -82.4428,
+    distanceMiles: 2.8,
+    rating: 4.5,
+    ratingCount: 318,
+    category: 'Outdoor courts',
+    openNow: true,
+    photoUrl: imageUrl('1574629810360-7efbbe195018'),
+    baseVotes: 2,
+    voterIds: ['17', '22'],
+  },
+  {
+    placeId: 'mock-kate-jackson',
+    name: 'Kate Jackson Park',
+    address: '821 S Rome Ave, Tampa, FL',
+    lat: 27.9357,
+    lng: -82.4766,
+    distanceMiles: 3.4,
+    rating: 4.6,
+    ratingCount: 214,
+    category: 'Neighborhood court',
+    openNow: true,
+    photoUrl: imageUrl('1519861531473-9200262188bf'),
+    baseVotes: 1,
+    voterIds: ['28'],
+  },
+]
+
+type SignalPlaceStageProps = { signalLabel: string }
+
+export default function SignalPlaceStage({ signalLabel }: SignalPlaceStageProps) {
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
+
+  const votes = useMemo(() => {
+    const result: Record<string, number> = {}
+
+    places.forEach((place) => {
+      result[place.placeId] =
+        place.baseVotes +
+        (selectedPlaceId === place.placeId ? 1 : 0)
+    })
+
+    return result
+  }, [selectedPlaceId])
+
+  const maxVotes = Math.max(...Object.values(votes))
+
+  return (
+    <section className="signal-place-stage">
+      <div className="signal-place-title-row">
+        <div className="signal-place-title">
+          <span>
+            <Zap size={14} fill="currentColor" />
+            NEXT
+          </span>
+
+          <h3>PICK THE PLACE</h3>
+          <p>Where should we meet?</p>
+        </div>
+
+        <div className="signal-place-ranking-copy">
+          {signalLabel} · SIGNAL ranked these for your group
+        </div>
+      </div>
+
+      <div className="signal-place-grid">
+        {places.map((place, index) => {
+          const selected = selectedPlaceId === place.placeId
+          const leading = votes[place.placeId] === maxVotes
+
+          return (
+            <button
+              type="button"
+              key={place.placeId}
+              className={[
+                'signal-venue-card',
+                index === 0 ? 'signal-venue-featured' : '',
+                leading ? 'signal-venue-leading' : '',
+                selected ? 'signal-venue-selected' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() =>
+                setSelectedPlaceId((current) =>
+                  current === place.placeId ? null : place.placeId
+                )
+              }
+            >
+              <div className="signal-venue-energy" />
+
+              <div className="signal-venue-image-wrap">
+                <img src={place.photoUrl} alt="" />
+
+                <span className="signal-venue-rank">
+                  {index === 0 ? 'BEST FIT' : `OPTION ${index + 1}`}
+                </span>
+
+                {selected && (
+                  <span className="signal-venue-check">
+                    <Check size={18} />
+                  </span>
+                )}
+
+                <div className="signal-venue-image-shade" />
+              </div>
+
+              <div className="signal-venue-body">
+                <h4>{place.name}</h4>
+
+                <div className="signal-venue-address">
+                  <MapPin size={13} />
+                  <span>{place.address}</span>
+                </div>
+
+                <div className="signal-venue-facts">
+                  <span>{place.distanceMiles.toFixed(1)} mi avg</span>
+                  <i />
+                  <span>{place.category}</span>
+                  <i />
+                  <strong>{place.openNow ? 'Open now' : 'Closed'}</strong>
+                </div>
+
+                <div className="signal-venue-bottom">
+                  <div className="signal-venue-rating">
+                    <Star size={13} fill="currentColor" />
+                    <strong>{place.rating.toFixed(1)}</strong>
+                    <span>({place.ratingCount})</span>
+                  </div>
+
+                  <div className="signal-venue-voters">
+                    {place.voterIds.map((id) => (
+                      <img
+                        key={id}
+                        src={avatarUrl(id)}
+                        alt=""
+                      />
+                    ))}
+
+                    {selected && (
+                      <span className="signal-you-voted">YOU</span>
+                    )}
+                  </div>
+
+                  <div className="signal-venue-votes">
+                    <strong>{votes[place.placeId]}</strong>
+                    <span>{votes[place.placeId] === 1 ? 'VOTE' : 'VOTES'}</span>
+                  </div>
+
+                  <span className="signal-venue-cast">
+                    <Zap size={17} fill="currentColor" />
+                  </span>
+                </div>
+              </div>
+
+              {selected && (
+                <div className="signal-vote-pulse" />
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="signal-place-footer">
+        <div>
+          <span className="signal-place-footer-icon">
+            <Zap size={15} />
+          </span>
+
+          <p>
+            <strong>SIGNAL</strong> ranked these spots for your group.
+            <small>Based on distance, availability and group fit.</small>
+          </p>
+        </div>
+
+        <strong className="signal-place-action">
+          {selectedPlaceId
+            ? 'YOUR VOTE IS LIVE'
+            : 'TAP A PLACE TO CAST YOUR VOTE'}
+          <span>›</span>
+        </strong>
+      </div>
+    </section>
+  )
+}

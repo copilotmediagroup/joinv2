@@ -11,6 +11,7 @@ import {
   Zap,
 } from 'lucide-react'
 import './App.css'
+import SignalPlaceStage from './features/signal/SignalPlaceStage'
 
 type Pulse = {
   id: string
@@ -193,6 +194,7 @@ function App() {
   const [accepted, setAccepted] = useState(false)
   const [formationCount, setFormationCount] = useState(0)
   const [signalThreshold, setSignalThreshold] = useState(false)
+  const [signalRoomStage, setSignalRoomStage] = useState<'arrival' | 'places'>('arrival')
 
   const suggestion = boredSuggestions[suggestionIndex]
 
@@ -707,7 +709,7 @@ function App() {
                   ⚡ SIGNAL LIVE
                 </span>
 
-                <h2>🏀 PICKUP BASKETBALL</h2>
+                <h2>{suggestion.emoji} {suggestion.title}</h2>
 
                 <p>6 aligned · 92% group fit</p>
 
@@ -721,15 +723,43 @@ function App() {
                   ))}
                 </div>
 
-                <div className="room-next">
-                  <small>NEXT</small>
-                  <strong>PICK THE PLACE</strong>
-                  <span>→</span>
-                </div>
+                <AnimatePresence mode="wait">
+                  {signalRoomStage === 'arrival' ? (
+                    <motion.div
+                      key="signal-arrival"
+                      className="room-next"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.985 }}
+                      transition={{ duration: 0.35 }}
+                      onClick={() => setSignalRoomStage('places')}
+                    >
+                      <small>NEXT</small>
+                      <strong>PICK THE PLACE</strong>
+                      <span>→</span>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="signal-places"
+                      initial={{ opacity: 0, y: 14, scale: 0.985 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{
+                        duration: 0.42,
+                        ease: [0.18, 0.82, 0.22, 1],
+                      }}
+                    >
+                      <SignalPlaceStage signalLabel={suggestion.title} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 <button
                   className="threshold-back"
-                  onClick={() => setSignalThreshold(false)}
+                  onClick={() => {
+                    setSignalThreshold(false)
+                    setSignalRoomStage('arrival')
+                  }}
                 >
                   BACK TO SIGNAL
                 </button>
