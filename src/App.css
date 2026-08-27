@@ -3498,3 +3498,486 @@ button {
   }
 }
 
+
+
+/* ============================================================
+   SIGNAL — G4.5 THRESHOLD
+   Formation → Lock → Tunnel → Signal Room
+   ============================================================ */
+
+.signal-threshold {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+
+  display: grid;
+  place-items: center;
+
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(20, 36, 66, .96),
+      rgba(5, 8, 15, .99) 52%,
+      #03050a 100%
+    );
+}
+
+
+/* cinematic edge darkness */
+
+.threshold-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+
+  background:
+    radial-gradient(
+      circle at center,
+      transparent 22%,
+      rgba(0,0,0,.30) 58%,
+      rgba(0,0,0,.84) 100%
+    );
+
+  pointer-events: none;
+}
+
+
+/* ------------------------------------------------------------
+   LOCK IGNITION
+   ------------------------------------------------------------ */
+
+.threshold-lock {
+  position: absolute;
+  z-index: 10;
+
+  display: grid;
+  place-items: center;
+
+  width: 76px;
+  height: 76px;
+
+  border:
+    1px solid rgba(111, 211, 255, .34);
+
+  border-radius: 50%;
+
+  background:
+    radial-gradient(
+      circle,
+      rgba(85,194,255,.24),
+      rgba(64,113,255,.08) 50%,
+      transparent 72%
+    );
+
+  box-shadow:
+    0 0 22px rgba(68,190,255,.40),
+    0 0 65px rgba(84,111,255,.24);
+}
+
+.threshold-lock span {
+  font-size: 30px;
+
+  filter:
+    drop-shadow(0 0 9px rgba(103,211,255,.72));
+}
+
+
+/* ------------------------------------------------------------
+   SIGNAL TUNNEL
+   ------------------------------------------------------------ */
+
+.threshold-tunnel {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+
+  perspective: 700px;
+
+  pointer-events: none;
+}
+
+.threshold-tunnel i {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 16vw;
+  height: 16vw;
+
+  border:
+    1px solid rgba(87, 183, 255, .20);
+
+  border-radius: 50%;
+
+  transform:
+    translate(-50%, -50%)
+    scale(.08);
+
+  opacity: 0;
+
+  box-shadow:
+    inset 0 0 22px rgba(76,165,255,.12),
+    0 0 18px rgba(82,129,255,.12);
+
+  animation:
+    signalTunnelRing 1.55s cubic-bezier(.18,.82,.22,1) forwards;
+}
+
+.threshold-tunnel i:nth-child(1) { animation-delay: .10s; }
+.threshold-tunnel i:nth-child(2) { animation-delay: .22s; }
+.threshold-tunnel i:nth-child(3) { animation-delay: .34s; }
+.threshold-tunnel i:nth-child(4) { animation-delay: .46s; }
+.threshold-tunnel i:nth-child(5) { animation-delay: .58s; }
+.threshold-tunnel i:nth-child(6) { animation-delay: .70s; }
+
+@keyframes signalTunnelRing {
+  0% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      scale(.08);
+  }
+
+  20% {
+    opacity: .9;
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      scale(7);
+  }
+}
+
+
+/* ------------------------------------------------------------
+   CENTRAL FREQUENCY
+   ------------------------------------------------------------ */
+
+.threshold-frequency {
+  position: absolute;
+  z-index: 4;
+
+  left: 8%;
+  right: 8%;
+  top: 50%;
+
+  height: 2px;
+
+  transform-origin: center;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(78,184,255,.50),
+      #c5f4ff 50%,
+      rgba(117,101,255,.62),
+      transparent
+    );
+
+  box-shadow:
+    0 0 8px rgba(76,199,255,.80),
+    0 0 28px rgba(91,116,255,.44);
+}
+
+.threshold-frequency span {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  width: 10px;
+  height: 10px;
+
+  border-radius: 50%;
+
+  background: #e7fbff;
+
+  transform:
+    translate(-50%, -50%);
+
+  box-shadow:
+    0 0 12px rgba(142,231,255,1),
+    0 0 34px rgba(94,159,255,.88),
+    0 0 70px rgba(115,87,255,.58);
+
+  animation:
+    thresholdCore 1.15s ease-in-out infinite;
+}
+
+@keyframes thresholdCore {
+  50% {
+    transform:
+      translate(-50%, -50%)
+      scale(1.7);
+  }
+}
+
+
+/* ------------------------------------------------------------
+   SIX PEOPLE TRAVEL WITH THE USER
+   ------------------------------------------------------------ */
+
+.threshold-people {
+  position: absolute;
+  z-index: 6;
+
+  left: 50%;
+  top: calc(50% + 45px);
+
+  display: flex;
+
+  transform:
+    translateX(-50%);
+}
+
+.threshold-people img {
+  width: 37px;
+  height: 37px;
+
+  margin-left: -7px;
+
+  object-fit: cover;
+
+  border:
+    2px solid rgba(168,226,255,.72);
+
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 13px rgba(65,182,255,.40);
+}
+
+
+/* ------------------------------------------------------------
+   CINEMATIC COPY
+   ------------------------------------------------------------ */
+
+.threshold-copy {
+  position: absolute;
+  z-index: 8;
+
+  top: 35%;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+
+  text-align: center;
+
+  pointer-events: none;
+}
+
+.threshold-copy span {
+  color: #89dfff;
+
+  font-size: 10px;
+  font-weight: 900;
+
+  letter-spacing: .22em;
+
+  text-shadow:
+    0 0 15px rgba(71,190,255,.45);
+}
+
+.threshold-copy strong {
+  margin-top: 7px;
+
+  color: white;
+
+  font-size: clamp(20px, 3vw, 30px);
+  font-weight: 950;
+
+  letter-spacing: -.025em;
+}
+
+
+/* ------------------------------------------------------------
+   SIGNAL ROOM REVEAL
+   ------------------------------------------------------------ */
+
+.threshold-room {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+
+  display: grid;
+  place-items: center;
+
+  background:
+    radial-gradient(
+      circle at 50% 27%,
+      rgba(38,84,135,.27),
+      rgba(7,10,18,.97) 48%,
+      #05070c 100%
+    );
+}
+
+.threshold-room-inner {
+  width:
+    min(
+      calc(100% - 36px),
+      620px
+    );
+
+  padding:
+    34px 30px 28px;
+
+  text-align: center;
+
+  border:
+    1px solid rgba(111,197,255,.18);
+
+  border-radius: 30px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(18,26,41,.95),
+      rgba(8,12,21,.98)
+    );
+
+  box-shadow:
+    0 28px 80px rgba(0,0,0,.52),
+    0 0 60px rgba(67,133,255,.09);
+}
+
+.room-kicker {
+  color: #78d9ff;
+
+  font-size: 10px;
+  font-weight: 950;
+
+  letter-spacing: .18em;
+}
+
+.threshold-room h2 {
+  margin:
+    10px 0 4px;
+
+  color: white;
+
+  font-size:
+    clamp(25px, 4vw, 36px);
+
+  font-weight: 950;
+
+  letter-spacing: -.035em;
+}
+
+.threshold-room p {
+  margin: 0;
+
+  color: #9baabc;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.room-avatar-row {
+  display: flex;
+
+  justify-content: center;
+
+  margin:
+    26px 0 25px;
+}
+
+.room-avatar-row img {
+  width: 54px;
+  height: 54px;
+
+  margin-left: -9px;
+
+  object-fit: cover;
+
+  border:
+    3px solid #111a29;
+
+  border-radius: 50%;
+
+  box-shadow:
+    0 0 0 1px rgba(108,199,255,.25);
+}
+
+.room-avatar-row img:first-child {
+  margin-left: 0;
+}
+
+.room-next {
+  position: relative;
+
+  display: flex;
+
+  align-items: center;
+
+  padding:
+    17px 18px;
+
+  text-align: left;
+
+  border:
+    1px solid rgba(91,188,255,.22);
+
+  border-radius: 18px;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(36,113,169,.20),
+      rgba(72,75,175,.15)
+    );
+
+  box-shadow:
+    inset 0 0 22px rgba(62,157,255,.04);
+}
+
+.room-next small {
+  color: #69d4ff;
+
+  font-size: 8px;
+  font-weight: 950;
+
+  letter-spacing: .18em;
+}
+
+.room-next strong {
+  margin-left: 13px;
+
+  color: white;
+
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.room-next span {
+  margin-left: auto;
+
+  color: #a8e8ff;
+
+  font-size: 24px;
+}
+
+.threshold-back {
+  margin-top: 20px;
+
+  color: #738196;
+
+  border: 0;
+
+  background: transparent;
+
+  font-size: 9px;
+  font-weight: 800;
+
+  letter-spacing: .08em;
+
+  cursor: pointer;
+}
+

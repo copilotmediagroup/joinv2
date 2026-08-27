@@ -192,6 +192,7 @@ function App() {
   const [suggestionIndex, setSuggestionIndex] = useState(0)
   const [accepted, setAccepted] = useState(false)
   const [formationCount, setFormationCount] = useState(0)
+  const [signalThreshold, setSignalThreshold] = useState(false)
 
   const suggestion = boredSuggestions[suggestionIndex]
 
@@ -551,6 +552,7 @@ function App() {
         className={boredStatus === 'locked' ? 'bored active locked' : bored ? 'bored active' : 'bored'}
         onClick={() => {
           if (boredStatus === 'locked') {
+            setSignalThreshold(true)
             return
           }
 
@@ -597,6 +599,145 @@ function App() {
 
         <ChevronRight size={20} />
       </motion.button>
+
+
+      <AnimatePresence>
+        {signalThreshold && (
+          <motion.div
+            className="signal-threshold"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="threshold-vignette" />
+
+            <motion.div
+              className="threshold-lock"
+              initial={{ opacity: 0, scale: 0.72 }}
+              animate={{
+                opacity: [0, 1, 1, 0],
+                scale: [0.72, 1.08, 1, 1.8],
+              }}
+              transition={{
+                duration: 0.9,
+                times: [0, 0.28, 0.65, 1],
+              }}
+            >
+              <span>🔒</span>
+            </motion.div>
+
+            <div className="threshold-tunnel">
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+              <i />
+            </div>
+
+            <motion.div
+              className="threshold-frequency"
+              initial={{ scaleX: 0, opacity: 0 }}
+              animate={{
+                scaleX: [0, 1, 1, 0.18, 1],
+                opacity: [0, 1, 1, 1, 1],
+              }}
+              transition={{
+                duration: 1.65,
+                times: [0, 0.18, 0.55, 0.72, 1],
+              }}
+            >
+              <span />
+            </motion.div>
+
+            <div className="threshold-people">
+              {['8', '13', '15', '17', '22', '28'].map((id, index) => (
+                <motion.img
+                  key={id}
+                  src={avatarUrl(id)}
+                  alt=""
+                  initial={{
+                    opacity: 0,
+                    scale: 0.3,
+                    y: 35,
+                  }}
+                  animate={{
+                    opacity: [0, 1, 1, 0],
+                    scale: [0.3, 1, 0.82, 0.25],
+                    y: [35, 0, -5, -20],
+                  }}
+                  transition={{
+                    duration: 1.25,
+                    delay: 0.35 + index * 0.07,
+                  }}
+                />
+              ))}
+            </div>
+
+            <motion.div
+              className="threshold-copy"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{
+                opacity: [0, 0, 1, 1],
+                y: [14, 14, 0, 0],
+              }}
+              transition={{
+                duration: 1.45,
+                times: [0, 0.48, 0.7, 1],
+              }}
+            >
+              <span>YOUR SIGNAL IS LIVE</span>
+              <strong>6 PEOPLE · ONE PLAN</strong>
+            </motion.div>
+
+            <motion.div
+              className="threshold-room"
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{
+                opacity: [0, 0, 1],
+                scale: [0.94, 0.94, 1],
+              }}
+              transition={{
+                duration: 2.05,
+                times: [0, 0.78, 1],
+              }}
+            >
+              <div className="threshold-room-inner">
+                <span className="room-kicker">
+                  ⚡ SIGNAL LIVE
+                </span>
+
+                <h2>🏀 PICKUP BASKETBALL</h2>
+
+                <p>6 aligned · 92% group fit</p>
+
+                <div className="room-avatar-row">
+                  {['8', '13', '15', '17', '22', '28'].map((id) => (
+                    <img
+                      key={id}
+                      src={avatarUrl(id)}
+                      alt=""
+                    />
+                  ))}
+                </div>
+
+                <div className="room-next">
+                  <small>NEXT</small>
+                  <strong>PICK THE PLACE</strong>
+                  <span>→</span>
+                </div>
+
+                <button
+                  className="threshold-back"
+                  onClick={() => setSignalThreshold(false)}
+                >
+                  BACK TO SIGNAL
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <nav className="bottom-nav">
         <button className="nav-item active">
