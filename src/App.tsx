@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Bell,
@@ -191,8 +191,41 @@ function App() {
   const [bored, setBored] = useState(false)
   const [suggestionIndex, setSuggestionIndex] = useState(0)
   const [accepted, setAccepted] = useState(false)
+  const [formationCount, setFormationCount] = useState(0)
 
   const suggestion = boredSuggestions[suggestionIndex]
+
+  useEffect(() => {
+    if (!accepted) {
+      setFormationCount(0)
+      return
+    }
+
+    setFormationCount(0)
+
+    const timers = [1, 2, 3, 4, 5, 6].map((count) =>
+      window.setTimeout(() => {
+        setFormationCount(count)
+      }, count * 1400)
+    )
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer))
+    }
+  }, [accepted, suggestionIndex])
+
+  const formationMessage =
+    formationCount === 0
+      ? 'Scanning nearby Signals...'
+      : formationCount <= 2
+        ? 'Finding your people...'
+        : formationCount === 3
+          ? 'Momentum building...'
+          : formationCount === 4
+            ? "Something's forming..."
+            : formationCount === 5
+              ? 'Almost there...'
+              : 'SIGNAL FORMED'
 
   const nextSuggestion = () => {
     setAccepted(false)
@@ -201,9 +234,10 @@ function App() {
 
   const boredStatus = useMemo(() => {
     if (!bored) return 'idle'
+    if (accepted && formationCount >= 6) return 'locked'
     if (accepted) return 'forming'
     return 'searching'
-  }, [bored, accepted])
+  }, [bored, accepted, formationCount])
 
   return (
     <main className="app">
@@ -372,9 +406,9 @@ function App() {
                       </p>
 
                       <div className="forming-people arrival-list">
-                        {suggestion.avatars.map((id, index) => (
+                        {suggestion.avatars.slice(0, Math.min(formationCount, 4)).map((id, index) => (
                           <motion.div
-                            className="arrival-person"
+                            className="arrival-person pulse-connected"
                             key={id}
                             initial={{ opacity: 0, x: -16, scale: 0.92 }}
                             animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -383,7 +417,10 @@ function App() {
                               duration: 0.32,
                             }}
                           >
-                            <img src={avatarUrl(id)} alt="" />
+                            <div className="arrival-avatar-wrap">
+                              <span className="arrival-lock-pulse" />
+                              <img src={avatarUrl(id)} alt="" />
+                            </div>
 
                             <span>
                               <strong>
@@ -404,25 +441,103 @@ function App() {
                         ))}
                       </div>
 
-                      <div className="formation-count">
-                        <strong>4 / 6</strong>
-                        <span>compatible people forming</span>
+                      <AnimatePresence>
+                        {formationCount >= 5 && (
+                          <motion.div
+                            className="aligned-overflow"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.32 }}
+                          >
+                            <div className="aligned-overflow-avatars">
+                              <motion.span
+                                className="aligned-avatar"
+                                initial={{ opacity: 0, scale: 0.72 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{
+                                  type: 'spring',
+                                  stiffness: 220,
+                                  damping: 16,
+                                }}
+                              >
+                                <img src={avatarUrl('52')} alt="Andre" />
+                              </motion.span>
+
+                              {formationCount >= 6 && (
+                                <motion.span
+                                  className="aligned-avatar"
+                                  initial={{ opacity: 0, scale: 0.72, x: -8 }}
+                                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                                  transition={{
+                                    type: 'spring',
+                                    stiffness: 220,
+                                    damping: 16,
+                                  }}
+                                >
+                                  <img src={avatarUrl('33')} alt="Alexis" />
+                                </motion.span>
+                              )}
+                            </div>
+
+                            <span className="aligned-overflow-copy">
+                              <strong>
+                                +{formationCount >= 6 ? 2 : 1} ALIGNED
+                              </strong>
+                              <small>
+                                {formationCount >= 6
+                                  ? 'Andre + Alexis joined the Signal'
+                                  : 'Andre joined the Signal'}
+                              </small>
+                            </span>
+
+                            <span className="aligned-overflow-more">
+                              {formationCount >= 6 ? '6 PEOPLE' : '5 PEOPLE'}
+                            </span>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <div className="formation-payoff">
+                        <div className="formation-count">
+                          <strong>{formationCount} / 6</strong>
+                          <span>{formationMessage}</span>
+                        </div>
+
+                        <div className="formation-track">
+                          <motion.div
+                            initial={{ width: '0%' }}
+                            animate={{ width: `${(formationCount / 6) * 100}%` }}
+                            transition={{ duration: 0.55, ease: 'easeOut' }}
+                          />
+                        </div>
+
+                        <AnimatePresence>
+                          {formationCount === 6 && (
+                            <motion.div
+                              className="signal-formed signal-formed-final"
+                              initial={{ opacity: 0, y: 7, scale: 0.97 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              transition={{
+                                type: 'spring',
+                                stiffness: 190,
+                                damping: 17,
+                              }}
+                            >
+                              <span className="formed-bolt">
+                                <Zap size={22} fill="currentColor" />
+                              </span>
+
+                              <div>
+                                <strong>6 / 6 · SIGNAL FORMED</strong>
+                                <small>
+                                  6 people aligned · 92% group fit
+                                </small>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
 
-                      <div className="formation-track">
-                        <motion.div
-                          initial={{ width: '18%' }}
-                          animate={{ width: '67%' }}
-                          transition={{ duration: 1.1 }}
-                        />
-                      </div>
-
-                      <button
-                        className="keep-searching"
-                        onClick={nextSuggestion}
-                      >
-                        Not this one
-                      </button>
                     </div>
                   )}
                 </div>
@@ -433,15 +548,19 @@ function App() {
       </AnimatePresence>
 
       <motion.button
-        className={bored ? 'bored active' : 'bored'}
+        className={boredStatus === 'locked' ? 'bored active locked' : bored ? 'bored active' : 'bored'}
         onClick={() => {
+          if (boredStatus === 'locked') {
+            return
+          }
+
           setBored((value) => !value)
           setAccepted(false)
         }}
         whileHover={{ y: -3 }}
         whileTap={{ scale: 0.99 }}
       >
-        <div className={boredStatus === 'idle' ? 'frequency-wave' : 'frequency-wave active'}>
+        <div className={boredStatus === 'locked' ? 'frequency-wave active locked' : boredStatus === 'idle' ? 'frequency-wave' : 'frequency-wave active'}>
           {Array.from({ length: 44 }).map((_, i) => (
             <i
               key={i}
@@ -456,19 +575,23 @@ function App() {
 
         <span className="bored-copy">
           <strong>
-            {boredStatus === 'forming'
-              ? 'SIGNAL IS FORMING...'
-              : boredStatus === 'searching'
-                ? 'SIGNAL IS SEARCHING...'
-                : "I'M BORED"}
+            {boredStatus === 'locked'
+              ? 'SIGNAL LOCKED'
+              : boredStatus === 'forming'
+                ? 'SIGNAL IS FORMING...'
+                : boredStatus === 'searching'
+                  ? 'SIGNAL IS SEARCHING...'
+                  : "I'M BORED"}
           </strong>
 
           <small>
-            {bored
-              ? accepted
-                ? 'Compatible people are coming together.'
-                : 'React to whatever feels right.'
-              : "Don't make me choose."}
+            {boredStatus === 'locked'
+              ? '6 people aligned · VIEW SIGNAL'
+              : bored
+                ? accepted
+                  ? 'Compatible people are coming together.'
+                  : 'React to whatever feels right.'
+                : "Don't make me choose."}
           </small>
         </span>
 
