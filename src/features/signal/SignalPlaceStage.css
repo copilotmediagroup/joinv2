@@ -1233,3 +1233,1013 @@
   }
 }
 
+
+.signal-venue-image-placeholder {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255,255,255,0.06), transparent 45%),
+    linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+}
+
+/* =========================================================
+   G4.11A-R2C — VENUE WINNER REVEAL
+   ========================================================= */
+
+.signal-venue-card {
+  transition:
+    opacity 320ms ease,
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 320ms ease;
+}
+
+.signal-venue-card-loser {
+  opacity: 0;
+  transform: scale(0.88);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.signal-venue-card-winner {
+  position: relative;
+  z-index: 5;
+  transform: scale(1.06);
+  opacity: 1;
+}
+
+/* ============================================================
+   G4.11A-R4-2A — VENUE COUNTDOWN
+   ============================================================ */
+
+.signal-place-countdown {
+  margin: 6px 0 0;
+  color: #ffffff !important;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.signal-place-countdown-locked {
+  letter-spacing: .11em;
+}
+
+
+/* ============================================================
+   G4.11A-R4-3B-1 — WINNER MOVEMENT ONLY
+   ============================================================ */
+
+.signal-place-stage:has(.signal-place-grid-locked) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 24px;
+  align-items: start;
+}
+
+.signal-place-stage:has(.signal-place-grid-locked)
+.signal-place-title-row {
+  grid-column: 1 / -1;
+}
+
+.signal-place-stage:has(.signal-place-gri.signaed)
+.signal-place-grid {
+  grid-column: 1;
+  display: block;
+  position: relative;
+  min-width: 0;
+}
+
+.signal-place-stage:has(.signal-place-grid-locked)
+.signal-venue-result {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.signal-place-stage:has(.signal-place-grid-locked)
+.signal-place-footer {
+  grid-column: 1 / -1;
+}
+
+/* Losing cards leave the composition. */
+
+.signal-place-grid-locked .signal-venue-card-loser {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(10px) scale(.96);
+  filter: blur(3px);
+  pointer-events: none;
+
+  transition:
+    opacity .42s ease,
+    transform .55s cubic-bezier(.16, 1, .3, 1),
+    filter .42s ease;
+}
+
+/* Winning card owns the left result slot. */
+
+.signal-place-grid-locked .signal-venue-card-winner {
+  position: relative;
+  width: 100%;
+  z-index: 10;
+  opacity: 1;
+  pointer-events: none;
+
+  animation-duration: .85s;
+  animation-timing-function: cubic-bezier(.16, 1, .3, 1);
+  animation-fill-mode: both;
+}
+
+/* Winner began on left. */
+
+.signal-place-grid-locked
+.signal-venue-position-1.signal-venue-card-winner {
+  animation-name: signalWinnerSettleLeft;
+}
+
+/* Winner began in middle. */
+
+.signal-place-grid-locked
+.signal-venue-position-2.signal-venue-card-winner {
+  animation-name: signalWinnerTravelFromCenter;
+}
+
+/* Winner began on right. */
+
+.signal-place-grid-locked
+.signal-venue-position-3.signal-venue-card-winner {
+  animation-name: signalWinnerTravelFromRight;
+}
+
+@keyframes signalWinnerSettleLeft {
+  from {
+    opacity: .92;
+    transform: scale(.975);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes signalWinnerTravelFromCenter {
+  from {
+    opacity: .92;
+    transform: translateX(104%) scale(.975);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes signalWinnerTravelFromRight {
+  from {
+    opacity: .92;
+    transform: translateX(208%) scale(.975);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (max-width: 719px) {
+  .signal-place-stage:has(.signal-place-grid-locked) {
+    display: block;
+  }
+
+  .signal-place-stage:has(.signal-place-grid-locked)
+  .signal-venue-result {
+    margin-top: 16px;
+  }
+}
+
+
+/* ============================================================
+   G4.11A-R6-2 — CINEMATIC VENUE RESULT
+   Winner card + SIGNAL Live Rail
+   ============================================================ */
+
+.signal-venue-result-stage {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.08fr)
+    minmax(0, .92fr);
+
+  gap: 24px;
+  align-items: stretch;
+
+  width: 100%;
+  margin-top: 18px;
+
+  opacity: 0;
+  transform: translateY(18px) scale(.992);
+
+  animation:
+    signalVenueResultEnter
+    .58s
+    cubic-bezier(.16, 1, .3, 1)
+    forwards;
+}
+
+
+/* ------------------------------------------------------------
+   WINNING VENUE — LEFT
+   --------------------------------------------------------   -------signal-venue-result-winner {
+  position: relative;
+  overflow: hidden;
+
+  min-width: 0;
+
+  border:
+    1px solid rgba(76, 194, 255, .34);
+
+  border-radius: 22px;
+
+  background:
+    linear-gradient(
+      155deg,
+      rgba(14, 27, 42, .98),
+      rgba(6, 13, 22, .99)
+    );
+
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, .30),
+    0 0 28px rgba(44, 174, 255, .10);
+
+  isolation: isolate;
+}
+
+
+/* Full moving electric perimeter */
+
+.signal-venue-result-winner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+
+  padding: 2px;
+
+  border-radius: inherit;
+
+  background:
+    conic-gradient(
+      from var(--signal-border-angle, 0deg),
+      transparent 0deg,
+      transparent 300deg,
+      rgba(71, 198, 255, .18) 316deg,
+      rgba(193, 247, 255, .98) 337deg,
+      rgba(57, 190, 255, .98) 350deg,
+      transparent 360deg
+    );
+
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+
+  pointer-events: none;
+
+  animation:
+    signalBorderTravel
+    2.15s
+    linear
+    infinite;
+
+  filter:
+    drop-shadow(
+      0 0 5px rgba(103, 225, 255, .82)
+    )
+    drop-shadow(
+      0 0 12px rgba(38, 139, 255, .35)
+    );
+}
+
+
+/* Extra breathing glow beneath perimeter */
+
+.signal-venue-result-energy {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+
+  pointer-events: none;
+
+  box-shadow:
+    inset 0 0 34px rgba(39, 161, 255, .055),
+    0 0 42px rgba(30, 139, 255, .08);
+}
+
+
+/* ------------------------------------------------------------
+   GOOGLE VENUE IMAGE
+   ------------------------------------------------------------ */
+
+.signal-venue-result-image {
+  position: relative;
+  height: 292px;
+  overflow: hidden;
+
+  background:
+    rgba(12, 22, 33, .94);
+}
+
+.signal-venue-result-image > img {
+  width: 100%;
+  height: 100%;
+
+  display: block;
+  object-fit: cover;
+
+  transform: scale(1.015);
+
+  animation:
+    signalVenueImageSettle
+    1.1s
+    cubic-bezier(.16, 1, .3, 1)
+    forwards;
+}
+
+.signal-venue-result-image
+.signal-venue-image-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+.signal-venue-result-image
+.signal-venue-image-shade {
+  position: absolute;
+  inset: 0;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(3, 8, 14, .05) 15%,
+      rgba(3, 8, 14, .16) 58%,
+      rgba(3, 8, 14, .76) 100%
+    );
+}
+
+
+/* ------------------------------------------------------------
+   LOCKED BADGE
+   ------------------------------------------------------------ */
+
+.signal-venue-result-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 4;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 7px 10px;
+
+  border:
+    1px solid rgba(108, 220, 255, .34);
+
+  border-radius: 999px;
+
+  background:
+    rgba(4, 13, 22, .74);
+
+  backdrop-filter: blur(12px);
+
+  color: #93e8ff;
+
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .11em;
+
+  box-shadow:
+    0 0 18px rgba(75, 205, 255, .10);
+}
+
+
+/* ------------------------------------------------------------
+   WINNER BODY
+   ------------------------------------------------------------ */
+
+.signal-venue-result-winner-body {
+  position: relative;
+  z-index: 2;
+
+  padding: 19px 20px 21px;
+}
+
+.signal-venue-result-winner-body h3 {
+  margin: 0;
+
+  color: #fff;
+
+  font-size: 21px;
+  line-height: 1.18;
+  font-weight: 820;
+  letter-spacing: -.025em;
+}
+
+.signal-venue-result-winner-body
+.signal-venue-address {
+  margin-top: 8px;
+
+  color:
+    rgba(220, 233, 244, .66);
+}
+
+.signal-venue-result-winner-body
+.signal-venue-address span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.signal-venue-result-winner-body
+.signal-venue-meta {
+  margin-top: 15px;
+
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+
+  gap: 9px;
+
+  color:
+    rgba(225, 238, 248, .73);
+
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.signal-venue-result-winner-body
+.signal-venue-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.signal-venue-result-winner-body
+.signal-venue-meta > span:first-child {
+  color: #ffd478;
+}
+
+.signal-venue-result-winner-body
+.signal-venue-meta i {
+  width: 3px;
+  height: 3px;
+
+  border-radius: 50%;
+
+  background:
+    rgba(122, 211, 247, .42);
+}
+
+
+/* ------------------------------------------------------------
+   LIVE RAIL — RIGHT
+   Keep approved rail language; only establish its container.
+   ------------------------------------------------------------ */
+
+.signal-venue-result-rail {
+  min-width: 0;
+
+  display: flex;
+}
+
+.signal-venue-result-rail
+.signal-venue-result {
+  width: 100%;
+  margin: 0;
+
+  box-sizing: border-box;
+}
+
+
+/*
+ * The Live Rail primitives already come from the approved
+ * formation system. These rules only make the result wrapper
+ * respect their existing visual treatment.
+ */
+
+.signal-venue-result-rail
+.signal-live-rail {
+  width: 100%;
+}
+
+.signal-venue-result-rail
+.signal-live-rail-person {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+
+/* ------------------------------------------------------------
+   CINEMATIC ENTRANCE
+   ------------------------------------------------------------ */
+
+@keyframes signalVenueResultEnter {
+  from {
+    opacity: 0;
+    transform:
+      translateY(18px)
+      scale(.992);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+}
+
+@keyframes signalVenueImageSettle {
+  from {
+    transform: scale(1.035);
+    filter: brightness(.88);
+  }
+
+  to {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+
+/* ------------------------------------------------------------
+   SMALL SCREENS
+   ------------------------------------------------------------ */
+
+@media (max-width: 900px) {
+
+  .signal-venue-result-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .signal-venue-result-image {
+    height: 270px;
+  }
+}
+
+
+/* ------------------------------------------------------------
+   MOTION ACCESSIBILITY
+   ------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .signal-venue-result-stage,
+  .signal-venue-result-image > img {
+    animation-duration: .01ms;
+  }
+
+  .signal-venue-result-winner::before {
+    animation-duration: .01ms;
+  }
+}
+
+
+/* ============================================================
+   G4.11A-R6-3A-R3 — SIGNAL LIVE RAIL +N
+   ============================================================ */
+
+.signal-live-rail-overflow {
+  display: inline-flex;
+  align-items: center;
+
+  min-height: 36px;
+  margin-top: 8px;
+  padding: 5px 10px 5px 7px;
+
+  border:
+    1px solid rgba(88, 203, 255, .15);
+
+  border-radius: 999px;
+
+  background:
+    rgba(8, 20, 31, .58);
+
+  box-shadow:
+    inset 0 0 14px rgba(55, 181, 255, .025);
+}
+
+.signal-live-rail-overflow-avatars {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.signal-live-rail-overflow-avatar {
+  width: 27px;
+  height: 27px;
+
+  margin-left: -7px;
+
+  overflow: hidden;
+
+  border:
+    2px solid rgba(7, 18, 29, .98);
+
+  border-radius: 50%;
+
+  background:
+    rgba(14, 28, 40, 1);
+
+  box-shadow:
+    0 0 0 1px rgba(84, 210, 255, .22),
+    0 0 9px rgba(52, 178, 255, .11);
+}
+
+.signal-live-rail-overflow-avatar:first-child {
+  margin-left: 0;
+}
+
+.signal-live-rail-overflow-avatar img {
+  width: 100%;
+  height: 100%;
+
+  display: block;
+  object-fit: cover;
+}
+
+.signal-live-rail-overflow > strong {
+  color: #fff;
+
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .01em;
+}
+
+
+/* ============================================================
+   G4.11A-R6-3B-2
+   SIGNAL VENUE LOCK CINEMATIC
+
+   Voting does NOT simply disappear.
+
+   Sequence:
+   1. Voting freezes.
+   2. Whole field receives an electric surge.
+   3. Winner holds visual authority.
+   4. Losing choices fall away.
+   5. Stage collapses into darkness.
+   6. Existing winner reveal takes over.
+
+   DO NOT use this block to redesign the result screen.
+   ============================================================ */
+
+.signal-place-grid-locking {
+  position: relative;
+  pointer-events: none;
+  isolation: isolate;
+  animation:
+    signal-lock-field 1.5s
+    cubic-bezier(.22, .82, .22, 1)
+    both;
+}
+
+/* Electric atmosphere over entire decision field */
+.signal-place-grid-lock.signalfore {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  z-index: 20;
+  pointer-events: none;
+  border-radius: 28px;
+  opacity: 0;
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(105, 225, 255, .20),
+      rgba(46, 162, 255, .08) 34%,
+      transparent 68%
+    );
+  box-shadow:
+    0 0 34px rgba(64, 190, 255, .10),
+    inset 0 0 30px rgba(86, 213, 255, .06);
+  animation:
+    signal-lock-electric-field 1.5s
+    ease-out
+    both;
+}
+
+/* Fast electric scan across the choices */
+.signal-place-grid-locking::after {
+  content: "";
+  position: absolute;
+  z-index: 21;
+  pointer-events: none;
+  top: -8%;
+  bottom: -8%;
+  width: 26%;
+  left: -30%;
+  opacity: 0;
+  transform: skewX(-14deg);
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(110, 224, 255, .04),
+      rgba(177, 241, 255, .44),
+      rgba(74, 195, 255, .10),
+      transparent
+    );
+  filter: blur(2px);
+  animation:
+    signal-lock-scan 1.05s
+    cubic-bezier(.2, .7, .2, 1)
+    both;
+}
+
+/* Every card freezes first */
+.signal-place-grid-locking
+.signal-venue-card {
+  pointer-events: none;
+  transform-origin: center;
+  animation:
+    signal-lock-card-exit 1.5s
+    cubic-bezier(.22, .75, .22, 1)
+    both;
+}
+
+/*
+   Leading choice gets a slightly stronger final hold.
+   This creates the "we have a winner" beat before removal.
+*/
+.signal-place-grid-locking
+.signal-venue-leading {
+  z-index: 10;
+  animation:
+    signal-lock-leading-card 1.5s
+    cubic-bezier(.22, .75, .22, 1)
+    both;
+}
+
+/* Existing selected pulse gets one last surge */
+.signal-place-grid-locking
+.signal-vote-pulse {
+  animation:
+    signal-lock-final-pulse .92s
+    ease-out
+    both;
+}
+
+/* Freeze interactive affordances */
+.signal-place-grid-locking
+.signal-venue-cast,
+.signal-place-grid-locking
+.signal-venue-check {
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------
+   CHOREOGRAPHY
+   ------------------------------------------------------------ */
+
+@keyframes signal-lock-field {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
+  }
+
+  12% {
+    transform: scale(1.008);
+    filter: brightness(1.12);
+  }
+
+  28% {
+    transform: scale(1);
+    filter: brightness(1.04);
+  }
+
+  62% {
+    opacity: 1;
+    transform: scale(.992);
+    filter: brightness(.88);
+  }
+
+  82% {
+    opacity: .52;
+    transform: scale(.982);
+    filter: brightness(.60) blur(.4px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(.965);
+    filter: brightness(.35) blur(2px);
+  }
+}
+
+@keyframes signal-lock-electric-field {
+  0% {
+    opacity: 0;
+    transform: scale(.96);
+  }
+
+  12% {
+    opacity: .9;
+    transform: scale(1.01);
+  }
+
+  27% {
+    opacity: .38;
+  }
+
+  48% {
+    opacity: .62;
+    transform: scale(1);
+  }
+
+  72% {
+    opacity: .18;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(.97);
+  }
+}
+
+@keyframes signal-lock-scan {
+  0% {
+    left: -30%;
+    opacity: 0;
+  }
+
+  12% {
+    opacity: .85;
+  }
+
+  68% {
+    opacity: .55;
+  }
+
+  100% {
+    left: 108%;
+    opacity: 0;
+  }
+}
+
+@keyframes signal-lock-card-exit {
+  0% {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
+    filter:
+      brightness(1)
+      saturate(1);
+  }
+
+  18% {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(.992);
+    filter:
+      brightness(.82)
+      saturate(.78);
+  }
+
+  52% {
+    opacity: .72;
+    transform:
+      translateY(4px)
+      scale(.98);
+    filter:
+      brightness(.58)
+      saturate(.52);
+  }
+
+  78% {
+    opacity: .24;
+    transform:
+      translateY(11px)
+      scale(.955);
+    filter:
+      brightness(.36)
+      saturate(.32)
+      blur(.5px);
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translateY(18px)
+      scale(.93);
+    filter:
+      brightness(.22)
+      saturate(.20)
+      blur(2px);
+  }
+}
+
+@keyframes signal-lock-leading-card {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter:
+      brightness(1)
+      saturate(1);
+  }
+
+  13% {
+    opacity: 1;
+    transform: scale(1.025);
+    filter:
+      brightness(1.22)
+      saturate(1.12);
+  }
+
+  30% {
+    opacity: 1;
+    transform: scale(1.012);
+    filter:
+      brightness(1.10)
+      saturate(1.05);
+  }
+
+  52% {
+    opacity: 1;
+    transform: scale(1.018);
+    filter:
+      brightness(1.05)
+      saturate(1);
+  }
+
+  72% {
+    opacity: .82;
+    transform: scale(1.005);
+    filter:
+      brightness(.84)
+      saturate(.80);
+  }
+
+  88% {
+    opacity: .28;
+    transform: scale(.975);
+    filter:
+      brightness(.52)
+      blur(.5px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(.95);
+    filter:
+      brightness(.30)
+      blur(2px);
+  }
+}
+
+@keyframes signal-lock-final-pulse {
+  0% {
+    opacity: .30;
+    transform: scale(.96);
+  }
+
+  30% {
+    opacity: 1;
+    transform: scale(1.035);
+  }
+
+  68% {
+    opacity: .46;
+    transform: scale(1.075);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.13);
+  }
+}
+
+/* Respect reduced-motion without changing state timing */
+@media (prefers-reduced-motion: reduce) {
+  .signal-place-grid-locking,
+  .signal-place-grid-locking::before,
+  .signal-place-grid-locking::after,
+  .signal-place-grid-locking
+  .signal-venue-card,
+  .signal-place-grid-locking
+  .signal-venue-leading,
+  .signal-place-grid-locking
+  .signal-vote-pulse {
+    animation: none !important;
+  }
+
+  .signal-place-grid-locking {
+    opacity: .35;
+  }
+}
+

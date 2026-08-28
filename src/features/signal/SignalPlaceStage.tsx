@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { fetchSignalPlaces } from './places/googlePlacesClient'
+import type { SignalPlace as LiveSignalPlace } from './places/contract'
 import { Check, MapPin, Star, Zap } from 'lucide-react'
 import './SignalPlaceStage.css'
 
+import { motion } from 'framer-motion'
 type SignalPlace = {
   placeId: string
   name: string
@@ -13,13 +16,12 @@ type SignalPlace = {
   ratingCount: number
   category: string
   openNow: boolean
-  photoUrl: string
+  photoUrl: string | null
   baseVotes: number
   voterIds: string[]
+  signalRank?: number
+  signalScore?: number
 }
-
-const imageUrl = (photoId: string) =>
-  ['https:', '//images.unsplash.com/photo-', photoId, '?auto=format&fit=crop&w=1400&q=88'].join('')
 
 const avatarUrl = (id: string) =>
   ['https:', '//i.pravatar.cc/100?img=', id].join('')
@@ -36,7 +38,7 @@ const basePlaces: SignalPlace[] = [
     ratingCount: 842,
     category: 'Outdoor courts',
     openNow: true,
-    photoUrl: imageUrl('1546519638-68e109498ffc'),
+    photoUrl: null,
     baseVotes: 3,
     voterIds: ['8', '13', '15'],
   },
@@ -51,7 +53,7 @@ const basePlaces: SignalPlace[] = [
     ratingCount: 318,
     category: 'Outdoor courts',
     openNow: true,
-    photoUrl: imageUrl('1574629810360-7efbbe195018'),
+    photoUrl: null,
     baseVotes: 2,
     voterIds: ['17', '22'],
   },
@@ -66,7 +68,7 @@ const basePlaces: SignalPlace[] = [
     ratingCount: 214,
     category: 'Neighborhood court',
     openNow: true,
-    photoUrl: imageUrl('1519861531473-9200262188bf'),
+    photoUrl: null,
     baseVotes: 1,
     voterIds: ['28'],
   },
@@ -100,22 +102,91 @@ type SignalVenueKey = keyof typeof venueProfiles
 type SignalPlaceStageProps = {
   signalId: string
   signalLabel: string
+  onVenueLocked?: (venue: {
+    placeId: string
+    name: string
+    address: string
+  }) => void
 }
 
 export default function SignalPlaceStage({
   signalId,
   signalLabel,
+  onVenueLocked,
 }: SignalPlaceStageProps) {
   const venueKey = (
     signalId in venueProfiles ? signalId : "basketball"
   ) as SignalVenueKey
 
-  const places = basePlaces.map((place, index) => ({
+  const fallbackPlaces = basePlaces.map((place, index) => ({
     ...place,
     ...venueProfiles[venueKey][index],
     placeId: `${venueKey}-${index + 1}`,
   }))
+
+  const [livePlaces, setLivePlaces] = useState<LiveSignalPlace[]>([])
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(10)
+  const [venueLocked, setVenueLocked] = useState(false)
+  const [venueLocking, setVenueLocking] = useState(false)
+  const [lockedPlaceId, setLockedPlaceId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    fetchSignalPlaces({
+      signalId,
+      city: 'Tampa, FL',
+      latitude: 27.9506,
+      longitude: -82.4572,
+      limit: 3,
+    })
+      .then((response) => {
+        if (!cancelled) {
+          setLivePlaces(response.places)
+        }
+      })
+      .catch((error) => {
+        console.error('Signal Places live fetch failed', error)
+
+        if (!cancelled) {
+          setLivePlaces([])
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [signalId])
+
+  const places = livePlaces.length
+    ? basePlaces.map((presentation, index) => {
+        const live = livePlaces[index]
+
+        if (!live) {
+          return fallbackPlaces[index]
+        }
+
+        return {
+          ...presentation,
+          placeId: live.placeId,
+          photoUrl: live.photoUrl,
+          photoAttributions: live.photoAttributions,
+          googleMapsUri: live.googleMapsUri,
+          name: live.name,
+          address: live.address,
+          lat: live.lat,
+          lng: live.lng,
+          distanceMiles: live.distanceMiles,
+          rating: live.rating ?? presentation.rating,
+          ratingCount: live.ratingCount,
+          category: live.category,
+          openNow: live.openNow ?? presentation.openNow,
+          signalRank: live.signalRank,
+          signalScore: live.signalScore,
+        }
+      })
+    : fallbackPlaces
 
   const votes = useMemo(() => {
     const result: Record<string, number> = {}
@@ -131,6 +202,92 @@ export default function SignalPlaceStage({
 
   const maxVotes = Math.max(...Object.values(votes))
 
+  const lockedPlace =
+    lockedPlaceId === null
+      ? null
+      : places.find((place) => place.placeId === lockedPlaceId) ?? null
+
+  const lockedVoteCount =
+    lockedPlaceId === null
+      ? 0
+      : votes[lockedPlaceId] ?? 0
+
+  const totalVotes = Object.values(votes).reduce(
+    (sum, count) => sum + count,
+    0,
+  )
+
+  const lockedVotePercent =
+    totalVotes > 0
+      ? Math.round((lockedVoteCount / totalVotes) * 100)
+      : 0
+
+  const resultVoters = places.flatMap((place) =>
+    place.voterIds.map((id) => ({
+      id,
+      placeId: place.placeId,
+      placeName: place.name,
+      winner: place.placeId === lockedPlaceId,
+    })),
+  )
+
+  useEffect(() => {
+    if (venueLocked) return
+
+    if (secondsLeft <= 0) {
+      const winner = places.reduce((best, place) => {
+        const placeVotes = votes[place.placeId] ?? 0
+        const bestVotes = votes[best.placeId] ?? 0
+
+        if (placeVotes > bestVotes) {
+          return place
+        }
+
+        if (
+          placeVotes === bestVotes &&
+          (place.signalRank ?? Number.MAX_SAFE_INTEGER) <
+            (best.signalRank ?? Number.MAX_SAFE_INTEGER)
+        ) {
+          return place
+        }
+
+        return best
+      }, places[0])
+
+      if (winner) {
+        setLockedPlaceId(winner.placeId)
+        setVenueLocking(true)
+
+        const lockTimer = window.setTimeout(() => {
+          setVenueLocking(false)
+          setVenueLocked(true)
+
+          onVenueLocked?.({
+            placeId: winner.placeId,
+            name: winner.name,
+            address: winner.address,
+          })
+        }, 1500)
+
+        return () => window.clearTimeout(lockTimer)
+      }
+
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setSecondsLeft((current) => Math.max(0, current - 1))
+    }, 1000)
+
+    return () => window.clearTimeout(timer)
+  }, [
+    secondsLeft,
+    venueLocked,
+    places,
+    votes,
+    onVenueLocked,
+  ])
+
   return (
     <section className="signal-place-stage">
       <div className="signal-place-title-row">
@@ -141,7 +298,17 @@ export default function SignalPlaceStage({
           </span>
 
           <h3>PICK THE PLACE</h3>
-          <p>Where should we meet?</p>
+          <p
+            className={
+              venueLocked
+                ? 'signal-place-countdown signal-place-countdown-locked'
+                : 'signal-place-countdown'
+            }
+          >
+            {venueLocked
+              ? 'VENUE LOCKED'
+              : `CHOOSE YOUR VENUE · ${secondsLeft}s`}
+          </p>
         </div>
 
         <div className="signal-place-ranking-copy">
@@ -149,7 +316,14 @@ export default function SignalPlaceStage({
         </div>
       </div>
 
-      <div className="signal-place-grid">
+      {!venueLocked && (
+        <div
+          className={
+            venueLocking
+              ? 'signal-place-grid signal-place-grid-locking'
+              : 'signal-place-grid'
+          }
+        >
         {places.map((place, index) => {
           const selected = selectedPlaceId === place.placeId
           const leading = votes[place.placeId] === maxVotes
@@ -160,25 +334,39 @@ export default function SignalPlaceStage({
               key={place.placeId}
               className={[
                 'signal-venue-card',
+                `signal-venue-position-${index + 1}`,
                 index === 0 ? 'signal-venue-featured' : '',
                 leading ? 'signal-venue-leading' : '',
                 selected ? 'signal-venue-selected' : '',
+                venueLocked && place.placeId === lockedPlaceId
+                  ? 'signal-venue-card-winner'
+                  : '',
+                venueLocked && place.placeId !== lockedPlaceId
+                  ? 'signal-venue-card-loser'
+                  : '',
               ]
                 .filter(Boolean)
                 .join(' ')}
-              onClick={() =>
+              disabled={venueLocked || venueLocking}
+              onClick={() => {
+                if (venueLocked || venueLocking) return
+
                 setSelectedPlaceId((current) =>
                   current === place.placeId ? null : place.placeId
                 )
-              }
+              }}
             >
               <div className="signal-venue-energy" />
 
               <div className="signal-venue-image-wrap">
-                <img src={place.photoUrl} alt="" />
+                {place.photoUrl ? (
+                  <img src={place.photoUrl} alt="" />
+                ) : (
+                  <div className="signal-venue-image-placeholder" />
+                )}
 
                 <span className="signal-venue-rank">
-                  {index === 0 ? 'BEST FIT' : `OPTION ${index + 1}`}
+                  {place.signalRank === 1 ? 'BEST FIT' : `OPTION ${place.signalRank ?? index + 1}`}
                 </span>
 
                 {selected && (
@@ -199,6 +387,12 @@ export default function SignalPlaceStage({
                 </div>
 
                 <div className="signal-venue-facts">
+                  {typeof place.signalScore === 'number' && (
+                    <>
+                      <span>{place.signalScore.toFixed(0)} SIGNAL</span>
+                      <i />
+                    </>
+                  )}
                   <span>{place.distanceMiles.toFixed(1)} mi avg</span>
                   <i />
                   <span>{place.category}</span>
@@ -244,7 +438,178 @@ export default function SignalPlaceStage({
             </button>
           )
         })}
-      </div>
+        </div>
+      )}
+
+      {venueLocked && lockedPlace && (
+        <div className="signal-venue-result-stage">
+          <div className="signal-venue-result-winner">
+            <div className="signal-venue-result-energy" />
+
+            <div className="signal-venue-result-image">
+              {lockedPlace.photoUrl ? (
+                <img
+                  src={lockedPlace.photoUrl}
+                  alt=""
+                />
+              ) : (
+                <div className="signal-venue-image-placeholder" />
+              )}
+
+              <div className="signal-venue-image-shade" />
+
+              <span className="signal-venue-result-badge">
+                <Zap
+                  size={13}
+                  fill="currentColor"
+                />
+                VENUE LOCKED
+              </span>
+            </div>
+
+            <div className="signal-venue-result-winner-body">
+              <h3>{lockedPlace.name}</h3>
+
+              <div className="signal-venue-address">
+                <MapPin size={13} />
+                <span>{lockedPlace.address}</span>
+              </div>
+
+              <div className="signal-venue-meta">
+                <span>
+                  <Star
+                    size={13}
+                    fill="currentColor"
+                  />
+                  {lockedPlace.rating.toFixed(1)}
+                </span>
+
+                <i />
+
+                <span>
+                  {lockedPlace.distanceMiles.toFixed(1)} mi
+                </span>
+
+                <i />
+
+                <span>
+                  {lockedPlace.openNow
+                    ? 'Open now'
+                    : 'Closed'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="signal-venue-result-rail">
+        <aside className="signal-venue-result">
+          <div className="signal-venue-result-kicker">
+            ⚡ GROUP CHOICE
+          </div>
+
+          <h3>{lockedPlace.name}</h3>
+
+          <div className="signal-venue-result-summary">
+            <strong>{lockedVoteCount}</strong>
+            <span>
+              {lockedVoteCount === 1 ? 'VOTE' : 'VOTES'}
+            </span>
+            <i />
+            <strong>{lockedVotePercent}%</strong>
+          </div>
+
+          <div className="forming-people arrival-list signal-live-rail">
+            {resultVoters.slice(0, 4).map((voter, index) => (
+              <motion.div
+                className="arrival-person pulse-connected signal-live-rail-person"
+                key={voter.id}
+                initial={{
+                  opacity: 0,
+                  x: -16,
+                  scale: 0.92,
+                }}
+                animate={{
+                  opacity: 1,
+                  x: 0,
+                  scale: 1,
+                }}
+                transition={{
+                  delay: index * 0.42,
+                  duration: 0.32,
+                }}
+              >
+                <div className="arrival-avatar-wrap">
+                  <span className="arrival-lock-pulse" />
+                  <img
+                    src={avatarUrl(voter.id)}
+                    alt=""
+                  />
+                </div>
+
+                <span className="signal-live-rail-copy">
+                  <strong>
+                    {voter.winner
+                      ? 'VOTED FOR THE WINNER'
+                      : 'VOTED'}
+                  </strong>
+
+                  <small>
+                    {voter.placeName}
+                  </small>
+                </span>
+
+                <em>
+                  {voter.winner
+                    ? '✓ WINNER'
+                    : 'VOTED'}
+                </em>
+              </motion.div>
+            ))}
+
+            {resultVoters.length > 4 && (
+              <motion.div
+                className="signal-live-rail-overflow"
+                initial={{
+                  opacity: 0,
+                  y: 10,
+                  scale: 0.96,
+                }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
+                }}
+                transition={{
+                  delay: 1.72,
+                  duration: 0.32,
+                }}
+              >
+                <div className="signal-live-rail-overflow-avatars">
+                  {resultVoters
+                    .slice(4, 7)
+                    .map((voter) => (
+                      <span
+                        className="signal-live-rail-overflow-avatar"
+                        key={voter.id}
+                      >
+                        <img
+                          src={avatarUrl(voter.id)}
+                          alt=""
+                        />
+                      </span>
+                    ))}
+                </div>
+
+                <strong>
+                  +{resultVoters.length - 4}
+                </strong>
+              </motion.div>
+            )}
+          </div>
+        </aside>
+          </div>
+        </div>
+      )}
 
       <div className="signal-place-footer">
         <div>
