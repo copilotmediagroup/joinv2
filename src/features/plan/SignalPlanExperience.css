@@ -1,0 +1,461 @@
+.signal-post-shell {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+}
+
+.signal-post-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 18px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 18px;
+  background: rgba(11,13,17,.88);
+  backdrop-filter: blur(18px);
+}
+
+.signal-post-header > div:nth-child(2) {
+  display: grid;
+  text-align: center;
+  gap: 3px;
+}
+
+.signal-post-header > div:nth-child(2) span {
+  color: #ffb02e;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .15em;
+}
+
+.signal-post-header > div:nth-child(2) strong {
+  font-size: 14px;
+}
+
+.signal-post-back {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,.68);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  cursor: pointer;
+}
+
+.signal-post-live {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  color: #ffd98c;
+}
+
+.signal-post-live > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #ffb02e;
+  box-shadow: 0 0 14px #ffb02e;
+}
+
+.signal-plan-hero {
+  position: relative;
+  min-height: 270px;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,.1);
+}
+
+.signal-plan-hero > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.signal-plan-hero-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(5,6,8,.08),
+      rgba(5,6,8,.92)
+    );
+}
+
+.signal-plan-hero-copy {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 22px;
+}
+
+.signal-plan-hero-copy > span {
+  color: #ffb02e;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .14em;
+}
+
+.signal-plan-hero-copy h2 {
+  margin: 7px 0 4px;
+  font-size: clamp(27px, 4vw, 40px);
+  line-height: 1;
+}
+
+.signal-plan-hero-copy p {
+  margin: 0;
+  color: rgba(255,255,255,.67);
+  font-size: 13px;
+}
+
+.signal-plan-facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.signal-plan-facts > div {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 72px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.035);
+}
+
+.signal-plan-facts svg {
+  color: #ffb02e;
+}
+
+.signal-plan-facts span {
+  display: grid;
+  gap: 3px;
+}
+
+.signal-plan-facts small {
+  color: rgba(255,255,255,.43);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.signal-plan-facts strong {
+  font-size: 12px;
+}
+
+.signal-plan-rail {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255,176,46,.17);
+  border-radius: 20px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255,176,46,.055),
+      rgba(255,255,255,.025)
+    );
+}
+
+.signal-plan-rail::before {
+  content: "";
+  position: absolute;
+  left: 39px;
+  top: 67px;
+  bottom: 52px;
+  width: 1px;
+  background:
+    linear-gradient(
+      #ffb02e,
+      rgba(255,176,46,.08)
+    );
+  box-shadow: 0 0 12px rgba(255,176,46,.6);
+}
+
+.signal-plan-rail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.signal-plan-rail-heading span {
+  color: #ffb02e;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .13em;
+}
+
+.signal-plan-rail-heading strong {
+  font-size: 10px;
+  letter-spacing: .13em;
+  color: rgba(255,255,255,.48);
+}
+
+.signal-plan-person {
+  position: relative;
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 8px 13px 8px 8px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 14px;
+  background: rgba(9,11,14,.8);
+  animation:
+    signalPlanRailIn .34s both;
+  animation-delay:
+    calc(var(--rail-index) * 80ms);
+}
+
+.signal-plan-person img {
+  position: relative;
+  z-index: 1;
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid rgba(255,176,46,.6);
+}
+
+.signal-plan-person > div {
+  display: grid;
+  gap: 2px;
+}
+
+.signal-plan-person strong {
+  font-size: 12px;
+}
+
+.signal-plan-person span {
+  color: rgba(255,255,255,.45);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .12em;
+}
+
+.signal-plan-person svg {
+  color: #ffb02e;
+}
+
+.signal-plan-overflow {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding-left: 8px;
+}
+
+.signal-plan-overflow img {
+  width: 30px;
+  height: 30px;
+  margin-right: -8px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #111318;
+}
+
+.signal-plan-overflow strong {
+  margin-left: 15px;
+  color: #ffb02e;
+  font-size: 12px;
+}
+
+.signal-plan-overflow span {
+  margin-left: 7px;
+  color: rgba(255,255,255,.4);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .1em;
+}
+
+.signal-plan-chat-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid rgba(255,176,46,.38);
+  border-radius: 15px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255,176,46,.16),
+      rgba(255,176,46,.06)
+    );
+  color: #ffd98c;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  cursor: pointer;
+}
+
+.signal-chat-members {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.signal-chat-members img,
+.signal-chat-members > span {
+  width: 38px;
+  height: 38px;
+  margin-left: -7px;
+  border-radius: 50%;
+  border: 3px solid #0b0d11;
+}
+
+.signal-chat-members img:first-child {
+  margin-left: 0;
+}
+
+.signal-chat-members > span {
+  display: grid;
+  place-items: center;
+  background: #191c22;
+  color: #ffbf54;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.signal-chat-feed {
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 20px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 20px;
+  background: rgba(10,12,16,.72);
+}
+
+.signal-chat-system {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 11px 15px;
+  border: 1px solid rgba(255,176,46,.16);
+  border-radius: 14px;
+  background: rgba(255,176,46,.055);
+  color: #ffb02e;
+}
+
+.signal-chat-system > div {
+  display: grid;
+  gap: 2px;
+}
+
+.signal-chat-system strong {
+  font-size: 10px;
+  letter-spacing: .12em;
+}
+
+.signal-chat-system span {
+  color: rgba(255,255,255,.53);
+  font-size: 10px;
+}
+
+.signal-chat-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.signal-chat-message img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.signal-chat-message > div {
+  max-width: 70%;
+}
+
+.signal-chat-message small {
+  color: rgba(255,255,255,.43);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+
+.signal-chat-message p {
+  margin: 4px 0 0;
+  padding: 10px 13px;
+  border-radius: 4px 14px 14px 14px;
+  background: rgba(255,255,255,.07);
+  color: rgba(255,255,255,.88);
+  font-size: 13px;
+}
+
+.signal-chat-compose {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  gap: 9px;
+}
+
+.signal-chat-compose input {
+  min-width: 0;
+  height: 46px;
+  padding: 0 15px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 14px;
+  outline: none;
+  background: rgba(255,255,255,.045);
+  color: white;
+  font: inherit;
+}
+
+.signal-chat-compose button {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,176,46,.34);
+  border-radius: 14px;
+  background: rgba(255,176,46,.12);
+  color: #ffb02e;
+  cursor: pointer;
+}
+
+@keyframes signalPlanRailIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 700px) {
+  .signal-plan-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .signal-post-header {
+    grid-template-columns: auto 1fr auto;
+  }
+}

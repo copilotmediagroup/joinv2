@@ -204,6 +204,9 @@ function App() {
   const [lockedSignalVenue, setLockedSignalVenue] =
     useState<LockedSignalVenue | null>(null)
 
+  const [signalPlanSetVisible, setSignalPlanSetVisible] =
+    useState(false)
+
   const suggestion = boredSuggestions[suggestionIndex]
 
   useEffect(() => {
@@ -807,21 +810,24 @@ function App() {
                           setLockedSignalVenue(null)
                           setSignalRoomStage('places')
                         }}
+                        onPlanSetChange={setSignalPlanSetVisible}
                       />
                     </motion.div>
                   ) : null}
                 </AnimatePresence>
 
-                <button
-                  className="threshold-back"
-                  onClick={() => {
-                    setSignalThreshold(false)
-                    setSignalRoomStage('arrival')
-                    setLockedSignalVenue(null)
-                  }}
-                >
-                  BACK TO SIGNAL
-                </button>
+                {!signalPlanSetVisible && (
+                  <button
+                    className="threshold-back"
+                    onClick={() => {
+                      setSignalThreshold(false)
+                      setSignalRoomStage('arrival')
+                      setLockedSignalVenue(null)
+                    }}
+                  >
+                    BACK TO SIGNAL
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>

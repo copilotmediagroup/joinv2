@@ -12,6 +12,7 @@ import {
 
 import { AnimatePresence, motion } from 'framer-motion'
 import './SignalTimeStage.css'
+import SignalPlanExperience from '../plan/SignalPlanExperience'
 import type {
   SignalPlace,
   SignalPlaceReview,
@@ -31,6 +32,7 @@ type SignalTimeStageProps = {
   signalLabel: string
   venue: LockedSignalVenue
   onFindAnotherPlace?: () => void
+  onPlanSetChange?: (isPlanSet: boolean) => void
 }
 
 type SignalTimeOption = {
@@ -253,6 +255,7 @@ export default function SignalTimeStage({
   signalLabel,
   venue,
   onFindAnotherPlace,
+  onPlanSetChange,
 }: SignalTimeStageProps) {
   const timeOptions =
     buildSmartTimeOptions(venue)
@@ -383,6 +386,16 @@ export default function SignalTimeStage({
 
   const [planSet, setPlanSet] =
     useState(false)
+  const [postPlanView, setPostPlanView] =
+    useState<'plan' | 'chat' | null>(null)
+
+  useEffect(() => {
+    onPlanSetChange?.(planSet)
+
+    return () => {
+      onPlanSetChange?.(false)
+    }
+  }, [planSet, onPlanSetChange])
 
   const [reviewIndex, setReviewIndex] =
     useState(0)
@@ -460,6 +473,21 @@ const option =      timeOptions.find(
     winningTimeId,
   ])
 
+  if (planSet && lockedTime && postPlanView) {
+    return (
+      <SignalPlanExperience
+        view={postPlanView}
+        signalLabel={signalLabel}
+        venueName={venue.name}
+        venueAddress={venue.address}
+        venuePhotoUrl={venue.photoUrl}
+        meetupTime={lockedTime.time}
+        onOpenPlan={() => setPostPlanView('plan')}
+        onOpenChat={() => setPostPlanView('chat')}
+      />
+    )
+  }
+
   if (planSet && lockedTime) {
     return (
       <section className="signal-plan-set">
@@ -503,6 +531,7 @@ const option =      timeOptions.find(
         <button
           type="button"
           className="signal-plan-set-primary"
+          onClick={() => setPostPlanView('plan')}
         >
           OPEN PLAN
         </button>
@@ -510,6 +539,7 @@ const option =      timeOptions.find(
         <button
           type="button"
           className="signal-plan-set-secondary"
+          onClick={() => setPostPlanView('chat')}
         >
           OPEN GROUP CHAT
         </button>
