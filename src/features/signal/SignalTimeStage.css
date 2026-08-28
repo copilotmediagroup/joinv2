@@ -1083,3 +1083,112 @@
   background: rgba(255, 255, 255, .035);
   color: rgba(255, 255, 255, .82);
 }
+
+
+.signal-time-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 210px;
+  padding: 28px 24px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.signal-time-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.signal-time-empty > strong {
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
+.signal-time-empty > p {
+  max-width: 360px;
+  margin: 0;
+  opacity: 0.65;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.signal-time-empty-action {
+  margin-top: 4px;
+  min-height: 42px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+
+/* G4.13 — room-stage cleanup */
+.threshold-copy-hidden {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+
+/* G4.13 — recovery CTA verified override */
+.signal-time-empty-action {
+  min-width: 190px;
+  min-height: 44px;
+  padding: 0 22px;
+  border: 1px solid rgba(70, 220, 255, 0.48);
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(33, 214, 255, 0.96),
+      rgba(76, 125, 255, 0.96)
+    );
+  color: #061018;
+  box-shadow:
+    0 8px 26px rgba(30, 185, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.065em;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    filter 160ms ease;
+}
+
+.signal-time-empty-action:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+  box-shadow:
+    0 10px 30px rgba(30, 185, 255, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.signal-time-empty-action:active {
+  transform: translateY(0);
+}
+
+
+/* G4.13 — automatic venue recovery countdown */
+.signal-time-recovery-countdown {
+  display: block;
+  margin-top: 10px;
+  color: rgba(190, 211, 225, 0.62);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}

@@ -12,25 +12,18 @@ import {
 
 import { AnimatePresence, motion } from 'framer-motion'
 import './SignalTimeStage.css'
-import type {
-  SignalPlace,
-  SignalPlaceReview,
-} from './places/contract'
+import type { SignalPlaceReview } from './places/contract'
 export type LockedSignalVenue = {
   placeId: string
   name: string
   address: string
   photoUrl: string | null
   reviews: SignalPlaceReview[]
-  openingHours: SignalPlace['openingHours']
-  utcOffsetMinutes: SignalPlace['utcOffsetMinutes']
-  openNow: SignalPlace['openNow']
 }
 
 type SignalTimeStageProps = {
   signalLabel: string
   venue: LockedSignalVenue
-  onFindAnotherPlace?: () => void
 }
 
 type SignalTimeOption = {
@@ -41,231 +34,56 @@ type SignalTimeOption = {
 
 const timeResultAvatarUrl = (id: string) =>
 'https://i.pravatar.cc/100?img=' + id
-const SMART_TIME_LEAD_MINUTES = 30
-const SMART_TIME_DURATION_MINUTES = 90
-const SMART_TIME_CLOSING_BUFFER_MINUTES = 30
-const SMART_TIME_ALIGNMENT_MINUTES = 30
-
-const formatVenueTime = (
-  venueMinutes: number,
-) => {
-  const normalized =
-    ((venueMinutes % 1440) + 1440) % 1440
-
-  const hour24 =
-    Math.floor(normalized / 60)
-
-  const minute =
-    normalized % 60
-
-  const period =
-    hour24 >= 12 ? 'PM' : 'AM'
-
-  const hour12 =
-    hour24 % 12 || 12
-
-  return (
-    hour12 +
-    ':' +
-    String(minute).padStart(2, '0') +
-    ' ' +
-    period
-  )
-}
-
-const alignUp = (
-  minutes: number,
-  alignment: number,
-) =>
-  Math.ceil(minutes / alignment) * alignment
-
-const buildSmartTimeOptions = (
-  venue: LockedSignalVenue,
-): SignalTimeOption[] => {
-  if (
-    venue.utcOffsetMinutes === null ||
-    !venue.openingHours?.periods?.length
-  ) {
-    return []
-  }
-
-  const venueNowMs =
-    Date.now() +
-    venue.utcOffsetMinutes * 60_000
-
-  const venueNow =
-    new Date(venueNowMs)
-
-  const venueDay =
-    venueNow.getUTCDay()
-
-  const venueMinute =
-    venueNow.getUTCHours() * 60 +
-    venueNow.getUTCMinutes()
-
-  const earliestStart =
-    alignUp(
-      venueMinute + SMART_TIME_LEAD_MINUTES,
-      SMART_TIME_ALIGNMENT_MINUTES,
-    )
-
-  const candidates: number[] = []
-
-  for (const period of venue.openingHours.periods) {
-    if (!period.open) continue
-
-    const openDay =
-      period.open.day
-
-    const openMinute =
-      period.open.hour * 60 +
-      period.open.minute
-
-    let closeMinute =
-      period.close
-        ? period.close.hour * 60 +
-          period.close.minute
-        : 1440
-
-    if (
-      period.close &&
-      (
-        period.close.day !== openDay ||
-        closeMinute <= openMinute
-      )
-    ) {
-      closeMinute += 1440
-    }
-
-    const previousDay =
-      (venueDay + 6) % 7
-
-    let relativeOpenMinute: number
-    let relativeCloseMinute: number
-
-    if (openDay === venueDay) {
-      relativeOpenMinute =
-        openMinute
-
-      relativeCloseMinute =
-        closeMinute
-    } else if (
-      openDay === previousDay &&
-      closeMinute > 1440
-    ) {
-      relativeOpenMinute =
-        openMinute - 1440
-
-      relativeCloseMinute =
-        closeMinute - 1440
-    } else {
-      continue
-    }
-
-    const firstCandidate =
-      alignUp(
-        Math.max(
-          earliestStart,
-          relativeOpenMinute,
-        ),
-        SMART_TIME_ALIGNMENT_MINUTES,
-      )
-
-    const latestStart =
-      relativeCloseMinute -
-      SMART_TIME_DURATION_MINUTES -
-      SMART_TIME_CLOSING_BUFFER_MINUTES
-
-    for (
-      let candidate = firstCandidate;
-      candidate <= latestStart;
-      candidate += SMART_TIME_ALIGNMENT_MINUTES
-    ) {
-      candidates.push(candidate)
-    }
-  }
-
-  const uniqueCandidates =
-    [...new Set(candidates)]
-      .sort((a, b) => a - b)
-      .slice(0, 3)
-
-  const details =
-    uniqueCandidates.length === 1
-      ? ['BEST FIT']
-      : uniqueCandidates.length === 2
-        ? ['EARLIER', 'BEST FIT']
-        : ['EARLIER', 'BEST FIT', 'LATER']
-
-  return uniqueCandidates.map(
-    (minutes, index) => ({
-      id: 'smart-' + minutes,
-      time: formatVenueTime(minutes),
-      detail: details[index],
-    }),
-  )
-}
+const timeOptions: SignalTimeOption[] = [
+  {
+    id: '730',
+    time: '7:30 PM',
+    detail: 'EARLIER',
+  },
+  {
+    id: '800',
+    time: '8:00 PM',
+    detail: 'BEST FIT',
+  },
+  {
+    id: '830',
+    time: '8:30 PM',
+    detail: 'LATER',
+  },
+]
 
 type SignalTimeVoter = {
   id: string
   timeId: string
 }
 
-const buildGroupTimeVotes = (
-  options: SignalTimeOption[],
-): SignalTimeVoter[] => {
-  if (options.length === 0) return []
-
-  const first =
-    options[0]
-
-  const best =
-    options[Math.min(1, options.length - 1)]
-
-  const last =
-    options[options.length - 1]
-
-  return [
-    {
-      id: '13',
-      timeId: best.id,
-    },
-    {
-      id: '15',
-      timeId: best.id,
-    },
-    {
-      id: '17',
-      timeId: first.id,
-    },
-    {
-      id: '22',
-      timeId: best.id,
-    },
-    {
-      id: '28',
-      timeId: last.id,
-    },
-  ]
-}
+const groupTimeVotes: SignalTimeVoter[] = [
+  {
+    id: '13',
+    timeId: '800',
+  },
+  {
+    id: '15',
+    timeId: '800',
+  },
+  {
+    id: '17',
+    timeId: '730',
+  },
+  {
+    id: '22',
+    timeId: '800',
+  },
+  {
+    id: '28',
+    timeId: '830',
+  },
+]
 
 export default function SignalTimeStage({
   signalLabel,
   venue,
-  onFindAnotherPlace,
 }: SignalTimeStageProps) {
-  const timeOptions =
-    buildSmartTimeOptions(venue)
-
-  const noUsableTimes =
-    timeOptions.length === 0
-
-  const [recoverySeconds, setRecoverySeconds] =
-    useState(10)
-
-  const groupTimeVotes =
-    buildGroupTimeVotes(timeOptions)
-
   const [secondsLeft, setSecondsLeft] =
     useState(10)
 
@@ -292,39 +110,6 @@ export default function SignalTimeStage({
       window.clearTimeout(timer)
     }
   }, [secondsLeft])
-
-  useEffect(() => {
-    if (!noUsableTimes) return
-
-    setRecoverySeconds(10)
-  }, [
-    noUsableTimes,
-    venue.placeId,
-  ])
-
-  useEffect(() => {
-    if (!noUsableTimes) return
-
-    if (recoverySeconds <= 0) {
-      onFindAnotherPlace?.()
-      return
-    }
-
-    const timer =
-      window.setTimeout(() => {
-        setRecoverySeconds((current) =>
-          Math.max(0, current - 1)
-        )
-      }, 1000)
-
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [
-    noUsableTimes,
-    recoverySeconds,
-    onFindAnotherPlace,
-  ])
 
   const votingClosed = secondsLeft <= 0
 
@@ -381,10 +166,7 @@ export default function SignalTimeStage({
         review.text.trim().length > 0
       )
 
-  const [planSet, setPlanSet] =
-    useState(false)
-
-  const [reviewIndex, setReviewIndex] =
+const [planSet, setPlanSet] = useState(false)  const [reviewIndex, setReviewIndex] =
     useState(0)
 
   const activeReview =
@@ -395,35 +177,26 @@ export default function SignalTimeStage({
       : null
 
   useEffect(() => {
-    if (lockedTimeId === null) return
+    if (!lockedTime) return
     if (reviewSlides.length <= 1) return
 
     setReviewIndex(0)
 
     const timer = window.setInterval(() => {
       setReviewIndex((current) =>
-        (current + 1) % reviewSlides.length
+        Math.min(
+          current + 1,
+          reviewSlides.length - 1
+        )
       )
     }, 1500)
 
     return () =>
       window.clearInterval(timer)
   }, [
-    lockedTimeId,
+    lockedTime,
     reviewSlides.length,
   ])
-
-  useEffect(() => {
-    if (lockedTimeId === null) return
-
-    const timer = window.setTimeout(() => {
-      setPlanSet(true)
-    }, 5000)
-
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [lockedTimeId])
 
   const resultTimeVoters = [
     ...groupTimeVotes,
@@ -459,63 +232,6 @@ const option =      timeOptions.find(
     lockedTimeId,
     winningTimeId,
   ])
-
-  if (planSet && lockedTime) {
-    return (
-      <section className="signal-plan-set">
-        <div className="signal-plan-set-kicker">
-          ⚡ YOUR PLAN IS SET
-        </div>
-
-        {venue.photoUrl && (
-          <div className="signal-plan-set-photo">
-            <img
-              src={venue.photoUrl}
-              alt={venue.name}
-            />
-          </div>
-        )}
-
-        <h2>{venue.name}</h2>
-        <p>{venue.address}</p>
-
-        <div className="signal-plan-set-time">
-          <small>MEETUP TIME</small>
-          <strong>{lockedTime.time}</strong>
-        </div>
-
-        <div className="signal-plan-set-people">
-          {['8', '13', '15', '17', '22', '28'].map(
-            (id) => (
-              <img
-                key={id}
-                src={timeResultAvatarUrl(id)}
-                alt=""
-              />
-            ),
-          )}
-        </div>
-
-        <strong className="signal-plan-set-count">
-          6 PEOPLE ARE IN
-        </strong>
-
-        <button
-          type="button"
-          className="signal-plan-set-primary"
-        >
-          OPEN PLAN
-        </button>
-
-        <button
-          type="button"
-          className="signal-plan-set-secondary"
-        >
-          OPEN GROUP CHAT
-        </button>
-      </section>
-    )
-  }
 
   return (
     <section className="signal-time-stage">
@@ -555,46 +271,7 @@ const option =      timeOptions.find(
         </div>
       </div>
 
-      {timeOptions.length === 0 ? (
-        <div className="signal-time-empty">
-          <div className="signal-time-empty-icon">
-            <Clock3 size={22} />
-          </div>
-
-          <strong>
-            {venue.openNow === false
-              ? 'THIS BUSINESS IS CLOSED'
-              : 'NO TIMES LEFT TONIGHT'}
-          </strong>
-
-          <p>
-            {venue.openNow === false
-              ? `${venue.name} is currently closed. SIGNAL can find an open place for the group.`
-              : venue.openNow === true
-                ? `${venue.name} is open, but there isn’t enough time remaining for this Signal before closing.`
-                : `${venue.name} doesn’t have a usable time remaining for this Signal. SIGNAL can find another place for the group.`}
-          </p>
-
-          <button
-            type="button"
-            className="signal-time-empty-action"
-            onClick={onFindAnotherPlace}
-          >
-            {venue.openNow === false
-              ? 'FIND AN OPEN PLACE'
-              : 'FIND ANOTHER PLACE'}
-          </button>
-
-          <small className="signal-time-recovery-countdown">
-            Returning to venue selection in {recoverySeconds}s
-          </small>
-        </div>
-      ) : (
-        <div className={
-          lockedTime
-            ? "signal-time-options signal-time-options-hidden"
-            : "signal-time-options"
-        }>
+      <div className={lockedTime ? "signal-time-options signal-time-options-hidden" : "signal-time-options"}>
         {timeOptions.map((option) => {
           const selected =
             selectedTimeId === option.id
@@ -658,8 +335,7 @@ const option =      timeOptions.find(
             </button>
           )
         })}
-        </div>
-      )}
+      </div>
 
       {lockedTime && (
         <>

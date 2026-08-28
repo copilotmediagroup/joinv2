@@ -22,6 +22,8 @@ type SignalPlace = {
   signalRank?: number
   signalScore?: number
   reviews?: SignalPlaceReview[]
+  openingHours?: LiveSignalPlace['openingHours']
+  utcOffsetMinutes?: LiveSignalPlace['utcOffsetMinutes']
 }
 
 const avatarUrl = (id: string) =>
@@ -109,6 +111,9 @@ type SignalPlaceStageProps = {
     address: string
     photoUrl: string | null
     reviews: SignalPlaceReview[]
+    openingHours: LiveSignalPlace['openingHours']
+    utcOffsetMinutes: LiveSignalPlace['utcOffsetMinutes']
+    openNow: LiveSignalPlace['openNow']
   }) => void
 }
 
@@ -178,13 +183,15 @@ export default function SignalPlaceStage({
           googleMapsUri: live.googleMapsUri,
           name: live.name,
           address: live.address,
+          openingHours: live.openingHours,
+          utcOffsetMinutes: live.utcOffsetMinutes,
           lat: live.lat,
           lng: live.lng,
           distanceMiles: live.distanceMiles,
           rating: live.rating ?? presentation.rating,
           ratingCount: live.ratingCount,
           category: live.category,
-          openNow: live.openNow ?? presentation.openNow,
+          openNow: live.openNow,
           signalRank: live.signalRank,
           signalScore: live.signalScore,
           reviews: live.reviews ?? [],
@@ -272,6 +279,11 @@ export default function SignalPlaceStage({
             address: winner.address,
             photoUrl: winner.photoUrl ?? null,
             reviews: winner.reviews ?? [],
+            openingHours: winner.openingHours ?? null,
+            utcOffsetMinutes:
+              winner.utcOffsetMinutes ?? null,
+            openNow:
+              winner.openNow ?? null,
           })
         }, 1500)
 

@@ -26,6 +26,22 @@ type SignalPlace = {
   ratingCount: number
   category: string
   openNow: boolean | null
+  utcOffsetMinutes: number | null
+  openingHours: {
+    periods: Array<{
+      open: {
+        day: number
+        hour: number
+        minute: number
+      } | null
+      close: {
+        day: number
+        hour: number
+        minute: number
+      } | null
+    }>
+    weekdayDescriptions: string[]
+  } | null
   photoName: string | null
   photoUrl: string | null
   photoAttributions: Array<{
@@ -260,6 +276,9 @@ Deno.serve(async (request: Request) => {
           'places.userRatingCount',
           'places.primaryType',
           'places.currentOpeningHours.openNow',
+          'places.utcOffsetMinutes',
+          'places.currentOpeningHours.periods',
+          'places.currentOpeningHours.weekdayDescriptions',
           'places.photos',
           'places.googleMapsUri',
 'places.reviews',
@@ -409,6 +428,66 @@ Deno.serve(async (request: Request) => {
           ? place.currentOpeningHours.openNow
           : null
 
+      const utcOffsetMinutes =
+        typeof place.utcOffsetMinutes === 'number'
+          ? place.utcOffsetMinutes
+          : null
+
+      const rawOpeningHours = place.currentOpeningHours
+
+      const openingHours =
+        rawOpeningHours &&
+        (
+          Array.isArray(rawOpeningHours.periods) ||
+          Array.isArray(rawOpeningHours.weekdayDescriptions)
+        )
+          ? {
+              periods: Array.isArray(rawOpeningHours.periods)
+                ? rawOpeningHours.periods.map((period: any) => ({
+                    open: period?.open
+                      ? {
+                          day:
+                            typeof period.open.day === 'number'
+                              ? period.open.day
+                              : 0,
+                          hour:
+                            typeof period.open.hour === 'number'
+                              ? period.open.hour
+                              : 0,
+                          minute:
+                            typeof period.open.minute === 'number'
+                              ? period.open.minute
+                              : 0,
+                        }
+                      : null,
+                    close: period?.close
+                      ? {
+                          day:
+                            typeof period.close.day === 'number'
+                              ? period.close.day
+                              : 0,
+                          hour:
+                            typeof period.close.hour === 'number'
+                              ? period.close.hour
+                              : 0,
+                          minute:
+                            typeof period.close.minute === 'number'
+                              ? period.close.minute
+                              : 0,
+                        }
+                      : null,
+                  }))
+                : [],
+              weekdayDescriptions:
+                Array.isArray(rawOpeningHours.weekdayDescriptions)
+                  ? rawOpeningHours.weekdayDescriptions.filter(
+                      (description: unknown) =>
+                        typeof description === 'string',
+                    )
+                  : [],
+            }
+          : null
+
       const distanceScore = scoreDistance(miles)
       const ratingScore = scoreRating(rating)
       const confidenceScore = scoreConfidence(ratingCount)
@@ -431,6 +510,8 @@ Deno.serve(async (request: Request) => {
         ratingCount,
         category: place.primaryType ?? signalId,
         openNow,
+        utcOffsetMinutes,
+        openingHours,
         photoName,
         photoUrl,
         photoAttributions,

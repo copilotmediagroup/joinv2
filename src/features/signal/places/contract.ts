@@ -18,6 +18,22 @@ export type SignalPlace = {
   ratingCount: number
   category: string
   openNow: boolean | null
+  utcOffsetMinutes: number | null
+  openingHours: {
+    periods: Array<{
+      open: {
+        day: number
+        hour: number
+        minute: number
+      } | null
+      close: {
+        day: number
+        hour: number
+        minute: number
+      } | null
+    }>
+    weekdayDescriptions: string[]
+  } | null
   photoName: string | null
   photoUrl: string | null
   photoAttributions: Array<{

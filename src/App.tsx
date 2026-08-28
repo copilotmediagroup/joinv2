@@ -685,7 +685,12 @@ function App() {
             </div>
 
             <motion.div
-              className="threshold-copy"
+              className={[
+                'threshold-copy',
+                signalRoomStage !== 'arrival'
+                  ? 'threshold-copy-hidden'
+                  : '',
+              ].filter(Boolean).join(' ')}
               initial={{ opacity: 0, y: 14 }}
               animate={{
                 opacity: [0, 0, 1, 1],
@@ -798,6 +803,10 @@ function App() {
                       <SignalTimeStage
                         signalLabel={suggestion.title}
                         venue={lockedSignalVenue}
+                        onFindAnotherPlace={() => {
+                          setLockedSignalVenue(null)
+                          setSignalRoomStage('places')
+                        }}
                       />
                     </motion.div>
                   ) : null}
