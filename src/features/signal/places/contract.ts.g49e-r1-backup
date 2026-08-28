@@ -1,0 +1,28 @@
+export type SignalPlace = {
+  placeId: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+  distanceMiles: number
+  rating: number | null
+  ratingCount: number
+  category: string
+  openNow: boolean | null
+  photoName: string | null
+  googleMapsUri: string | null
+}
+
+export type SignalPlacesRequest = {
+  signalId: string
+  city: string
+  latitude: number
+  longitude: number
+  limit?: number
+}
+
+export type SignalPlacesResponse = {
+  source: 'google'
+  query: string
+  places: SignalPlace[]
+}

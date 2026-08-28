@@ -6,6 +6,15 @@ type SignalPlacesRequest = {
   limit?: number
 }
 
+type SignalPlaceReview = {
+rating: number
+text: string
+relativeTime: string | null
+authorName: string
+authorPhotoUrl: string | null
+authorUri: string | null
+googleMapsUri: string | null
+}
 type SignalPlace = {
   placeId: string
   name: string
@@ -25,6 +34,7 @@ type SignalPlace = {
     photoUri: string | null
   }>
   googleMapsUri: string | null
+  reviews: SignalPlaceReview[]
   signalRank: number
   signalScore: number
   scoreBreakdown: {
@@ -252,6 +262,7 @@ Deno.serve(async (request: Request) => {
           'places.currentOpeningHours.openNow',
           'places.photos',
           'places.googleMapsUri',
+'places.reviews',
         ].join(','),
       },
       body: JSON.stringify({
@@ -354,6 +365,45 @@ Deno.serve(async (request: Request) => {
           ? place.userRatingCount
           : 0
 
+      const reviews: SignalPlaceReview[] =
+        Array.isArray(place.reviews)
+          ? place.reviews
+              .slice(0, 3)
+              .map((review: any) => ({
+                rating:
+                  typeof review.rating === 'number'
+                    ? review.rating
+                    : 0,
+                text:
+                  typeof review.text?.text === 'string'
+                    ? review.text.text
+                    : '',
+                relativeTime:
+                  typeof review.relativePublishTimeDescription === 'string'
+                    ? review.relativePublishTimeDescription
+                    : null,
+                authorName:
+                  typeof review.authorAttribution?.displayName === 'string'
+                    ? review.authorAttribution.displayName
+                    : 'Google Maps user',
+                authorPhotoUrl:
+                  typeof review.authorAttribution?.photoUri === 'string'
+                    ? review.authorAttribution.photoUri
+                    : null,
+                authorUri:
+                  typeof review.authorAttribution?.uri === 'string'
+                    ? review.authorAttribution.uri
+                    : null,
+                googleMapsUri:
+                  typeof review.googleMapsUri === 'string'
+                    ? review.googleMapsUri
+                    : null,
+              }))
+              .filter(
+                (review: SignalPlaceReview) =>
+                  review.text.length > 0,
+              )
+          : []
       const openNow =
         typeof place.currentOpeningHours?.openNow === 'boolean'
           ? place.currentOpeningHours.openNow
@@ -386,6 +436,7 @@ Deno.serve(async (request: Request) => {
         photoAttributions,
         googleMapsUri:
           place.googleMapsUri ?? null,
+        reviews,
         signalRank: 0,
         signalScore: 0,
         scoreBreakdown: {

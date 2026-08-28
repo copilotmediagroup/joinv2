@@ -1,0 +1,885 @@
+/* ============================================================
+   SIGNAL — G4.6B CINEMATIC PICK THE PLACE
+   MOBILE FIRST
+   ============================================================ */
+
+.signal-place-stage {
+  width: 100%;
+  margin-top: 4px;
+  color: #fff;
+  text-align: left;
+}
+
+/* ------------------------------------------------------------
+   GROUP ENERGY
+   ------------------------------------------------------------ */
+
+.signal-room-people {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  margin-bottom: 18px;
+}
+
+.signal-room-people-label {
+  margin-bottom: 9px;
+  color: #72d8ff;
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: .19em;
+}
+
+.signal-room-electric-chain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.signal-room-person-node {
+  position: relative;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  margin-left: -3px;
+}
+
+.signal-room-person-node:first-child {
+  margin-left: 0;
+}
+
+.signal-room-person-node img {
+  position: relative;
+  z-index: 3;
+  display: block;
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border: 2px solid rgba(142, 221, 255, .86);
+  border-radius: 50%;
+  background: #0a111d;
+  box-shadow:
+    0 0 0 2px rgba(48, 168, 255, .08),
+    0 0 12px rgba(51, 181, 255, .50);
+}
+
+.signal-room-person-link {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: 28px;
+  width: 14px;
+  height: 2px;
+  transform: translateY(-50%);
+  background:
+    linear-gradient(
+      90deg,
+      #8ceaff,
+      #279eff,
+      #856dff,
+      #83eaff
+    );
+  box-shadow:
+    0 0 4px #5fdcff,
+    0 0 10px rgba(57, 157, 255, .85);
+  animation: signalPersonCurrent .9s linear infinite;
+}
+
+@keyframes signalPersonCurrent {
+  0%, 100% {
+    opacity: .55;
+    filter: brightness(.8);
+  }
+
+  50% {
+    opacity: 1;
+    filter: brightness(1.8);
+  }
+}
+
+.signal-room-aligned {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  color: #69d5ff;
+  font-size: 7px;
+}
+
+.signal-room-aligned strong {
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.signal-room-aligned span {
+  color: #78889c;
+}
+
+/* ------------------------------------------------------------
+   TITLE
+   ------------------------------------------------------------ */
+
+.signal-place-title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.signal-place-title > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #50cfff;
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: .16em;
+}
+
+.signal-place-title h3 {
+  margin: 3px 0 1px;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 950;
+  letter-spacing: -.035em;
+}
+
+.signal-place-title p {
+  margin: 0;
+  color: #8292a7;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.signal-place-ranking-copy {
+  max-width: 100px;
+  padding-bottom: 2px;
+  color: #65758b;
+  font-size: 7px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+/* ------------------------------------------------------------
+   VENUE CARDS — MOBILE STACK
+   ------------------------------------------------------------ */
+
+.signal-place-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.signal-venue-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  color: inherit;
+  text-align: left;
+  border: 1px solid rgba(81, 143, 187, .20);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      150deg,
+      rgba(15, 24, 38, .98),
+      rgba(5, 10, 18, .99)
+    );
+  box-shadow:
+    0 14px 34px rgba(0,0,0,.20);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform .24s cubic-bezier(.18,.82,.22,1),
+    border-color .24s ease,
+    box-shadow .24s ease;
+}
+
+.signal-venue-card:active {
+  transform: scale(.985);
+}
+
+.signal-venue-image-wrap {
+  position: relative;
+  height: 122px;
+  overflow: hidden;
+}
+
+.signal-venue-image-wrap > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter:
+    saturate(.90)
+    contrast(1.08)
+    brightness(.85);
+}
+
+.signal-venue-image-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(3,7,13,.02),
+      rgba(5,10,18,.14) 45%,
+      rgba(5,10,18,.94) 100%
+    );
+}
+
+.signal-venue-rank {
+  position: absolute;
+  z-index: 4;
+  top: 11px;
+  left: 11px;
+  padding: 6px 9px;
+  color: #d9f7ff;
+  border: 1px solid rgba(95, 210, 255, .35);
+  border-radius: 8px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(32, 157, 230, .90),
+      rgba(53, 109, 218, .84)
+    );
+  box-shadow:
+    0 4px 15px rgba(38, 155, 255, .25);
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.signal-venue-check {
+  position: absolute;
+  z-index: 6;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: #effcff;
+  border: 1px solid #87e6ff;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      rgba(41, 180, 255, .95),
+      rgba(30, 105, 224, .92)
+    );
+  box-shadow:
+    0 0 12px #4ccfff,
+    0 0 32px rgba(54, 126, 255, .65);
+}
+
+.signal-venue-body {
+  position: relative;
+  z-index: 3;
+  padding: 11px 13px 12px;
+}
+
+.signal-venue-body h4 {
+  margin: 0 0 5px;
+  color: #f6fbff;
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: -.025em;
+}
+
+.signal-venue-address {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #91a3b7;
+  font-size: 8px;
+}
+
+.signal-venue-address svg {
+  flex: 0 0 auto;
+  color: #78a8d3;
+}
+
+.signal-venue-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 7px;
+  color: #8293aa;
+  font-size: 7px;
+}
+
+.signal-venue-facts i {
+  display: block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #52708f;
+}
+
+.signal-venue-facts strong {
+  color: #50df8d;
+  font-weight: 800;
+}
+
+.signal-venue-bottom {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(99, 151, 192, .12);
+}
+
+.signal-venue-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  font-size: 8px;
+}
+
+.signal-venue-rating svg {
+  color: #ffd65b;
+}
+
+.signal-venue-rating span {
+  color: #78899d;
+}
+
+.signal-venue-voters {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.signal-venue-voters img {
+  width: 22px;
+  height: 22px;
+  margin-left: -5px;
+  object-fit: cover;
+  border: 2px solid #0a111c;
+  border-radius: 50%;
+}
+
+.signal-venue-voters img:first-child {
+  margin-left: 0;
+}
+
+.signal-you-voted {
+  margin-left: 6px;
+  color: #6bddff;
+  font-size: 6px;
+  font-weight: 950;
+  letter-spacing: .09em;
+}
+
+.signal-venue-votes {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  color: #45bfff;
+}
+
+.signal-venue-votes strong {
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.signal-venue-votes span {
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.signal-venue-cast {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: #a9efff;
+  border: 1px solid rgba(63, 177, 255, .48);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      rgba(28, 114, 194, .42),
+      rgba(8, 18, 35, .9)
+    );
+  box-shadow:
+    0 0 10px rgba(50, 161, 255, .22);
+}
+
+/* ------------------------------------------------------------
+   LEADER / SELECTED ENERGY
+   ------------------------------------------------------------ */
+
+.signal-venue-leading {
+  border-color: rgba(62, 186, 255, .46);
+}
+
+.signal-venue-selected {
+  border-color: rgba(93, 220, 255, .96);
+  box-shadow:
+    0 0 0 1px rgba(82, 201, 255, .20),
+    0 0 17px rgba(41, 175, 255, .34),
+    0 0 42px rgba(69, 92, 255, .15),
+    inset 0 0 22px rgba(34, 159, 255, .06);
+}
+
+.signal-venue-energy {
+  position: absolute;
+  z-index: 8;
+  inset: -1px;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.signal-venue-selected .signal-venue-energy {
+  opacity: 1;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(103, 232, 255, .95),
+      transparent
+    );
+  background-size: 40% 2px;
+  background-repeat: no-repeat;
+  animation: venueElectricOrbit 1.2s linear infinite;
+}
+
+@keyframes venueElectricOrbit {
+  0% {
+    background-position: -50% 0;
+    filter: drop-shadow(0 0 4px #52d9ff);
+  }
+
+  50% {
+    background-position: 150% 100%;
+    filter: drop-shadow(0 0 9px #678cff);
+  }
+
+  100% {
+    background-position: -50% 0;
+    filter: drop-shadow(0 0 4px #52d9ff);
+  }
+}
+
+.signal-vote-pulse {
+  position: absolute;
+  z-index: 9;
+  right: 14px;
+  bottom: 13px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #dffaff;
+  box-shadow:
+    0 0 10px #8aeaff,
+    0 0 25px #3bbfff,
+    0 0 50px #536aff;
+  animation: signalVoteIgnition .65s ease-out both;
+  pointer-events: none;
+}
+
+@keyframes signalVoteIgnition {
+  0% {
+    opacity: 0;
+    transform: scale(.2);
+  }
+
+  45% {
+    opacity: 1;
+    transform: scale(3.2);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(5.5);
+  }
+}
+
+/* ------------------------------------------------------------
+   FOOTER
+   ------------------------------------------------------------ */
+
+.signal-place-footer {
+  display: grid;
+  gap: 9px;
+  margin-top: 11px;
+  padding: 11px 12px;
+  border: 1px solid rgba(69, 139, 194, .18);
+  border-radius: 15px;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(15, 32, 48, .70),
+      rgba(8, 15, 26, .88)
+    );
+}
+
+.signal-place-footer > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.signal-place-footer-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  place-items: center;
+  color: #7ae2ff;
+  border-radius: 50%;
+  background: rgba(39, 127, 194, .16);
+  box-shadow: 0 0 16px rgba(43, 173, 255, .13);
+}
+
+.signal-place-footer p {
+  margin: 0;
+  color: #8999ae;
+  font-size: 7px;
+}
+
+.signal-place-footer p strong {
+  color: #56cfff;
+  font-weight: 950;
+}
+
+.signal-place-footer p small {
+  display: block;
+  margin-top: 2px;
+  color: #607085;
+  font-size: 6px;
+}
+
+.signal-place-action {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  color: #52cfff;
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: .07em;
+}
+
+.signal-place-action span {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ============================================================
+   TABLET / DESKTOP
+   Same product language, wider composition.
+   ============================================================ */
+
+@media (min-width: 720px) {
+  .signal-room-person-node,
+  .signal-room-person-node img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .signal-room-person-link {
+    left: 34px;
+    width: 17px;
+  }
+
+  .signal-place-title h3 {
+    font-size: 26px;
+  }
+
+  .signal-place-ranking-copy {
+    max-width: 170px;
+    font-size: 8px;
+  }
+
+  .signal-place-grid {
+    grid-template-columns:
+      minmax(0, 1.15fr)
+      minmax(0, 1fr)
+      minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .signal-venue-image-wrap {
+    height: 150px;
+  }
+
+  .signal-venue-featured {
+    border-color: rgba(71, 199, 255, .58);
+    box-shadow:
+      0 0 16px rgba(50, 188, 255, .19),
+      0 0 42px rgba(61, 100, 255, .10);
+  }
+
+  .signal-place-footer {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+}
+
+@media (min-width: 1050px) {
+  .signal-venue-image-wrap {
+    height: 175px;
+  }
+
+  .signal-venue-body h4 {
+    font-size: 16px;
+  }
+}
+
+
+/* ============================================================
+   SIGNAL — G4.6B-R2 APPROVED POLISH
+   ============================================================ */
+
+
+/* Kill original internal moving energy */
+
+.signal-venue-selected .signal-venue-energy {
+  display: none !important;
+}
+
+
+/* Selected card remains calm internally */
+
+.signal-venue-selected {
+  position: relative;
+  isolation: isolate;
+
+  border-color: rgba(86, 214, 255, .72) !important;
+
+  box-shadow:
+    0 0 0 1px rgba(79, 204, 255, .10),
+    0 0 15px rgba(48, 184, 255, .25),
+    0 0 34px rgba(58, 103, 255, .12) !important;
+}
+
+
+/* Moving electricity exists ONLY on perimeter */
+
+.signal-venue-selected::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+
+  padding: 2px;
+
+  border-radius: inherit;
+
+  background:
+    conic-gradient(
+      from var(--signal-border-angle, 0deg),
+      transparent 0deg,
+      transparent 305deg,
+      rgba(88, 218, 255, .20) 320deg,
+      #b7f4ff 338deg,
+      #42c8ff 349deg,
+      transparent 360deg
+    );
+
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+
+  -webkit-mask-composite: xor;
+
+  mask-composite: exclude;
+
+  pointer-events: none;
+
+  animation:
+    signalBorderTravel 2.15s linear infinite;
+
+  filter:
+    drop-shadow(0 0 4px rgba(90, 224, 255, .85))
+    drop-shadow(0 0 8px rgba(48, 146, 255, .42));
+}
+
+
+@property --signal-border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+
+@keyframes signalBorderTravel {
+  to {
+    --signal-border-angle: 360deg;
+  }
+}
+
+
+/* Keep normal content untouched */
+
+.signal-venue-selected > * {
+  position: relative;
+  z-index: 2;
+}
+
+
+/* Give voter faces actual breathing room */
+
+.signal-venue-voters {
+  display: flex;
+  align-items: center;
+  gap: 4px !important;
+}
+
+
+.signal-venue-voters img {
+  width: 24px !important;
+  height: 24px !important;
+
+  margin-left: 0 !important;
+
+  border: 1px solid rgba(117, 191, 235, .40) !important;
+
+  box-shadow:
+    0 0 0 1px rgba(17, 27, 41, .9);
+}
+
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+
+@media (max-width: 719px) {
+
+  /*
+     This is a room, but it contains multiple choices.
+     Therefore the ROOM scrolls vertically.
+  */
+
+  .threshold-room {
+    box-sizing: border-box !important;
+
+    display: block !important;
+
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+
+    padding:
+      16px 12px
+      max(32px, env(safe-area-inset-bottom)) !important;
+
+    overscroll-behavior-y: contain;
+
+    -webkit-overflow-scrolling: touch;
+  }
+
+
+  .threshold-room-inner {
+    box-sizing: border-box !important;
+
+    width: 100% !important;
+    max-width: none !important;
+
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+
+    margin: 0 auto !important;
+
+    padding:
+      20px 14px
+      24px !important;
+
+    overflow: visible !important;
+  }
+
+
+  .signal-place-stage {
+    width: 100%;
+    padding-bottom: 28px;
+  }
+
+
+  .signal-place-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+
+    gap: 12px;
+
+    overflow: visible !important;
+  }
+
+
+  .signal-venue-card {
+    flex: none !important;
+
+    width: 100% !important;
+
+    overflow: hidden;
+  }
+
+
+  .signal-venue-image-wrap {
+    height: 140px;
+  }
+
+
+  .signal-venue-bottom {
+    grid-template-columns:
+      auto
+      minmax(78px, 1fr)
+      auto
+      auto;
+
+    gap: 8px;
+  }
+
+
+  .signal-venue-voters {
+    min-width: 0;
+    overflow: visible;
+  }
+
+
+  .signal-place-title-row {
+    margin-top: 0;
+  }
+
+
+  .signal-place-footer {
+    margin-bottom: 12px;
+  }
+}
+
+
+/* Tiny phones */
+
+@media (max-width: 390px) {
+
+  .signal-venue-bottom {
+    grid-template-columns:
+      auto
+      minmax(70px, 1fr)
+      auto;
+  }
+
+
+  .signal-venue-cast {
+    display: none;
+  }
+
+
+  .signal-venue-voters img {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
+

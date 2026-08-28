@@ -1,0 +1,243 @@
+type SignalPlacesRequest = {
+  signalId: string
+  city: string
+  latitude: number
+  longitude: number
+  limit?: number
+}
+
+type SignalPlace = {
+  placeId: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+  distanceMiles: number
+  rating: number | null
+  ratingCount: number
+  category: string
+  openNow: boolean | null
+  photoName: string | null
+  googleMapsUri: string | null
+}
+
+const GOOGLE_PLACES_URL =
+  'https://places.googleapis.com/v1/places:searchText'
+
+const SIGNAL_SEARCH_QUERIES: Record<string, string> = {
+  basketball: 'basketball courts',
+  rooftop: 'rooftop bars and rooftop lounges',
+  paint: 'paint and sip studios and art studios',
+  music: 'live music venues',
+}
+
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180
+}
+
+function distanceMiles(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const earthRadiusMiles = 3958.8
+
+  const dLat = toRadians(lat2 - lat1)
+  const dLng = toRadians(lng2 - lng1)
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLng / 2) ** 2
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+  return earthRadiusMiles * c
+}
+
+Deno.serve(async (request: Request) => {
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers':
+          'authorization, x-client-info, apikey, content-type',
+      },
+    })
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      },
+    )
+  }
+
+  try {
+    const body = (await request.json()) as SignalPlacesRequest
+
+    const {
+      signalId,
+      city,
+      latitude,
+      longitude,
+      limit = 5,
+    } = body
+
+    if (
+      !signalId ||
+      !city ||
+      typeof latitude !== 'number' ||
+      typeof longitude !== 'number'
+    ) {
+      return new Response(
+        JSON.stringify({
+          error:
+            'signalId, city, latitude and longitude are required',
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        },
+      )
+    }
+
+    const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+
+    if (!apiKey) {
+      throw new Error('GOOGLE_MAPS_API_KEY is not configured')
+    }
+
+    const searchIntent =
+      SIGNAL_SEARCH_QUERIES[signalId] ?? signalId
+
+    const query = `${searchIntent} in ${city}`
+
+    const googleResponse = await fetch(GOOGLE_PLACES_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': [
+          'places.id',
+          'places.displayName',
+          'places.formattedAddress',
+          'places.location',
+          'places.rating',
+          'places.userRatingCount',
+          'places.primaryType',
+          'places.currentOpeningHours.openNow',
+          'places.photos',
+          'places.googleMapsUri',
+        ].join(','),
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        maxResultCount: Math.min(Math.max(limit, 1), 10),
+        locationBias: {
+          circle: {
+            center: {
+              latitude,
+              longitude,
+            },
+            radius: 16093.4,
+          },
+        },
+      }),
+    })
+
+    if (!googleResponse.ok) {
+      const googleError = await googleResponse.text()
+
+      throw new Error(
+        `Google Places failed (${googleResponse.status}): ${googleError}`,
+      )
+    }
+
+    const googleData = await googleResponse.json()
+
+    const places: SignalPlace[] = (
+      Array.isArray(googleData.places) ? googleData.places : []
+    ).map((place: any) => {
+      const lat = place.location?.latitude ?? 0
+      const lng = place.location?.longitude ?? 0
+
+      return {
+        placeId: place.id ?? '',
+        name: place.displayName?.text ?? 'Unknown place',
+        address: place.formattedAddress ?? '',
+        lat,
+        lng,
+        distanceMiles: Number(
+          distanceMiles(
+            latitude,
+            longitude,
+            lat,
+            lng,
+          ).toFixed(2),
+        ),
+        rating:
+          typeof place.rating === 'number'
+            ? place.rating
+            : null,
+        ratingCount:
+          typeof place.userRatingCount === 'number'
+            ? place.userRatingCount
+            : 0,
+        category: place.primaryType ?? signalId,
+        openNow:
+          typeof place.currentOpeningHours?.openNow === 'boolean'
+            ? place.currentOpeningHours.openNow
+            : null,
+        photoName:
+          place.photos?.[0]?.name ?? null,
+        googleMapsUri:
+          place.googleMapsUri ?? null,
+      }
+    })
+
+    return new Response(
+      JSON.stringify({
+        source: 'google',
+        query,
+        places,
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      },
+    )
+  } catch (error) {
+    console.error(error)
+
+    return new Response(
+      JSON.stringify({
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unknown server error',
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      },
+    )
+  }
+})

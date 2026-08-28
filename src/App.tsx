@@ -12,6 +12,9 @@ import {
 } from 'lucide-react'
 import './App.css'
 import SignalPlaceStage from './features/signal/SignalPlaceStage'
+import SignalTimeStage, {
+  type LockedSignalVenue,
+} from './features/signal/SignalTimeStage'
 
 type Pulse = {
   id: string
@@ -194,7 +197,12 @@ function App() {
   const [accepted, setAccepted] = useState(false)
   const [formationCount, setFormationCount] = useState(0)
   const [signalThreshold, setSignalThreshold] = useState(false)
-  const [signalRoomStage, setSignalRoomStage] = useState<'arrival' | 'places'>('arrival')
+  const [signalRoomStage, setSignalRoomStage] = useState<
+    'arrival' | 'places' | 'time'
+  >('arrival')
+
+  const [lockedSignalVenue, setLockedSignalVenue] =
+    useState<LockedSignalVenue | null>(null)
 
   const suggestion = boredSuggestions[suggestionIndex]
 
@@ -738,12 +746,16 @@ function App() {
                       <strong>PICK THE PLACE</strong>
                       <span>→</span>
                     </motion.div>
-                  ) : (
+                  ) : signalRoomStage === 'places' ? (
                     <motion.div
                       key="signal-places"
                       initial={{ opacity: 0, y: 14, scale: 0.985 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0 }}
+                      exit={{
+                        opacity: 0,
+                        y: -10,
+                        scale: 0.985,
+                      }}
                       transition={{
                         duration: 0.42,
                         ease: [0.18, 0.82, 0.22, 1],
@@ -752,9 +764,43 @@ function App() {
                       <SignalPlaceStage
                         signalId={suggestion.id}
                         signalLabel={suggestion.title}
+                        onVenueLocked={(venue) => {
+                          setLockedSignalVenue(venue)
+
+                          window.setTimeout(() => {
+                            setSignalRoomStage('time')
+                          }, 5000)
+                        }}
                       />
                     </motion.div>
-                  )}
+                  ) : lockedSignalVenue ? (
+                    <motion.div
+                      key="signal-time"
+                      initial={{
+                        opacity: 0,
+                        y: 16,
+                        scale: 0.985,
+                      }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        scale: 1,
+                      }}
+                      exit={{
+                        opacity: 0,
+                        y: -8,
+                      }}
+                      transition={{
+                        duration: 0.48,
+                        ease: [0.18, 0.82, 0.22, 1],
+                      }}
+                    >
+                      <SignalTimeStage
+                        signalLabel={suggestion.title}
+                        venue={lockedSignalVenue}
+                      />
+                    </motion.div>
+                  ) : null}
                 </AnimatePresence>
 
                 <button
@@ -762,6 +808,7 @@ function App() {
                   onClick={() => {
                     setSignalThreshold(false)
                     setSignalRoomStage('arrival')
+                    setLockedSignalVenue(null)
                   }}
                 >
                   BACK TO SIGNAL

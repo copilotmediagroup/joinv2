@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchSignalPlaces } from './places/googlePlacesClient'
-import type { SignalPlace as LiveSignalPlace } from './places/contract'
+import type { SignalPlace as LiveSignalPlace, SignalPlaceReview } from './places/contract'
 import { Check, MapPin, Star, Zap } from 'lucide-react'
 import './SignalPlaceStage.css'
 
@@ -21,6 +21,7 @@ type SignalPlace = {
   voterIds: string[]
   signalRank?: number
   signalScore?: number
+  reviews?: SignalPlaceReview[]
 }
 
 const avatarUrl = (id: string) =>
@@ -106,6 +107,8 @@ type SignalPlaceStageProps = {
     placeId: string
     name: string
     address: string
+    photoUrl: string | null
+    reviews: SignalPlaceReview[]
   }) => void
 }
 
@@ -184,6 +187,7 @@ export default function SignalPlaceStage({
           openNow: live.openNow ?? presentation.openNow,
           signalRank: live.signalRank,
           signalScore: live.signalScore,
+          reviews: live.reviews ?? [],
         }
       })
     : fallbackPlaces
@@ -266,6 +270,8 @@ export default function SignalPlaceStage({
             placeId: winner.placeId,
             name: winner.name,
             address: winner.address,
+            photoUrl: winner.photoUrl ?? null,
+            reviews: winner.reviews ?? [],
           })
         }, 1500)
 

@@ -1,0 +1,70 @@
+import { Clock3, MapPin, Zap } from 'lucide-react'
+import './SignalTimeStage.css'
+
+export type LockedSignalVenue = {
+  placeId: string
+  name: string
+  address: string
+}
+
+type SignalTimeStageProps = {
+  signalLabel: string
+  venue: LockedSignalVenue
+}
+
+export default function SignalTimeStage({
+  signalLabel,
+  venue,
+}: SignalTimeStageProps) {
+  return (
+    <section className="signal-time-stage">
+      <div className="signal-time-title-row">
+        <div className="signal-time-title">
+          <span>
+            <Zap
+              size={14}
+              fill="currentColor"
+            />
+            NEXT
+          </span>
+
+          <h3>PICK THE TIME</h3>
+
+          <p>
+            CHOOSE YOUR TIME · 10s
+          </p>
+        </div>
+
+        <div className="signal-time-context">
+          {signalLabel}
+        </div>
+      </div>
+
+      <div className="signal-time-venue">
+        <div className="signal-time-venue-icon">
+          <MapPin size={16} />
+        </div>
+
+        <div>
+          <small>VENUE LOCKED</small>
+          <strong>{venue.name}</strong>
+          <span>{venue.address}</span>
+        </div>
+      </div>
+
+      <div className="signal-time-shell">
+        <div className="signal-time-shell-icon">
+          <Clock3 size={24} />
+        </div>
+
+        <strong>
+          Time coordination ready
+        </strong>
+
+        <span>
+          Voting options arrive next.
+        </span>
+      </div>
+    </section>
+  )
+}

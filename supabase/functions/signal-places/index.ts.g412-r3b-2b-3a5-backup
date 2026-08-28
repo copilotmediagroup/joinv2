@@ -1,0 +1,524 @@
+type SignalPlacesRequest = {
+  signalId: string
+  city: string
+  latitude: number
+  longitude: number
+  limit?: number
+}
+
+type SignalPlaceReview = {
+rating: number
+text: string
+relativeTime: string | null
+authorName: string
+authorPhotoUrl: string | null
+authorUri: string | null
+googleMapsUri: string | null
+}
+type SignalPlace = {
+  placeId: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+  distanceMiles: number
+  rating: number | null
+  ratingCount: number
+  category: string
+  openNow: boolean | null
+  photoName: string | null
+  photoUrl: string | null
+  photoAttributions: Array<{
+    displayName: string
+    uri: string | null
+    photoUri: string | null
+  }>
+  googleMapsUri: string | null
+  signalRank: number
+  signalScore: number
+  scoreBreakdown: {
+    distance: number
+    rating: number
+    confidence: number
+    availability: number
+    relevance: number
+    facilityFit: number
+  }
+}
+
+const GOOGLE_PLACES_URL =
+  'https://places.googleapis.com/v1/places:searchText'
+
+const SIGNAL_SEARCH_QUERIES: Record<string, string> = {
+  basketball: 'indoor basketball courts recreation centers community centers sports complexes gyms with basketball courts',
+  rooftop: 'rooftop bars and rooftop lounges',
+  paint: 'paint and sip studios and art studios',
+  music: 'live music venues',
+}
+
+function toRadians(value: number): number {
+  return (value * Math.PI) / 180
+}
+
+function scoreDistance(miles: number): number {
+  if (miles <= 1) return 35
+  if (miles <= 2) return 31
+  if (miles <= 3) return 27
+  if (miles <= 5) return 21
+  if (miles <= 7) return 14
+  if (miles <= 10) return 7
+  return 0
+}
+
+function scoreRating(rating: number | null): number {
+  if (rating === null) return 8
+  if (rating >= 4.8) return 25
+  if (rating >= 4.6) return 22
+  if (rating >= 4.4) return 19
+  if (rating >= 4.2) return 16
+  if (rating >= 4.0) return 13
+  if (rating >= 3.5) return 8
+  return 3
+}
+
+function scoreConfidence(ratingCount: number): number {
+  if (ratingCount >= 1000) return 20
+  if (ratingCount >= 500) return 18
+  if (ratingCount >= 250) return 16
+  if (ratingCount >= 100) return 13
+  if (ratingCount >= 50) return 10
+  if (ratingCount >= 20) return 7
+  if (ratingCount >= 5) return 4
+  return 1
+}
+
+function scoreAvailability(openNow: boolean | null): number {
+  if (openNow === true) return 10
+  if (openNow === null) return 5
+  return 0
+}
+
+function scoreRelevance(index: number, total: number): number {
+  if (total <= 1) return 10
+
+  const normalized =
+    1 - index / Math.max(total - 1, 1)
+
+  return Number((normalized * 10).toFixed(2))
+}
+
+function scoreBasketballFacilityFit(
+  signalId: string,
+  name: string,
+  category: string,
+): number {
+  if (signalId !== 'basketball') return 0
+
+  const text = `${name} ${category}`.toLowerCase()
+
+  const strongIndoorSignals = [
+    'basketball',
+    'recreation center',
+    'recreation_center',
+    'community center',
+    'community_center',
+    'sports complex',
+    'sports_complex',
+    'sports center',
+    'sports_center',
+    'athletic center',
+    'athletic_center',
+    'gym',
+    'fitness',
+    'ymca',
+  ]
+
+  const outdoorSignals = [
+    'park',
+    'playground',
+    'trail',
+    'nature',
+    'outdoor',
+  ]
+
+  const hasIndoorFit = strongIndoorSignals.some(
+    (term) => text.includes(term),
+  )
+
+  const hasOutdoorFit = outdoorSignals.some(
+    (term) => text.includes(term),
+  )
+
+  if (hasIndoorFit && !hasOutdoorFit) return 25
+  if (hasIndoorFit && hasOutdoorFit) return 8
+  if (hasOutdoorFit) return -30
+
+  return 0
+}
+
+function distanceMiles(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const earthRadiusMiles = 3958.8
+
+  const dLat = toRadians(lat2 - lat1)
+  const dLng = toRadians(lng2 - lng1)
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) *
+      Math.cos(toRadians(lat2)) *
+      Math.sin(dLng / 2) ** 2
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+  return earthRadiusMiles * c
+}
+
+Deno.serve(async (request: Request) => {
+  if (request.method === 'OPTIONS') {
+    return new Response('ok', {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers':
+          'authorization, x-client-info, apikey, content-type',
+      },
+    })
+  }
+
+  if (request.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      {
+        status: 405,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      },
+    )
+  }
+
+  try {
+    const body = (await request.json()) as SignalPlacesRequest
+
+    const {
+      signalId,
+      city,
+      latitude,
+      longitude,
+      limit = 5,
+    } = body
+
+    if (
+      !signalId ||
+      !city ||
+      typeof latitude !== 'number' ||
+      typeof longitude !== 'number'
+    ) {
+      return new Response(
+        JSON.stringify({
+          error:
+            'signalId, city, latitude and longitude are required',
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          },
+        },
+      )
+    }
+
+    const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+
+    if (!apiKey) {
+      throw new Error('GOOGLE_MAPS_API_KEY is not configured')
+    }
+
+    const searchIntent =
+      SIGNAL_SEARCH_QUERIES[signalId] ?? signalId
+
+    const query = `${searchIntent} in ${city}`
+
+    const googleResponse = await fetch(GOOGLE_PLACES_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': [
+          'places.id',
+          'places.displayName',
+          'places.formattedAddress',
+          'places.location',
+          'places.rating',
+          'places.userRatingCount',
+          'places.primaryType',
+          'places.currentOpeningHours.openNow',
+          'places.photos',
+          'places.googleMapsUri',
+'places.reviews',        ].join(','),
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        maxResultCount: 15,
+        locationBias: {
+          circle: {
+            center: {
+              latitude,
+              longitude,
+            },
+            radius: 16093.4,
+          },
+        },
+      }),
+    })
+
+    if (!googleResponse.ok) {
+      const googleError = await googleResponse.text()
+
+      throw new Error(
+        `Google Places failed (${googleResponse.status}): ${googleError}`,
+      )
+    }
+
+    const googleData = await googleResponse.json()
+
+    const rawPlaces = (
+      Array.isArray(googleData.places) ? googleData.places : []
+    )
+
+    const places: SignalPlace[] = await Promise.all(
+      rawPlaces.map(async (place: any) => {
+      const lat = place.location?.latitude ?? 0
+      const lng = place.location?.longitude ?? 0
+
+      const photoName = place.photos?.[0]?.name ?? null
+
+      let photoUrl: string | null = null
+      let photoAttributions: Array<{
+        displayName: string
+        uri: string | null
+        photoUri: string | null
+      }> = []
+
+      if (photoName) {
+        try {
+          const photoResponse = await fetch(
+            `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1200&skipHttpRedirect=true&key=${encodeURIComponent(apiKey)}`,
+          )
+
+          if (photoResponse.ok) {
+            const photoData = await photoResponse.json()
+
+            photoUrl =
+              typeof photoData.photoUri === 'string'
+                ? photoData.photoUri
+                : null
+          }
+        } catch (photoError) {
+          console.error('Google Place Photo failed', photoError)
+        }
+
+        photoAttributions = Array.isArray(
+          place.photos?.[0]?.authorAttributions,
+        )
+          ? place.photos[0].authorAttributions.map(
+              (attribution: any) => ({
+                displayName:
+                  attribution.displayName ?? 'Google Maps contributor',
+                uri:
+                  typeof attribution.uri === 'string'
+                    ? attribution.uri
+                    : null,
+                photoUri:
+                  typeof attribution.photoUri === 'string'
+                    ? attribution.photoUri
+                    : null,
+              }),
+            )
+          : []
+      }
+
+      const miles = Number(
+        distanceMiles(
+          latitude,
+          longitude,
+          lat,
+          lng,
+        ).toFixed(2),
+      )
+
+      const rating =
+        typeof place.rating === 'number'
+          ? place.rating
+          : null
+
+      const ratingCount =
+        typeof place.userRatingCount === 'number'
+          ? place.userRatingCount
+          : 0
+
+const reviews: SignalPlaceReview[] = Array.isArray(place.reviews)
+? place.reviews
+.slice(0, 3)
+.map((review: any) => ({
+rating:
+typeof review.rating === 'number'
+? review.rating
+: 0,
+typeof review.text?.text === 'string'
+? review.text.text
+: '',
+relativeTime:
+typeof review.relativePublishTimeDescription === 'string'
+? review.relativePublishTimeDescription
+: null,
+authorName:
+typeof review.authorAttribution?.displayName === 'string'
+? review.authorAttribution.displayName
+: 'Google Maps user',
+authorPhotoUrl:
+typeof review.authorAttribution?.photoUri === 'string'
+? review.authorAttribution.photoUri
+: null,
+authorUri:
+typeof review.authorAttribution?.uri === 'string'
+? review.authorAttribution.uri
+: null,
+googleMapsUri:
+typeof review.googleMapsUri === 'string'
+? review.googleMapsUri
+: null,
+}))
+.filter((review: SignalPlaceReview) =>
+review.text.length > 0
+)
+: []
+      const openNow =
+        typeof place.currentOpeningHours?.openNow === 'boolean'
+          ? place.currentOpeningHours.openNow
+          : null
+
+      const distanceScore = scoreDistance(miles)
+      const ratingScore = scoreRating(rating)
+      const confidenceScore = scoreConfidence(ratingCount)
+      const availabilityScore = scoreAvailability(openNow)
+
+      const facilityFitScore = scoreBasketballFacilityFit(
+        signalId,
+        place.displayName?.text ?? '',
+        place.primaryType ?? '',
+      )
+
+      return {
+        placeId: place.id ?? '',
+        name: place.displayName?.text ?? 'Unknown place',
+        address: place.formattedAddress ?? '',
+        lat,
+        lng,
+        distanceMiles: miles,
+        rating,
+        ratingCount,
+        category: place.primaryType ?? signalId,
+        openNow,
+        photoName,
+        photoUrl,
+        photoAttributions,
+        googleMapsUri:
+          place.googleMapsUri ?? null,
+reviews,        signalRank: 0,
+        signalScore: 0,
+        scoreBreakdown: {
+          distance: distanceScore,
+          rating: ratingScore,
+          confidence: confidenceScore,
+          availability: availabilityScore,
+          relevance: 0,
+          facilityFit: facilityFitScore,
+        },
+      }
+      }),
+    )
+
+    const rankedPlaces = places
+      .map((place, index) => {
+        const relevanceScore =
+          scoreRelevance(index, places.length)
+
+        const signalScore = Number(
+          (
+            place.scoreBreakdown.distance +
+            place.scoreBreakdown.rating +
+            place.scoreBreakdown.confidence +
+            place.scoreBreakdown.availability +
+            relevanceScore +
+            place.scoreBreakdown.facilityFit
+          ).toFixed(2),
+        )
+
+        return {
+          ...place,
+          signalScore,
+          scoreBreakdown: {
+            ...place.scoreBreakdown,
+            relevance: relevanceScore,
+          },
+        }
+      })
+      .sort((a, b) => {
+        if (b.signalScore !== a.signalScore) {
+          return b.signalScore - a.signalScore
+        }
+
+        if (b.ratingCount !== a.ratingCount) {
+          return b.ratingCount - a.ratingCount
+        }
+
+        return a.distanceMiles - b.distanceMiles
+      })
+      .slice(0, Math.min(Math.max(limit, 1), 3))
+      .map((place, index) => ({
+        ...place,
+        signalRank: index + 1,
+      }))
+
+    return new Response(
+      JSON.stringify({
+        version: 'g410b-basketball-fit-v1',
+        source: 'google',
+        query,
+        places: rankedPlaces,
+      }),
+      {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      },
+    )
+  } catch (error) {
+    console.error(error)
+
+    return new Response(
+      JSON.stringify({
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unknown server error',
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      },
+    )
+  }
+})

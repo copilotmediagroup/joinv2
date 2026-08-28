@@ -1,0 +1,53 @@
+export type SignalPlaceReview = {
+rating: number
+text: string
+relativeTime: string | null
+authorName: string
+authorPhotoUrl: string | null
+authorUri: string | null
+googleMapsUri: string | null
+}
+export type SignalPlace = {
+  placeId: string
+  name: string
+  address: string
+  lat: number
+  lng: number
+  distanceMiles: number
+  rating: number | null
+  ratingCount: number
+  category: string
+  openNow: boolean | null
+  photoName: string | null
+  photoUrl: string | null
+  photoAttributions: Array<{
+    displayName: string
+    uri: string | null
+    photoUri: string | null
+  }>
+  googleMapsUri: string | null
+  reviews: SignalPlaceReview[]
+  signalRank: number
+  signalScore: number
+  scoreBreakdown: {
+    distance: number
+    rating: number
+    confidence: number
+    availability: number
+    relevance: number
+  }
+}
+
+export type SignalPlacesRequest = {
+  signalId: string
+  city: string
+  latitude: number
+  longitude: number
+  limit?: number
+}
+
+export type SignalPlacesResponse = {
+  source: 'google'
+  query: string
+  places: SignalPlace[]
+}

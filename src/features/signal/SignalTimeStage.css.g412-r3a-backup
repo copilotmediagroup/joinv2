@@ -1,0 +1,198 @@
+.signal-time-stage {
+  width: 100%;
+}
+
+.signal-time-title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.signal-time-title {
+  min-width: 0;
+}
+
+.signal-time-title > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  color: #77dcff;
+
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.signal-time-title h3 {
+  margin: 7px 0 0;
+
+  color: #fff;
+
+  font-size: 22px;
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: -.025em;
+}
+
+.signal-time-title p {
+  margin: 8px 0 0;
+
+  color: #fff;
+
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.signal-time-context {
+  color: rgba(196, 220, 235, .55);
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+
+  text-align: right;
+}
+
+.signal-time-venue {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  margin-top: 18px;
+  padding: 12px 14px;
+
+  border:
+    1px solid rgba(86, 204, 255, .14);
+
+  border-radius: 15px;
+
+  background:
+    linear-gradient(
+      100deg,
+      rgba(12, 28, 42, .74),
+      rgba(7, 17, 27, .46)
+    );
+}
+
+.signal-time-venue-icon {
+  display: grid;
+  place-items: center;
+
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+
+  border-radius: 50%;
+
+  color: #7ee3ff;
+
+  background:
+    rgba(62, 186, 255, .09);
+
+  box-shadow:
+    0 0 18px rgba(47, 175, 255, .08);
+}
+
+.signal-time-venue > div:last-child {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.signal-time-venue small {
+  color: rgba(109, 220, 255, .70);
+
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.signal-time-venue strong {
+  margin-top: 2px;
+
+  overflow: hidden;
+
+  color: #fff;
+
+  font-size: 13px;
+  font-weight: 850;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.signal-time-venue span {
+  margin-top: 2px;
+
+  overflow: hidden;
+
+  color: rgba(196, 218, 232, .52);
+
+  font-size: 10px;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.signal-time-shell {
+  min-height: 240px;
+
+  margin-top: 15px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  border:
+    1px solid rgba(90, 205, 255, .12);
+
+  border-radius: 20px;
+
+  background:
+    radial-gradient(
+      circle at 50% 30%,
+      rgba(57, 173, 255, .08),
+      transparent 48%
+    ),
+    rgba(7, 16, 26, .52);
+}
+
+.signal-time-shell-icon {
+  display: grid;
+  place-items: center;
+
+  width: 48px;
+  height: 48px;
+
+  border-radius: 50%;
+
+  color: #87e8ff;
+
+  background:
+    rgba(63, 190, 255, .08);
+
+  box-shadow:
+    0 0 24px rgba(52, 181, 255, .08);
+}
+
+.signal-time-shell strong {
+  margin-top: 12px;
+
+  color: #fff;
+
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.signal-time-shell > span {
+  margin-top: 4px;
+
+  color: rgba(196, 218, 232, .46);
+
+  font-size: 10px;
+}
