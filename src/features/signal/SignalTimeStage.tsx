@@ -166,6 +166,9 @@ export default function SignalTimeStage({
         review.text.trim().length > 0
       )
 
+  const [planSet, setPlanSet] =
+    useState(false)
+
   const [reviewIndex, setReviewIndex] =
     useState(0)
 
@@ -197,6 +200,18 @@ export default function SignalTimeStage({
     lockedTime,
     reviewSlides.length,
   ])
+
+  useEffect(() => {
+    if (!lockedTime) return
+
+    const timer = window.setTimeout(() => {
+      setPlanSet(true)
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [lockedTime])
 
   const resultTimeVoters = [
     ...groupTimeVotes,
@@ -232,6 +247,63 @@ const option =      timeOptions.find(
     lockedTimeId,
     winningTimeId,
   ])
+
+  if (planSet && lockedTime) {
+    return (
+      <section className="signal-plan-set">
+        <div className="signal-plan-set-kicker">
+          ⚡ YOUR PLAN IS SET
+        </div>
+
+        {venue.photoUrl && (
+          <div className="signal-plan-set-photo">
+            <img
+              src={venue.photoUrl}
+              alt={venue.name}
+            />
+          </div>
+        )}
+
+        <h2>{venue.name}</h2>
+        <p>{venue.address}</p>
+
+        <div className="signal-plan-set-time">
+          <small>MEETUP TIME</small>
+          <strong>{lockedTime.time}</strong>
+        </div>
+
+        <div className="signal-plan-set-people">
+          {['8', '13', '15', '17', '22', '28'].map(
+            (id) => (
+              <img
+                key={id}
+                src={timeResultAvatarUrl(id)}
+                alt=""
+              />
+            ),
+          )}
+        </div>
+
+        <strong className="signal-plan-set-count">
+          6 PEOPLE ARE IN
+        </strong>
+
+        <button
+          type="button"
+          className="signal-plan-set-primary"
+        >
+          OPEN PLAN
+        </button>
+
+        <button
+          type="button"
+          className="signal-plan-set-secondary"
+        >
+          OPEN GROUP CHAT
+        </button>
+      </section>
+    )
+  }
 
   return (
     <section className="signal-time-stage">

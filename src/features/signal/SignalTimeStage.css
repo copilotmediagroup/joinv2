@@ -967,3 +967,119 @@
     height: 190px;
   }
 }
+
+/* YOUR PLAN IS SET */
+
+.signal-plan-set {
+  position: relative;
+  overflow: hidden;
+  padding: 22px;
+  border: 1px solid rgba(98, 221, 255, .18);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 85% 5%, rgba(66, 203, 255, .12), transparent 34%),
+    rgba(7, 16, 25, .96);
+  text-align: center;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, .34);
+}
+
+.signal-plan-set-kicker {
+  margin-bottom: 15px;
+  color: rgba(115, 229, 255, .96);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.signal-plan-set-photo {
+  height: 230px;
+  margin: 0 0 18px;
+  overflow: hidden;
+  border-radius: 21px;
+}
+
+.signal-plan-set-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.signal-plan-set h2 {
+  margin: 0;
+  font-size: clamp(29px, 4vw, 46px);
+  letter-spacing: -.045em;
+}
+
+.signal-plan-set > p {
+  margin: 7px 0 0;
+  color: rgba(218, 230, 238, .56);
+  font-size: 12px;
+}
+
+.signal-plan-set-time {
+  margin: 20px auto 15px;
+}
+
+.signal-plan-set-time small {
+  display: block;
+  color: rgba(255, 255, 255, .4);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.signal-plan-set-time strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 35px;
+}
+
+.signal-plan-set-people {
+  display: flex;
+  justify-content: center;
+  margin: 18px 0 10px;
+}
+
+.signal-plan-set-people img {
+  width: 42px;
+  height: 42px;
+  margin-left: -8px;
+  border: 3px solid #09131d;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.signal-plan-set-people img:first-child {
+  margin-left: 0;
+}
+
+.signal-plan-set-count {
+  display: block;
+  margin-bottom: 20px;
+  color: rgba(255, 255, 255, .58);
+  font-size: 9px;
+  letter-spacing: .12em;
+}
+
+.signal-plan-set-primary,
+.signal-plan-set-secondary {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 15px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.signal-plan-set-primary {
+  border: 0;
+  background: rgba(84, 215, 255, .96);
+  color: #041018;
+}
+
+.signal-plan-set-secondary {
+  margin-top: 9px;
+  border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .035);
+  color: rgba(255, 255, 255, .82);
+}
