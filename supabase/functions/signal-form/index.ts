@@ -1,15 +1,20 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 type SignalFormRequest = {
-  cityId: string
-  activityId: string
-  startsAt: string
-  endsAt: string
+  citySlug: string
+  activitySlug: string
+  timeWindow:
+    | 'NOW'
+    | 'TONIGHT'
+    | 'TOMORROW'
+    | 'THIS_WEEKEND'
   crowdMode: 'everyone' | 'women_only' | 'men_only'
   minAge: number | null
   maxAge: number | null
-  groupingPolicyCode: string
-  journeyOrigin: 'direct_signal' | 'im_bored' | 'manual_plan'
+  journeyOrigin:
+    | 'direct_signal'
+    | 'im_bored'
+    | 'manual_plan'
   vibeId?: string | null
   preferredRadiusMiles?: number | null
 }
@@ -37,11 +42,6 @@ const isUuid = (value: unknown): value is string =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value,
   )
-
-const isIsoDate = (value: unknown): value is string =>
-  typeof value === 'string' &&
-  value.trim().length > 0 &&
-  !Number.isNaN(Date.parse(value))
 
 Deno.serve(async (request: Request) => {
   if (request.method === 'OPTIONS') {
@@ -124,8 +124,10 @@ Deno.serve(async (request: Request) => {
   }
 
   /*
-   * Authentication client:
-   * use the caller's bearer token only to establish identity.
+   * Authentication boundary:
+   *
+   * The caller's bearer token establishes identity.
+   * The browser never supplies p_user_id.
    */
   const authClient = createClient(
     supabaseUrl,
@@ -178,55 +180,50 @@ Deno.serve(async (request: Request) => {
     )
   }
 
-  const body = rawBody as SignalFormRequest
+  const body = rawBody as Partial<SignalFormRequest>
 
   const {
-    cityId,
-    activityId,
-    startsAt,
-    endsAt,
+    citySlug,
+    activitySlug,
+    timeWindow,
     crowdMode,
     minAge,
     maxAge,
-    groupingPolicyCode,
     journeyOrigin,
     vibeId = null,
     preferredRadiusMiles = null,
   } = body
 
-  if (!isUuid(cityId)) {
+  if (
+    typeof citySlug !== 'string' ||
+    citySlug.trim().length === 0
+  ) {
     return jsonResponse(
-      { error: 'cityId must be a UUID' },
-      400,
-    )
-  }
-
-  if (!isUuid(activityId)) {
-    return jsonResponse(
-      { error: 'activityId must be a UUID' },
+      { error: 'citySlug is required' },
       400,
     )
   }
 
   if (
-    vibeId !== null &&
-    !isUuid(vibeId)
+    typeof activitySlug !== 'string' ||
+    activitySlug.trim().length === 0
   ) {
     return jsonResponse(
-      { error: 'vibeId must be null or a UUID' },
+      { error: 'activitySlug is required' },
       400,
     )
   }
 
   if (
-    !isIsoDate(startsAt) ||
-    !isIsoDate(endsAt)
+    ![
+      'NOW',
+      'TONIGHT',
+      'TOMORROW',
+      'THIS_WEEKEND',
+    ].includes(timeWindow ?? '')
   ) {
     return jsonResponse(
-      {
-        error:
-          'startsAt and endsAt must be valid timestamps',
-      },
+      { error: 'Invalid timeWindow' },
       400,
     )
   }
@@ -236,7 +233,7 @@ Deno.serve(async (request: Request) => {
       'everyone',
       'women_only',
       'men_only',
-    ].includes(crowdMode)
+    ].includes(crowdMode ?? '')
   ) {
     return jsonResponse(
       { error: 'Invalid crowdMode' },
@@ -246,6 +243,7 @@ Deno.serve(async (request: Request) => {
 
   if (
     minAge !== null &&
+    minAge !== undefined &&
     (
       !Number.isInteger(minAge) ||
       minAge < 18
@@ -259,6 +257,7 @@ Deno.serve(async (request: Request) => {
 
   if (
     maxAge !== null &&
+    maxAge !== undefined &&
     (
       !Number.isInteger(maxAge) ||
       maxAge < 18
@@ -272,7 +271,9 @@ Deno.serve(async (request: Request) => {
 
   if (
     minAge !== null &&
+    minAge !== undefined &&
     maxAge !== null &&
+    maxAge !== undefined &&
     maxAge < minAge
   ) {
     return jsonResponse(
@@ -282,24 +283,24 @@ Deno.serve(async (request: Request) => {
   }
 
   if (
-    typeof groupingPolicyCode !== 'string' ||
-    groupingPolicyCode.trim().length === 0
+    ![
+      'direct_signal',
+      'im_bored',
+      'manual_plan',
+    ].includes(journeyOrigin ?? '')
   ) {
     return jsonResponse(
-      { error: 'groupingPolicyCode is required' },
+      { error: 'Invalid journeyOrigin' },
       400,
     )
   }
 
   if (
-    ![
-      'direct_signal',
-      'im_bored',
-      'manual_plan',
-    ].includes(journeyOrigin)
+    vibeId !== null &&
+    !isUuid(vibeId)
   ) {
     return jsonResponse(
-      { error: 'Invalid journeyOrigin' },
+      { error: 'vibeId must be null or a UUID' },
       400,
     )
   }
@@ -319,13 +320,19 @@ Deno.serve(async (request: Request) => {
   }
 
   /*
-   * Privileged database client.
+   * Privileged domain boundary.
    *
-   * The service-role credential exists only inside the Edge
-   * Function environment. It is never returned to the browser.
+   * PostgreSQL now owns:
+   *   catalog UUID resolution
+   *   city timezone
+   *   concrete operational timestamps
+   *   activity minimum age
+   *   effective minimum age
+   *   grouping policy/version
+   *   named-window identity
+   *   named-window concurrency serialization
    *
-   * Most importantly, p_user_id comes from auth.getUser().
-   * There is intentionally no userId field in SignalFormRequest.
+   * p_user_id remains derived exclusively from auth.getUser().
    */
   const domainClient = createClient(
     supabaseUrl,
@@ -340,18 +347,16 @@ Deno.serve(async (request: Request) => {
   )
 
   const { data, error } = await domainClient.rpc(
-    'form_or_join_signal',
+    'resolve_and_form_signal',
     {
       p_user_id: user.id,
-      p_city_id: cityId,
-      p_activity_id: activityId,
-      p_starts_at: startsAt,
-      p_ends_at: endsAt,
+      p_city_slug: citySlug.trim().toLowerCase(),
+      p_activity_slug:
+        activitySlug.trim().toLowerCase(),
+      p_time_window: timeWindow,
       p_crowd_mode: crowdMode,
-      p_min_age: minAge,
-      p_max_age: maxAge,
-      p_grouping_policy_code:
-        groupingPolicyCode.trim(),
+      p_min_age: minAge ?? null,
+      p_max_age: maxAge ?? null,
       p_journey_origin: journeyOrigin,
       p_vibe_id: vibeId,
       p_preferred_radius_miles:
@@ -361,7 +366,7 @@ Deno.serve(async (request: Request) => {
 
   if (error) {
     console.error(
-      'form_or_join_signal failed',
+      'resolve_and_form_signal failed',
       {
         code: error.code,
         message: error.message,
@@ -382,7 +387,7 @@ Deno.serve(async (request: Request) => {
 
   if (!result) {
     console.error(
-      'form_or_join_signal returned no result',
+      'resolve_and_form_signal returned no result',
     )
 
     return jsonResponse(
