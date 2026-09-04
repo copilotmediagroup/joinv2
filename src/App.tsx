@@ -6,11 +6,40 @@ import {
   Compass,
   MessageCircle,
   Search,
+  SlidersHorizontal,
   Sparkles,
   UserRound,
   Zap,
 } from 'lucide-react'
 import './App.css'
+import ActivityView from './features/activity/ActivityView'
+import MessagesView from './features/messaging/MessagesView'
+import {
+  getMyActivity,
+  type ActivityItem,
+} from './features/activity/activityClient'
+import { createProfileAvatarSignedUrl } from './features/onboarding/avatarClient'
+import { useSignalCurrentUser } from './features/onboarding/components/signalCurrentUserContext'
+import {
+  getMySignalDiscovery,
+  type SignalDiscoveryActivity,
+} from './features/signal/discovery/signalDiscoveryClient'
+import {
+  getAuthoritativeHomeCity,
+} from './features/city/homeCityAuthority'
+import {
+  formSignal,
+  type SignalFormationResult,
+} from './features/signal/formation/signalFormationClient'
+import type {
+  SignalRealtimeTarget,
+} from './features/signal/realtime/contract'
+import {
+  useSignalRealtime,
+} from './features/signal/realtime/useSignalRealtime'
+import {
+  withdrawMySignal,
+} from './features/signal/withdrawal/signalWithdrawalClient'
 import SignalPlaceStage from './features/signal/SignalPlaceStage'
 import SignalTimeStage, {
   type LockedSignalVenue,
@@ -20,11 +49,9 @@ type Pulse = {
   id: string
   emoji: string
   label: string
-  count: number
   line: string
   image: string
   size: 'hero' | 'wide' | 'medium' | 'small'
-  avatars: string[]
 }
 
 type BoredSuggestion = {
@@ -33,107 +60,141 @@ type BoredSuggestion = {
   title: string
   subtitle: string
   image: string
-  people: number
-  avatars: string[]
-  detail: string
+}
+
+type SignalPreferenceTime =
+  | 'NOW'
+  | 'TONIGHT'
+  | 'TOMORROW'
+  | 'THIS_WEEKEND'
+
+type SignalPreferenceCrowd =
+  | 'everyone'
+  | 'women_only'
+  | 'men_only'
+
+type SignalPreferenceAge =
+  | 'open'
+  | '30_plus'
+  | '40_plus'
+
+function getProfileAge(
+  birthDate: string | null,
+): number | null {
+  if (!birthDate) {
+    return null
+  }
+
+  const parts = birthDate
+    .split('-')
+    .map((value) => Number(value))
+
+  if (
+    parts.length !== 3 ||
+    parts.some((value) => !Number.isInteger(value))
+  ) {
+    return null
+  }
+
+  const [birthYear, birthMonth, birthDay] = parts
+  const now = new Date()
+
+  const currentYear = now.getUTCFullYear()
+  const currentMonth = now.getUTCMonth() + 1
+  const currentDay = now.getUTCDate()
+
+  let age = currentYear - birthYear
+
+  if (
+    currentMonth < birthMonth ||
+    (
+      currentMonth === birthMonth &&
+      currentDay < birthDay
+    )
+  ) {
+    age -= 1
+  }
+
+  return age >= 0 ? age : null
 }
 
 const imageUrl = (id: string) =>
   ['https:', '//images.unsplash.com/photo-', id, '?auto=format&fit=crop&w=1400&q=90'].join('')
 
-const avatarUrl = (id: string) =>
-  ['https:', '//i.pravatar.cc/100?img=', id].join('')
+
 
 const pulses: Pulse[] = [
   {
     id: 'drinks',
     emoji: '🍸',
     label: 'DRINKS',
-    count: 18,
     line: 'down for drinks',
     image: imageUrl('1515003197210-e0cd71810b5f'),
     size: 'hero',
-    avatars: ['47', '45', '12', '32', '11'],
   },
   {
     id: 'sports',
     emoji: '🏀',
     label: 'SPORTS',
-    count: 12,
     line: 'ready to play',
     image: imageUrl('1546519638-68e109498ffc'),
     size: 'medium',
-    avatars: ['8', '13', '15', '17'],
   },
   {
     id: 'creative',
     emoji: '🎨',
     label: 'CREATIVE',
-    count: 8,
     line: 'making something',
     image: imageUrl('1541961017774-22349e4a1262'),
     size: 'medium',
-    avatars: ['44', '36', '25', '29'],
   },
   {
     id: 'food',
     emoji: '🍽️',
     label: 'FOOD',
-    count: 18,
     line: 'hungry right now',
     image: imageUrl('1414235077428-338989a2e8c0'),
     size: 'wide',
-    avatars: ['19', '21', '31', '33'],
   },
   {
     id: 'music',
     emoji: '🎶',
     label: 'LIVE MUSIC',
-    count: 11,
     line: 'vibing tonight',
     image: imageUrl('1501386761578-eac5c94b800a'),
     size: 'wide',
-    avatars: ['22', '28', '35', '42'],
   },
   {
     id: 'outdoors',
     emoji: '🌴',
     label: 'OUTDOORS',
-    count: 9,
     line: 'outside today',
     image: imageUrl('1500530855697-b586d89ba3ee'),
     size: 'small',
-    avatars: ['20', '23', '37', '43'],
   },
   {
     id: 'chill',
     emoji: '📺',
     label: 'CHILL',
-    count: 6,
     line: 'down to chill',
     image: imageUrl('1489599849927-2ee91cede3ba'),
     size: 'small',
-    avatars: ['26', '41', '46'],
   },
   {
     id: 'explore',
     emoji: '🛍️',
     label: 'EXPLORE',
-    count: 7,
     line: 'wanna go',
     image: imageUrl('1519501025264-65ba15a82390'),
     size: 'small',
-    avatars: ['10', '18', '34'],
   },
   {
     id: 'nightlife',
     emoji: '🌙',
     label: 'NIGHTLIFE',
-    count: 26,
     line: 'going out tonight',
     image: imageUrl('1514525253161-7a46d19cd819'),
     size: 'small',
-    avatars: ['47', '45', '12', '32'],
   },
 ]
 
@@ -144,9 +205,6 @@ const boredSuggestions: BoredSuggestion[] = [
     title: 'PICKUP BASKETBALL?',
     subtitle: 'Easy run. No league. Just hoop.',
     image: imageUrl('1519861531473-9200262188bf'),
-    people: 9,
-    avatars: ['8', '13', '15', '17'],
-    detail: '4 people want to play tonight',
   },
   {
     id: 'paint',
@@ -154,9 +212,6 @@ const boredSuggestions: BoredSuggestion[] = [
     title: 'PAINT & SIP?',
     subtitle: 'Creative without taking it too seriously.',
     image: imageUrl('1541961017774-22349e4a1262'),
-    people: 11,
-    avatars: ['44', '36', '25', '29'],
-    detail: 'A small creative group is forming',
   },
   {
     id: 'rooftop',
@@ -164,9 +219,6 @@ const boredSuggestions: BoredSuggestion[] = [
     title: 'ROOFTOP TONIGHT?',
     subtitle: 'Drinks, skyline, somewhere with energy.',
     image: imageUrl('1514525253161-7a46d19cd819'),
-    people: 16,
-    avatars: ['47', '45', '12', '32'],
-    detail: '6 people are leaning rooftop',
   },
   {
     id: 'music',
@@ -174,28 +226,135 @@ const boredSuggestions: BoredSuggestion[] = [
     title: 'LIVE MUSIC?',
     subtitle: 'Local spot. Good energy. Nothing overplanned.',
     image: imageUrl('1501386761578-eac5c94b800a'),
-    people: 13,
-    avatars: ['22', '28', '35', '42'],
-    detail: '5 people nearby want music tonight',
   },
 ]
 
-function AvatarStack({ ids }: { ids: string[] }) {
+const boredSuggestionActivitySlug: Record<
+  BoredSuggestion['id'],
+  string
+> = {
+  basketball: 'sports',
+  paint: 'creative',
+  rooftop: 'nightlife',
+  music: 'music',
+}
+
+function AvatarStack({ urls }: { urls: string[] }) {
+  if (urls.length === 0) {
+    return null
+  }
+
   return (
     <div className="avatar-stack">
-      {ids.map((id) => (
-        <img key={id} src={avatarUrl(id)} alt="" />
+      {urls.map((url) => (
+        <img key={url} src={url} alt="" />
       ))}
     </div>
   )
 }
-
 function App() {
+  const currentUser = useSignalCurrentUser()
+
+  const currentUserAge = useMemo(
+    () => getProfileAge(currentUser.birthDate),
+    [currentUser.birthDate],
+  )
+
+  const canSelectWomenOnly =
+    currentUser.gender === 'female'
+
+  const canSelectMenOnly =
+    currentUser.gender === 'male'
+
+  const canSelect30Plus =
+    currentUserAge !== null &&
+    currentUserAge >= 30
+
+  const canSelect40Plus =
+    currentUserAge !== null &&
+    currentUserAge >= 40
+
+  const [currentUserAvatarUrl, setCurrentUserAvatarUrl] =
+    useState<string | null>(null)
+  const [discovery, setDiscovery] =
+    useState<SignalDiscoveryActivity[]>([])
+  const [discoveryLoading, setDiscoveryLoading] =
+    useState(true)
+  const [discoveryError, setDiscoveryError] =
+    useState<string | null>(null)
+
+  const [activeSurface, setActiveSurface] =
+    useState<'discover' | 'activity' | 'messages'>('discover')
+  const [activityItems, setActivityItems] =
+    useState<ActivityItem[]>([])
+  const [activityLoading, setActivityLoading] =
+    useState(false)
+  const [activityError, setActivityError] =
+    useState<string | null>(null)
+
   const [active, setActive] = useState('drinks')
+  const [directActivitySlug, setDirectActivitySlug] =
+    useState<string | null>(null)
   const [bored, setBored] = useState(false)
   const [suggestionIndex, setSuggestionIndex] = useState(0)
   const [accepted, setAccepted] = useState(false)
-  const [formationCount, setFormationCount] = useState(0)
+  const [signalTimePreference, setSignalTimePreference] =
+    useState<SignalPreferenceTime>('TONIGHT')
+  const [signalCrowdPreference, setSignalCrowdPreference] =
+    useState<SignalPreferenceCrowd>('everyone')
+  const [signalAgePreference, setSignalAgePreference] =
+    useState<SignalPreferenceAge>('open')
+  const [signalPreferencesOpen, setSignalPreferencesOpen] =
+    useState(false)
+  const [formationResult, setFormationResult] =
+    useState<SignalFormationResult | null>(null)
+  const [signalRealtimeTarget, setSignalRealtimeTarget] =
+    useState<SignalRealtimeTarget | null>(null)
+  const [formationSubmitting, setFormationSubmitting] =
+    useState(false)
+  const [formationError, setFormationError] =
+    useState<string | null>(null)
+  const [withdrawalSubmitting, setWithdrawalSubmitting] =
+    useState(false)
+  const [withdrawalError, setWithdrawalError] =
+    useState<string | null>(null)
+
+  useEffect(() => {
+    if (
+      signalCrowdPreference === 'women_only' &&
+      !canSelectWomenOnly
+    ) {
+      setSignalCrowdPreference('everyone')
+    }
+
+    if (
+      signalCrowdPreference === 'men_only' &&
+      !canSelectMenOnly
+    ) {
+      setSignalCrowdPreference('everyone')
+    }
+
+    if (
+      signalAgePreference === '30_plus' &&
+      !canSelect30Plus
+    ) {
+      setSignalAgePreference('open')
+    }
+
+    if (
+      signalAgePreference === '40_plus' &&
+      !canSelect40Plus
+    ) {
+      setSignalAgePreference('open')
+    }
+  }, [
+    signalCrowdPreference,
+    signalAgePreference,
+    canSelectWomenOnly,
+    canSelectMenOnly,
+    canSelect30Plus,
+    canSelect40Plus,
+  ])
   const [signalThreshold, setSignalThreshold] = useState(false)
   const [signalRoomStage, setSignalRoomStage] = useState<
     'arrival' | 'places' | 'time'
@@ -209,49 +368,513 @@ function App() {
 
   const suggestion = boredSuggestions[suggestionIndex]
 
+  const directActivity = directActivitySlug
+    ? pulses.find(
+        (pulse) => pulse.id === directActivitySlug,
+      ) ?? null
+    : null
+
+  const journeyPresentation = directActivity
+    ? {
+        id: directActivity.id,
+        emoji: directActivity.emoji,
+        title: directActivity.label,
+        subtitle: directActivity.line,
+        image: directActivity.image,
+        activitySlug: directActivity.id,
+        kicker: 'YOUR SIGNAL',
+      }
+    : {
+        id: suggestion.id,
+        emoji: suggestion.emoji,
+        title: suggestion.title,
+        subtitle: suggestion.subtitle,
+        image: suggestion.image,
+        activitySlug:
+          boredSuggestionActivitySlug[
+            suggestion.id
+          ],
+        kicker: 'SIGNAL FOUND SOMETHING',
+      }
+
   useEffect(() => {
-    if (!accepted) {
-      setFormationCount(0)
+    let cancelled = false
+
+    const loadCurrentUserAvatar = async () => {
+      if (!currentUser.avatarPath) {
+        setCurrentUserAvatarUrl(null)
+        return
+      }
+
+      try {
+        const signedUrl =
+          await createProfileAvatarSignedUrl(
+            currentUser.avatarPath,
+          )
+
+        if (!cancelled) {
+          setCurrentUserAvatarUrl(signedUrl)
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentUserAvatarUrl(null)
+        }
+      }
+    }
+
+    void loadCurrentUserAvatar()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentUser.avatarPath])
+
+  const refreshDiscovery = async () => {
+    setDiscoveryLoading(true)
+    setDiscoveryError(null)
+
+    try {
+      const result =
+        await getMySignalDiscovery()
+
+      setDiscovery(result)
+    } catch (error) {
+      setDiscoveryError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load live Signal activity.',
+      )
+    } finally {
+      setDiscoveryLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadDiscovery = async () => {
+      setDiscoveryLoading(true)
+      setDiscoveryError(null)
+
+      try {
+        const result =
+          await getMySignalDiscovery()
+
+        if (!cancelled) {
+          setDiscovery(result)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setDiscovery([])
+          setDiscoveryError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load live Signal activity.',
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setDiscoveryLoading(false)
+        }
+      }
+    }
+
+    void loadDiscovery()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const discoveryBySlug = useMemo(
+    () =>
+      new Map(
+        discovery.map((activity) => [
+          activity.activitySlug,
+          activity,
+        ]),
+      ),
+    [discovery],
+  )
+
+  const journeyDiscovery =
+    discoveryBySlug.get(
+      journeyPresentation.activitySlug,
+    ) ?? null
+
+  const {
+    snapshot: signalRealtimeSnapshot,
+    loading: signalRealtimeLoading,
+    error: signalRealtimeError,
+    connectionState: signalRealtimeConnectionState,
+  } = useSignalRealtime(signalRealtimeTarget)
+
+  const authoritativeFormationCount =
+    signalRealtimeSnapshot?.memberCount ??
+    formationResult?.memberCount ??
+    0
+
+  const authoritativeActivationThreshold =
+    formationResult?.activationThreshold ??
+    0
+
+  const authoritativeGroupState =
+    signalRealtimeSnapshot?.group.state ??
+    formationResult?.groupState ??
+    null
+
+  const signalHasReachedCriticalMass =
+    authoritativeGroupState === 'confirming' ||
+    authoritativeGroupState === 'coordinating' ||
+    authoritativeGroupState === 'locked' ||
+    authoritativeGroupState === 'active_outing'
+
+  const formationMessage =
+    formationError
+      ? formationError
+      : formationSubmitting
+        ? 'Joining your Signal...'
+        : authoritativeFormationCount === 0
+          ? 'Scanning nearby Signals...'
+          : signalHasReachedCriticalMass
+            ? 'SIGNAL FORMED'
+            : authoritativeActivationThreshold > 0 &&
+                authoritativeFormationCount >=
+                  Math.max(
+                    authoritativeActivationThreshold - 1,
+                    1,
+                  )
+              ? 'Almost there...'
+              : authoritativeFormationCount >= 3
+                ? 'Momentum building...'
+                : 'Finding your people...'
+
+  const refreshActivity = async () => {
+    setActivityLoading(true)
+    setActivityError(null)
+
+    try {
+      const result = await getMyActivity()
+      setActivityItems(result)
+    } catch (error) {
+      setActivityError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load Activity.',
+      )
+    } finally {
+      setActivityLoading(false)
+    }
+  }
+
+  const handleActivityNavigation = () => {
+    setActiveSurface('activity')
+    void refreshActivity()
+  }
+
+  const handleMessagesNavigation = () => {
+    setActiveSurface('messages')
+  }
+
+  const handleSignalCenterNavigation = () => {
+    setActiveSurface('discover')
+
+    if (hasActiveSignalJourney) {
+      setBored(true)
+
+      if (boredStatus === 'locked') {
+        setSignalThreshold(true)
+      }
+
       return
     }
 
-    setFormationCount(0)
+    setDirectActivitySlug(null)
+    setBored(true)
+    setAccepted(false)
+    setFormationError(null)
+    setFormationResult(null)
+    setSignalRealtimeTarget(null)
+    setSignalThreshold(false)
+    setSignalRoomStage('arrival')
+    setLockedSignalVenue(null)
+    setSignalPlanSetVisible(false)
+  }
 
-    const timers = [1, 2, 3, 4, 5, 6].map((count) =>
-      window.setTimeout(() => {
-        setFormationCount(count)
-      }, count * 1400)
-    )
+  const handleDiscoverNavigation = () => {
+    setActiveSurface('discover')
+    setBored(false)
+    setSignalThreshold(false)
+    setSignalRoomStage('arrival')
+    setLockedSignalVenue(null)
+    setSignalPlanSetVisible(false)
 
-    return () => {
-      timers.forEach((timer) => window.clearTimeout(timer))
+    void refreshDiscovery()
+  }
+
+  const handleLeaveSignal = async () => {
+    if (
+      withdrawalSubmitting ||
+      !canWithdrawSignal
+    ) {
+      return
     }
-  }, [accepted, suggestionIndex])
 
-  const formationMessage =
-    formationCount === 0
-      ? 'Scanning nearby Signals...'
-      : formationCount <= 2
-        ? 'Finding your people...'
-        : formationCount === 3
-          ? 'Momentum building...'
-          : formationCount === 4
-            ? "Something's forming..."
-            : formationCount === 5
-              ? 'Almost there...'
-              : 'SIGNAL FORMED'
+    const signalIntentId =
+      signalRealtimeTarget?.signalIntentId ??
+      formationResult?.signalIntentId ??
+      null
+
+    if (!signalIntentId) {
+      setWithdrawalError(
+        'Unable to identify your active Signal.',
+      )
+      return
+    }
+
+    setWithdrawalSubmitting(true)
+    setWithdrawalError(null)
+
+    try {
+      await withdrawMySignal(signalIntentId)
+
+      /*
+       * PostgreSQL succeeded first.
+       *
+       * Only now may the browser discard the departed
+       * journey and stop its Realtime subscription.
+       */
+      setAccepted(false)
+      setFormationResult(null)
+      setSignalRealtimeTarget(null)
+      setDirectActivitySlug(null)
+      setBored(false)
+
+      setSignalThreshold(false)
+      setSignalRoomStage('arrival')
+      setLockedSignalVenue(null)
+      setSignalPlanSetVisible(false)
+
+      setFormationError(null)
+      setActiveSurface('discover')
+
+      await Promise.all([
+        refreshDiscovery(),
+        refreshActivity(),
+      ])
+    } catch (error) {
+      setWithdrawalError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to leave this Signal.',
+      )
+    } finally {
+      setWithdrawalSubmitting(false)
+    }
+  }
+
+  const handleImDown = async () => {
+    if (formationSubmitting) {
+      return
+    }
+
+    setFormationSubmitting(true)
+    setFormationError(null)
+
+    try {
+      const homeCity =
+        await getAuthoritativeHomeCity()
+
+      const activitySlug =
+        directActivitySlug ??
+        boredSuggestionActivitySlug[
+          suggestion.id
+        ]
+
+      const journeyOrigin = directActivitySlug
+        ? 'direct_signal' as const
+        : 'im_bored' as const
+
+      if (!activitySlug) {
+        throw new Error(
+          'This Signal suggestion is not available yet.',
+        )
+      }
+
+      const minAge =
+        signalAgePreference === '30_plus'
+          ? 30
+          : signalAgePreference === '40_plus'
+            ? 40
+            : null
+
+      const result =
+        await formSignal({
+          citySlug: homeCity.slug,
+          activitySlug,
+          timeWindow:
+            signalTimePreference,
+          crowdMode:
+            signalCrowdPreference,
+          minAge,
+          maxAge: null,
+          journeyOrigin,
+        })
+
+      setFormationResult(result)
+      setWithdrawalError(null)
+
+      setSignalRealtimeTarget({
+        signalIntentId:
+          result.signalIntentId,
+        signalGroupId:
+          result.signalGroupId,
+      })
+
+      setAccepted(true)
+    } catch (error) {
+      setAccepted(false)
+      setFormationResult(null)
+      setSignalRealtimeTarget(null)
+
+      setFormationError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to join this Signal.',
+      )
+    } finally {
+      setFormationSubmitting(false)
+    }
+  }
 
   const nextSuggestion = () => {
     setAccepted(false)
-    setSuggestionIndex((current) => (current + 1) % boredSuggestions.length)
+    setFormationError(null)
+    setFormationResult(null)
+    setSignalRealtimeTarget(null)
+
+    if (directActivitySlug) {
+      const currentIndex =
+        pulses.findIndex(
+          (pulse) =>
+            pulse.id === directActivitySlug,
+        )
+
+      const nextIndex =
+        currentIndex >= 0
+          ? (currentIndex + 1) % pulses.length
+          : 0
+
+      const nextPulse = pulses[nextIndex]
+
+      setDirectActivitySlug(nextPulse.id)
+      setActive(nextPulse.id)
+      return
+    }
+
+    setSuggestionIndex(
+      (current) =>
+        (current + 1) %
+        boredSuggestions.length,
+    )
   }
 
+  const hasActiveSignalJourney =
+    accepted &&
+    Boolean(
+      signalRealtimeTarget ||
+      formationResult,
+    )
+
+  const canWithdrawSignal =
+    hasActiveSignalJourney &&
+    (
+      authoritativeGroupState === 'forming' ||
+      authoritativeGroupState === 'confirming' ||
+      authoritativeGroupState === 'coordinating'
+    )
+
+  const formedSignalTimeLabel =
+    signalTimePreference === 'THIS_WEEKEND'
+      ? 'THIS WEEKEND'
+      : signalTimePreference
+
+  const formedSignalCrowdMode =
+    signalRealtimeSnapshot?.group.crowdMode ??
+    signalCrowdPreference
+
+  const formedSignalMinAge =
+    signalRealtimeSnapshot?.group.minAge ??
+    (
+      signalAgePreference === '30_plus'
+        ? 30
+        : signalAgePreference === '40_plus'
+          ? 40
+          : null
+    )
+
+  const formedSignalMaxAge =
+    signalRealtimeSnapshot?.group.maxAge ??
+    null
+
+  const formedSignalCrowdLabel =
+    formedSignalCrowdMode === 'women_only'
+      ? 'WOMEN ONLY'
+      : formedSignalCrowdMode === 'men_only'
+        ? 'MEN ONLY'
+        : 'EVERYONE'
+
+  const formedSignalAgeLabel =
+    formedSignalMinAge === null &&
+    formedSignalMaxAge === null
+      ? 'OPEN'
+      : formedSignalMinAge !== null &&
+          formedSignalMaxAge === null
+        ? `${formedSignalMinAge}+`
+        : formedSignalMinAge === null &&
+            formedSignalMaxAge !== null
+          ? `UP TO ${formedSignalMaxAge}`
+          : `${formedSignalMinAge}–${formedSignalMaxAge}`
+
+  const formedSignalCriteria =
+    `${formedSignalTimeLabel} · ${formedSignalCrowdLabel} · ${formedSignalAgeLabel}`
+
   const boredStatus = useMemo(() => {
-    if (!bored) return 'idle'
-    if (accepted && formationCount >= 6) return 'locked'
-    if (accepted) return 'forming'
+    if (
+      !bored &&
+      !hasActiveSignalJourney
+    ) {
+      return 'idle'
+    }
+
+    if (
+      hasActiveSignalJourney &&
+      (
+        authoritativeGroupState ===
+          'coordinating' ||
+        authoritativeGroupState ===
+          'locked' ||
+        authoritativeGroupState ===
+          'active_outing'
+      )
+    ) {
+      return 'locked'
+    }
+
+    if (
+      hasActiveSignalJourney ||
+      formationSubmitting
+    ) {
+      return 'forming'
+    }
+
     return 'searching'
-  }, [bored, accepted, formationCount])
+  }, [
+    bored,
+    hasActiveSignalJourney,
+    authoritativeGroupState,
+    formationSubmitting,
+  ])
 
   return (
     <main className="app">
@@ -260,7 +883,17 @@ function App() {
 
       <header className="topbar">
         <div className="profile-wrap">
-          <img src={avatarUrl('8')} alt="" />
+          {currentUserAvatarUrl ? (
+            <img
+              src={currentUserAvatarUrl}
+              alt={currentUser.displayName ?? 'Your profile'}
+            />
+          ) : (
+            <UserRound
+              size={20}
+              aria-label={currentUser.displayName ?? 'Your profile'}
+            />
+          )}
           <span className="online-dot" />
         </div>
 
@@ -279,6 +912,19 @@ function App() {
         </div>
       </header>
 
+      {activeSurface === 'activity' ? (
+        <ActivityView
+          items={activityItems}
+          loading={activityLoading}
+          error={activityError}
+          onRefresh={refreshActivity}
+        />
+      ) : activeSurface === 'messages' ? (
+        <MessagesView
+          currentUserId={currentUser.userId}
+        />
+      ) : (
+        <>
       <section className="intro">
         <span className="eyebrow">
           <Sparkles size={13} />
@@ -298,11 +944,34 @@ function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, y: -8 }}
           >
-            {pulses.map((pulse, index) => (
+            {pulses.map((pulse, index) => {
+              const liveActivity =
+                discoveryBySlug.get(pulse.id) ?? null
+
+              const activeCount =
+                liveActivity?.activeCount ?? 0
+
+              const previewAvatarUrls =
+                liveActivity?.previewAvatarUrls ?? []
+
+              return (
               <motion.button
                 key={pulse.id}
                 className={`pulse-card ${pulse.size} ${active === pulse.id ? 'active' : ''}`}
-                onClick={() => setActive(pulse.id)}
+                onClick={() => {
+                  if (hasActiveSignalJourney) {
+                    setBored(true)
+                    return
+                  }
+
+                  setActive(pulse.id)
+                  setDirectActivitySlug(pulse.id)
+                  setAccepted(false)
+                  setFormationError(null)
+                  setFormationResult(null)
+                  setSignalRealtimeTarget(null)
+                  setBored(true)
+                }}
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.04 }}
@@ -316,7 +985,9 @@ function App() {
                 <div className="pulse-top">
                   <span className="live">
                     <i />
-                    {pulse.count} ACTIVE
+                    {discoveryLoading
+  ? 'LIVE'
+  : `${activeCount} ACTIVE`}
                   </span>
                 </div>
 
@@ -327,11 +998,13 @@ function App() {
                   </h2>
 
                   <div className="pulse-status">
-                    <strong>{pulse.count}</strong>
+                    <strong>
+  {discoveryLoading ? '—' : activeCount}
+</strong>
                     <span>{pulse.line}</span>
                   </div>
 
-                  <AvatarStack ids={pulse.avatars} />
+                  <AvatarStack urls={previewAvatarUrls} />
                 </div>
 
                 <span className="enter">
@@ -339,7 +1012,8 @@ function App() {
                   <ChevronRight size={14} />
                 </span>
               </motion.button>
-            ))}
+              )
+            })}
           </motion.section>
         ) : (
           <motion.section
@@ -362,38 +1036,268 @@ function App() {
 
             <AnimatePresence mode="wait">
               <motion.article
-                key={`${suggestion.id}-${accepted}`}
+                key={`${journeyPresentation.id}-${accepted}`}
                 className={accepted ? 'suggestion-card accepted' : 'suggestion-card'}
                 initial={{ opacity: 0, x: 30, scale: 0.985 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: -30, scale: 0.985 }}
                 transition={{ duration: 0.32 }}
               >
-                <img src={suggestion.image} alt="" />
+                <img src={journeyPresentation.image} alt="" />
                 <div className="suggestion-shade" />
 
                 <div className="suggestion-content">
                   {!accepted ? (
                     <>
                       <span className="suggestion-kicker">
-                        {suggestion.emoji} SIGNAL FOUND SOMETHING
+                        {journeyPresentation.emoji} {journeyPresentation.kicker}
                       </span>
 
-                      <h2>{suggestion.title}</h2>
-                      <p>{suggestion.subtitle}</p>
+                      <h2>{journeyPresentation.title}</h2>
+                      <p>{journeyPresentation.subtitle}</p>
 
                       <div className="suggestion-social">
-                        <AvatarStack ids={suggestion.avatars} />
+                        <AvatarStack
+  urls={
+    journeyDiscovery?.previewAvatarUrls ?? []
+  }
+/>
                         <div>
-                          <strong>{suggestion.people} people nearby</strong>
-                          <span>{suggestion.detail}</span>
+                          <strong>
+  {discoveryLoading
+    ? 'Checking live activity…'
+    : `${journeyDiscovery?.activeCount ?? 0} ${
+        (journeyDiscovery?.activeCount ?? 0) === 1
+          ? 'person'
+          : 'people'
+      } active nearby`}
+</strong>
+                          <span>
+  {discoveryError
+    ? 'Live activity is temporarily unavailable.'
+    : 'Based on active Signals in your home city.'}
+</span>
                         </div>
                       </div>
 
-                      <div className="suggestion-actions">
+                      <div className="signal-preference-access">
+                          <button
+                            type="button"
+                            className={
+                              signalPreferencesOpen
+                                ? 'signal-preference-trigger active'
+                                : 'signal-preference-trigger'
+                            }
+                            onClick={() =>
+                              setSignalPreferencesOpen(
+                                (current) => !current,
+                              )
+                            }
+                            aria-expanded={signalPreferencesOpen}
+                            aria-label="Signal preferences"
+                          >
+                            <SlidersHorizontal size={15} />
+                            <span>PREFERENCES</span>
+                          </button>
+
+                          <span className="signal-preference-summary">
+                            {
+                              signalTimePreference === 'THIS_WEEKEND'
+                                ? 'THIS WEEKEND'
+                                : signalTimePreference
+                            }
+                            {' · '}
+                            {
+                              signalCrowdPreference === 'women_only'
+                                ? 'WOMEN ONLY'
+                                : signalCrowdPreference === 'men_only'
+                                  ? 'MEN ONLY'
+                                  : 'EVERYONE'
+                            }
+                            {' · '}
+                            {
+                              signalAgePreference === '30_plus'
+                                ? '30+'
+                                : signalAgePreference === '40_plus'
+                                  ? '40+'
+                                  : 'OPEN'
+                            }
+                          </span>
+                        </div>
+
+                        {signalPreferencesOpen && (
+                          <div className="signal-preference-drawer">
+                            <div className="signal-preferences">
+                        <div className="signal-preference-group">
+                          <span className="signal-preference-label">
+                            WHEN
+                          </span>
+
+                          <div className="signal-preference-options">
+                            {[
+                              ['NOW', 'NOW'],
+                              ['TONIGHT', 'TONIGHT'],
+                              ['TOMORROW', 'TOMORROW'],
+                              ['THIS_WEEKEND', 'THIS WEEKEND'],
+                            ].map(([value, label]) => (
+                              <button
+                                key={value}
+                                type="button"
+                                className={
+                                  signalTimePreference === value
+                                    ? 'signal-preference-option active'
+                                    : 'signal-preference-option'
+                                }
+                                onClick={() =>
+                                  setSignalTimePreference(
+                                    value as SignalPreferenceTime,
+                                  )
+                                }
+                              >
+                                {label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="signal-preference-group">
+                          <span className="signal-preference-label">
+                            CROWD
+                          </span>
+
+                          <div className="signal-preference-options">
+                            {[
+                              {
+                                value: 'everyone',
+                                label: 'EVERYONE',
+                                allowed: true,
+                                reason: '',
+                              },
+                              {
+                                value: 'women_only',
+                                label: 'WOMEN ONLY',
+                                allowed: canSelectWomenOnly,
+                                reason:
+                                  'Women-only Signals are available to women.',
+                              },
+                              {
+                                value: 'men_only',
+                                label: 'MEN ONLY',
+                                allowed: canSelectMenOnly,
+                                reason:
+                                  'Men-only Signals are available to men.',
+                              },
+                            ].map((option) => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                className={
+                                  signalCrowdPreference === option.value
+                                    ? 'signal-preference-option active'
+                                    : 'signal-preference-option'
+                                }
+                                disabled={!option.allowed}
+                                title={
+                                  option.allowed
+                                    ? undefined
+                                    : option.reason
+                                }
+                                aria-label={
+                                  option.allowed
+                                    ? option.label
+                                    : `${option.label}. ${option.reason}`
+                                }
+                                onClick={() =>
+                                  setSignalCrowdPreference(
+                                    option.value as SignalPreferenceCrowd,
+                                  )
+                                }
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="signal-preference-group">
+                          <span className="signal-preference-label">
+                            AGE
+                          </span>
+
+                          <div className="signal-preference-options">
+                            {[
+                              {
+                                value: 'open',
+                                label: 'OPEN',
+                                allowed: true,
+                                reason: '',
+                              },
+                              {
+                                value: '30_plus',
+                                label: '30+',
+                                allowed: canSelect30Plus,
+                                reason:
+                                  '30+ Signals require you to be at least 30.',
+                              },
+                              {
+                                value: '40_plus',
+                                label: '40+',
+                                allowed: canSelect40Plus,
+                                reason:
+                                  '40+ Signals require you to be at least 40.',
+                              },
+                            ].map((option) => (
+                              <button
+                                key={option.value}
+                                type="button"
+                                className={
+                                  signalAgePreference === option.value
+                                    ? 'signal-preference-option active'
+                                    : 'signal-preference-option'
+                                }
+                                disabled={!option.allowed}
+                                title={
+                                  option.allowed
+                                    ? undefined
+                                    : option.reason
+                                }
+                                aria-label={
+                                  option.allowed
+                                    ? option.label
+                                    : `${option.label}. ${option.reason}`
+                                }
+                                onClick={() =>
+                                  setSignalAgePreference(
+                                    option.value as SignalPreferenceAge,
+                                  )
+                                }
+                              >
+                                {option.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                            <button
+                              type="button"
+                              className="signal-preference-done"
+                              onClick={() =>
+                                setSignalPreferencesOpen(false)
+                              }
+                            >
+                              DONE
+                            </button>
+                          </div>
+                        )}
+
+                        <div className="suggestion-actions">
                         <motion.button
                           className="down-button"
-                          onClick={() => setAccepted(true)}
+                          onClick={() => {
+                            void handleImDown()
+                          }}
+                          disabled={formationSubmitting}
                           whileTap={{ scale: 0.98 }}
                         >
                           <Zap size={18} fill="currentColor" />
@@ -413,40 +1317,90 @@ function App() {
                     <div className="forming-state">
                       <span className="forming-kicker">MATCHING SIGNALS</span>
 
-                      <h2>{suggestion.emoji} {suggestion.title.replace('?', '')}</h2>
+                      <h2>{journeyPresentation.emoji} {journeyPresentation.title.replace('?', '')}</h2>
+
+                      <div
+                        className="forming-signal-criteria"
+                        aria-label="Signal criteria"
+                      >
+                        {formedSignalCriteria}
+                      </div>
 
                       <p>
-                        SIGNAL is looking for the best-fit people around you now.
+                        {signalRealtimeError
+                          ? 'Reconnecting to the live Signal...'
+                          : signalRealtimeLoading
+                            ? 'Loading the live Signal...'
+                            : `Live Signal · ${signalRealtimeConnectionState}`}
                       </p>
 
+                      {canWithdrawSignal && (
+                        <div className="signal-withdrawal">
+                          <button
+                            type="button"
+                            className="signal-withdrawal-button"
+                            onClick={() => {
+                              void handleLeaveSignal()
+                            }}
+                            disabled={withdrawalSubmitting}
+                          >
+                            {withdrawalSubmitting
+                              ? 'LEAVING SIGNAL...'
+                              : "LEAVE SIGNAL · I'M OUT"}
+                          </button>
+
+                          {withdrawalError && (
+                            <p
+                              className="signal-withdrawal-error"
+                              role="alert"
+                            >
+                              {withdrawalError}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                       <div className="forming-people arrival-list">
-                        {suggestion.avatars.slice(0, Math.min(formationCount, 4)).map((id, index) => (
+                        {Array.from({
+                          length: Math.min(
+                            authoritativeFormationCount,
+                            4,
+                          ),
+                        }).map((_, index) => (
                           <motion.div
                             className="arrival-person pulse-connected"
-                            key={id}
-                            initial={{ opacity: 0, x: -16, scale: 0.92 }}
-                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            key={index}
+                            initial={{
+                              opacity: 0,
+                              x: -16,
+                              scale: 0.92,
+                            }}
+                            animate={{
+                              opacity: 1,
+                              x: 0,
+                              scale: 1,
+                            }}
                             transition={{
-                              delay: index * 0.42,
+                              delay: index * 0.12,
                               duration: 0.32,
                             }}
                           >
                             <div className="arrival-avatar-wrap">
                               <span className="arrival-lock-pulse" />
-                              <img src={avatarUrl(id)} alt="" />
+                              <span
+                                className="aligned-avatar"
+                                aria-hidden="true"
+                              >
+                                ⚡
+                              </span>
                             </div>
 
                             <span>
                               <strong>
-                                {['Maya', 'Chris', 'Jordan', 'Nia'][index] || 'Someone nearby'}
+                                Signal participant
                               </strong>
                               <small>
-                                {[
-                                  'Nightlife · Rooftops · 2.1 mi',
-                                  'Drinks · Live music · Tonight',
-                                  'Sports · Social · 3.0 mi',
-                                  'Food · Nightlife · 1.7 mi',
-                                ][index] || 'Compatible Signal'}
+                                Matched to this Signal
                               </small>
                             </span>
 
@@ -456,56 +1410,56 @@ function App() {
                       </div>
 
                       <AnimatePresence>
-                        {formationCount >= 5 && (
+                        {authoritativeFormationCount > 4 && (
                           <motion.div
                             className="aligned-overflow"
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.32 }}
+                            initial={{
+                              opacity: 0,
+                              y: 8,
+                            }}
+                            animate={{
+                              opacity: 1,
+                              y: 0,
+                            }}
+                            transition={{
+                              duration: 0.32,
+                            }}
                           >
                             <div className="aligned-overflow-avatars">
                               <motion.span
                                 className="aligned-avatar"
-                                initial={{ opacity: 0, scale: 0.72 }}
-                                animate={{ opacity: 1, scale: 1 }}
+                                initial={{
+                                  opacity: 0,
+                                  scale: 0.72,
+                                }}
+                                animate={{
+                                  opacity: 1,
+                                  scale: 1,
+                                }}
                                 transition={{
                                   type: 'spring',
                                   stiffness: 220,
                                   damping: 16,
                                 }}
                               >
-                                <img src={avatarUrl('52')} alt="Andre" />
+                                +{authoritativeFormationCount - 4}
                               </motion.span>
-
-                              {formationCount >= 6 && (
-                                <motion.span
-                                  className="aligned-avatar"
-                                  initial={{ opacity: 0, scale: 0.72, x: -8 }}
-                                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                                  transition={{
-                                    type: 'spring',
-                                    stiffness: 220,
-                                    damping: 16,
-                                  }}
-                                >
-                                  <img src={avatarUrl('33')} alt="Alexis" />
-                                </motion.span>
-                              )}
                             </div>
 
                             <span className="aligned-overflow-copy">
                               <strong>
-                                +{formationCount >= 6 ? 2 : 1} ALIGNED
+                                +{authoritativeFormationCount - 4} ALIGNED
                               </strong>
                               <small>
-                                {formationCount >= 6
-                                  ? 'Andre + Alexis joined the Signal'
-                                  : 'Andre joined the Signal'}
+                                More people joined the Signal
                               </small>
                             </span>
 
                             <span className="aligned-overflow-more">
-                              {formationCount >= 6 ? '6 PEOPLE' : '5 PEOPLE'}
+                              {authoritativeFormationCount}{' '}
+                              {authoritativeFormationCount === 1
+                                ? 'PERSON'
+                                : 'PEOPLE'}
                             </span>
                           </motion.div>
                         )}
@@ -513,20 +1467,32 @@ function App() {
 
                       <div className="formation-payoff">
                         <div className="formation-count">
-                          <strong>{formationCount} / 6</strong>
+                          <strong>{authoritativeFormationCount} / {authoritativeActivationThreshold || '—'}</strong>
                           <span>{formationMessage}</span>
                         </div>
 
                         <div className="formation-track">
                           <motion.div
                             initial={{ width: '0%' }}
-                            animate={{ width: `${(formationCount / 6) * 100}%` }}
+                            animate={{
+                              width: `${
+                                authoritativeActivationThreshold > 0
+                                  ? Math.min(
+                                      (
+                                        authoritativeFormationCount /
+                                        authoritativeActivationThreshold
+                                      ) * 100,
+                                      100,
+                                    )
+                                  : 0
+                              }%`,
+                            }}
                             transition={{ duration: 0.55, ease: 'easeOut' }}
                           />
                         </div>
 
                         <AnimatePresence>
-                          {formationCount === 6 && (
+                          {signalHasReachedCriticalMass && (
                             <motion.div
                               className="signal-formed signal-formed-final"
                               initial={{ opacity: 0, y: 7, scale: 0.97 }}
@@ -542,9 +1508,14 @@ function App() {
                               </span>
 
                               <div>
-                                <strong>6 / 6 · SIGNAL FORMED</strong>
+                                <strong>
+                                  {authoritativeFormationCount} /{' '}
+                                  {authoritativeActivationThreshold ||
+                                    '—'}{' '}
+                                  · SIGNAL FORMED
+                                </strong>
                                 <small>
-                                  6 people aligned · 92% group fit
+                                  {authoritativeFormationCount} people aligned
                                 </small>
                               </div>
                             </motion.div>
@@ -564,13 +1535,22 @@ function App() {
       <motion.button
         className={boredStatus === 'locked' ? 'bored active locked' : bored ? 'bored active' : 'bored'}
         onClick={() => {
-          if (boredStatus === 'locked') {
-            setSignalThreshold(true)
+          if (hasActiveSignalJourney) {
+            setBored(true)
+
+            if (boredStatus === 'locked') {
+              setSignalThreshold(true)
+            }
+
             return
           }
 
+          setDirectActivitySlug(null)
           setBored((value) => !value)
           setAccepted(false)
+          setFormationError(null)
+          setFormationResult(null)
+          setSignalRealtimeTarget(null)
         }}
         whileHover={{ y: -3 }}
         whileTap={{ scale: 0.99 }}
@@ -601,7 +1581,11 @@ function App() {
 
           <small>
             {boredStatus === 'locked'
-              ? '6 people aligned · VIEW SIGNAL'
+              ? `${authoritativeFormationCount} ${
+                  authoritativeFormationCount === 1
+                    ? 'person'
+                    : 'people'
+                } aligned · VIEW SIGNAL`
               : bored
                 ? accepted
                   ? 'Compatible people are coming together.'
@@ -664,11 +1648,16 @@ function App() {
             </motion.div>
 
             <div className="threshold-people">
-              {['8', '13', '15', '17', '22', '28'].map((id, index) => (
-                <motion.img
-                  key={id}
-                  src={avatarUrl(id)}
-                  alt=""
+              {Array.from({
+                length: Math.min(
+                  authoritativeFormationCount,
+                  4,
+                ),
+              }).map((_, index) => (
+                <motion.span
+                  className="aligned-avatar"
+                  key={index}
+                  aria-hidden="true"
                   initial={{
                     opacity: 0,
                     scale: 0.3,
@@ -683,7 +1672,9 @@ function App() {
                     duration: 1.25,
                     delay: 0.35 + index * 0.07,
                   }}
-                />
+                >
+                  ⚡
+                </motion.span>
               ))}
             </div>
 
@@ -705,7 +1696,13 @@ function App() {
               }}
             >
               <span>YOUR SIGNAL IS LIVE</span>
-              <strong>6 PEOPLE · ONE PLAN</strong>
+              <strong>
+                {authoritativeFormationCount}{' '}
+                {authoritativeFormationCount === 1
+                  ? 'PERSON'
+                  : 'PEOPLE'}{' '}
+                · ONE SIGNAL
+              </strong>
             </motion.div>
 
             <motion.div
@@ -727,16 +1724,37 @@ function App() {
 
                 <h2>{suggestion.emoji} {suggestion.title}</h2>
 
-                <p>6 aligned · 92% group fit</p>
+                <p>
+                  {authoritativeFormationCount}{' '}
+                  {authoritativeFormationCount === 1
+                    ? 'person aligned'
+                    : 'people aligned'}
+                </p>
 
-                <div className="room-avatar-row">
-                  {['8', '13', '15', '17', '22', '28'].map((id) => (
-                    <img
-                      key={id}
-                      src={avatarUrl(id)}
-                      alt=""
-                    />
+                <div
+                  className="room-avatar-row"
+                  aria-label="Signal participants"
+                >
+                  {Array.from({
+                    length: Math.min(
+                      authoritativeFormationCount,
+                      4,
+                    ),
+                  }).map((_, index) => (
+                    <span
+                      className="aligned-avatar"
+                      key={index}
+                      aria-hidden="true"
+                    >
+                      ⚡
+                    </span>
                   ))}
+
+                  {authoritativeFormationCount > 4 && (
+                    <span className="aligned-avatar">
+                      +{authoritativeFormationCount - 4}
+                    </span>
+                  )}
                 </div>
 
                 <AnimatePresence mode="wait">
@@ -834,22 +1852,50 @@ function App() {
         )}
       </AnimatePresence>
 
+        </>
+      )}
+
       <nav className="bottom-nav">
-        <button className="nav-item active">
+        <button
+          className={
+            activeSurface === 'discover'
+              ? 'nav-item active'
+              : 'nav-item'
+          }
+          onClick={handleDiscoverNavigation}
+        >
           <Compass size={20} />
           <span>Discover</span>
         </button>
 
-        <button className="nav-item">
+        <button
+          className={
+            activeSurface === 'activity'
+              ? 'nav-item active'
+              : 'nav-item'
+          }
+          onClick={handleActivityNavigation}
+        >
           <Sparkles size={20} />
           <span>Activity</span>
         </button>
 
-        <button className="signal-center">
+        <button
+          className="signal-center"
+          onClick={handleSignalCenterNavigation}
+          aria-label="Open Signal"
+        >
           <Zap size={27} fill="currentColor" />
         </button>
 
-        <button className="nav-item">
+        <button
+          className={
+            activeSurface === 'messages'
+              ? 'nav-item active'
+              : 'nav-item'
+          }
+          onClick={handleMessagesNavigation}
+        >
           <MessageCircle size={20} />
           <span>Messages</span>
         </button>
