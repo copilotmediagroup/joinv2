@@ -31,6 +31,9 @@ import {
   formSignal,
   type SignalFormationResult,
 } from './features/signal/formation/signalFormationClient'
+import {
+  getMyActiveSignalResume,
+} from './features/signal/resume/signalResumeClient'
 import type {
   SignalRealtimeTarget,
 } from './features/signal/realtime/contract'
@@ -478,6 +481,64 @@ function App() {
     }
 
     void loadDiscovery()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const restoreActiveSignal = async () => {
+      try {
+        const resume = await getMyActiveSignalResume()
+
+        if (cancelled || !resume) return
+
+        const matchingPulse = pulses.find(
+          (pulse) => pulse.id === resume.activitySlug,
+        )
+
+        if (!matchingPulse) return
+
+        setActive(matchingPulse.id)
+        setDirectActivitySlug(matchingPulse.id)
+
+        if (resume.timeWindowCode) {
+          setSignalTimePreference(resume.timeWindowCode)
+        }
+
+        setSignalCrowdPreference(resume.crowdMode)
+        setSignalAgePreference(
+          resume.minAge !== null && resume.minAge >= 40
+            ? '40_plus'
+            : resume.minAge !== null && resume.minAge >= 30
+              ? '30_plus'
+              : 'open',
+        )
+
+        setFormationResult({
+          signalIntentId: resume.signalIntentId,
+          signalGroupId: resume.signalGroupId,
+          groupState: resume.groupState,
+          memberCount: resume.memberCount,
+          activationThreshold: resume.activationThreshold,
+        })
+        setSignalRealtimeTarget({
+          signalIntentId: resume.signalIntentId,
+          signalGroupId: resume.signalGroupId,
+        })
+        setFormationError(null)
+        setWithdrawalError(null)
+        setAccepted(true)
+        setBored(true)
+      } catch {
+        // Discovery remains available if resume authority is unavailable.
+      }
+    }
+
+    void restoreActiveSignal()
 
     return () => {
       cancelled = true
