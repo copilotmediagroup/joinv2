@@ -751,7 +751,6 @@ function App() {
 
   const handleOpenSignalNotification = (
     target: Extract<NotificationTarget, { targetType: 'signal' }>,
-    notificationType: string,
   ) => {
     setNotificationsOpen(false)
     setFormationResult(null)
@@ -780,8 +779,7 @@ function App() {
     setLockedSignalVenue(null)
     setSignalPlanSetVisible(false)
     setSignalRoomStage(
-      coordinationReady &&
-      (notificationType === 'venue_vote' || notificationType === 'time_vote')
+      coordinationReady && target.signalStage !== 'arrival'
         ? 'places'
         : 'arrival',
     )

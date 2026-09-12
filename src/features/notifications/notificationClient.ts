@@ -65,6 +65,7 @@ export type NotificationTarget =
       signalIntentId: string
       groupState: string
       activitySlug: string
+      signalStage: 'arrival' | 'places' | 'time'
       relatedEntityId: string | null
     }
   | {
@@ -104,7 +105,10 @@ export async function resolveMyNotificationTarget(
     typeof data.signalGroupId === 'string' &&
     typeof data.signalIntentId === 'string' &&
     typeof data.groupState === 'string' &&
-    typeof data.activitySlug === 'string'
+    typeof data.activitySlug === 'string' &&
+    (data.signalStage === 'arrival' ||
+      data.signalStage === 'places' ||
+      data.signalStage === 'time')
   ) {
     return {
       targetType: 'signal',
@@ -112,6 +116,7 @@ export async function resolveMyNotificationTarget(
       signalIntentId: data.signalIntentId,
       groupState: data.groupState,
       activitySlug: data.activitySlug,
+      signalStage: data.signalStage,
       relatedEntityId,
     }
   }
