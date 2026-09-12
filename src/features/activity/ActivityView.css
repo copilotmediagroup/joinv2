@@ -310,3 +310,15 @@
     border-radius: 17px;
   }
 }
+
+.activity-card[role='button'] {
+  cursor: pointer;
+  outline: none;
+}
+
+.activity-card[role='button']:focus-visible {
+  border-color: rgba(112, 158, 255, .58);
+  box-shadow:
+    0 0 0 3px rgba(66, 121, 255, .16),
+    0 18px 50px rgba(0, 0, 0, .24);
+}

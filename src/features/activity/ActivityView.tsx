@@ -15,6 +15,7 @@ type ActivityViewProps = {
   loading: boolean
   error: string | null
   onRefresh: () => void | Promise<void>
+  onOpenItem: (item: ActivityItem) => void
 }
 
 function formatState(value: string): string {
@@ -70,9 +71,11 @@ function getMembershipLabel(item: ActivityItem): string {
 function ActivityCard({
   item,
   index,
+  onOpen,
 }: {
   item: ActivityItem
   index: number
+  onOpen: (item: ActivityItem) => void
 }) {
   const primaryTime = getPrimaryTime(item)
 
@@ -82,6 +85,17 @@ function ActivityCard({
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.045 }}
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(item)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onOpen(item)
+        }
+      }}
+      whileHover={{ y: -3 }}
+      whileTap={{ scale: 0.99 }}
     >
       <div className="activity-card-rail" aria-hidden="true">
         <span />
@@ -139,6 +153,7 @@ export default function ActivityView({
   loading,
   error,
   onRefresh,
+  onOpenItem,
 }: ActivityViewProps) {
   return (
     <section className="activity-view">
@@ -215,6 +230,7 @@ export default function ActivityView({
               key={`${item.itemType}-${item.itemId}`}
               item={item}
               index={index}
+              onOpen={onOpenItem}
             />
           ))}
         </div>

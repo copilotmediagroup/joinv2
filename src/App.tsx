@@ -657,6 +657,48 @@ function App() {
     void refreshActivity()
   }
 
+  const handleOpenActivityItem = (item: ActivityItem) => {
+    if (item.itemType === 'plan' && item.planId) {
+      handleOpenPlanChat(item.planId)
+      return
+    }
+
+    if (
+      item.itemType !== 'signal' ||
+      !item.signalGroupId ||
+      !item.signalIntentId
+    ) {
+      return
+    }
+
+    setNotificationsOpen(false)
+    setSignalRealtimeTarget({
+      signalIntentId: item.signalIntentId,
+      signalGroupId: item.signalGroupId,
+    })
+    setAccepted(true)
+    setBored(true)
+    setActiveSurface('discover')
+
+    const matchingPulse = pulses.find(
+      (pulse) => pulse.id === item.activitySlug,
+    )
+    if (matchingPulse) {
+      setDirectActivitySlug(matchingPulse.id)
+      setActive(matchingPulse.id)
+    }
+
+    const coordinationReady =
+      item.lifecycleState === 'coordinating' ||
+      item.lifecycleState === 'locked' ||
+      item.lifecycleState === 'active_outing'
+
+    setSignalThreshold(coordinationReady)
+    setLockedSignalVenue(null)
+    setSignalPlanSetVisible(false)
+    setSignalRoomStage('arrival')
+  }
+
   const handleMessagesNavigation = () => {
     setMessagePlanId(null)
     setActiveSurface('messages')
@@ -1068,6 +1110,7 @@ function App() {
           loading={activityLoading}
           error={activityError}
           onRefresh={refreshActivity}
+          onOpenItem={handleOpenActivityItem}
         />
       ) : activeSurface === 'messages' ? (
         <MessagesView
