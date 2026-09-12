@@ -19,6 +19,10 @@ import {
   type ActivityItem,
 } from './features/activity/activityClient'
 import { createProfileAvatarSignedUrl } from './features/onboarding/avatarClient'
+import {
+  getMySignalParticipants,
+  type SignalParticipantIdentity,
+} from './features/signal/participants/signalParticipantsClient'
 import { useSignalCurrentUser } from './features/onboarding/components/signalCurrentUserContext'
 import {
   getMySignalDiscovery,
@@ -332,6 +336,8 @@ function App() {
     useState<SignalFormationResult | null>(null)
   const [signalRealtimeTarget, setSignalRealtimeTarget] =
     useState<SignalRealtimeTarget | null>(null)
+  const [signalParticipants, setSignalParticipants] =
+    useState<SignalParticipantIdentity[]>([])
   const [formationSubmitting, setFormationSubmitting] =
     useState(false)
   const [formationError, setFormationError] =
@@ -586,6 +592,38 @@ function App() {
     signalRealtimeTarget?.signalGroupId ??
     formationResult?.signalGroupId ??
     null
+
+  const signalParticipantRosterVersion =
+    signalRealtimeSnapshot?.memberships
+      .filter((membership) =>
+        membership.state === 'matched' ||
+        membership.state === 'confirmed',
+      )
+      .map((membership) =>
+        `${membership.userId}:${membership.state}:${membership.updatedAt}`,
+      )
+      .join('|') ?? ''
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!authoritativeSignalGroupId) {
+      queueMicrotask(() => {
+        if (!cancelled) setSignalParticipants([])
+      })
+      return () => { cancelled = true }
+    }
+
+    void getMySignalParticipants(authoritativeSignalGroupId)
+      .then((participants) => {
+        if (!cancelled) setSignalParticipants(participants)
+      })
+      .catch(() => {
+        if (!cancelled) setSignalParticipants([])
+      })
+
+    return () => { cancelled = true }
+  }, [authoritativeSignalGroupId, signalParticipantRosterVersion])
 
   const previousSignalGroupStateRef =
     useRef<typeof authoritativeGroupState>(null)
@@ -1558,15 +1596,10 @@ function App() {
                       )}
 
                       <div className="forming-people arrival-list">
-                        {Array.from({
-                          length: Math.min(
-                            authoritativeFormationCount,
-                            4,
-                          ),
-                        }).map((_, index) => (
+                        {signalParticipants.slice(0, 4).map((participant, index) => (
                           <motion.div
                             className="arrival-person pulse-connected"
-                            key={index}
+                            key={participant.userId}
                             initial={{
                               opacity: 0,
                               x: -16,
@@ -1584,20 +1617,32 @@ function App() {
                           >
                             <div className="arrival-avatar-wrap">
                               <span className="arrival-lock-pulse" />
-                              <span
-                                className="aligned-avatar"
-                                aria-hidden="true"
-                              >
-                                ⚡
-                              </span>
+                              {participant.avatarUrl ? (
+                                <span className="aligned-avatar">
+                                  <img
+                                    src={participant.avatarUrl}
+                                    alt={participant.displayName}
+                                  />
+                                </span>
+                              ) : (
+                                <span
+                                  className="aligned-avatar arrival-avatar-fallback"
+                                  aria-label={participant.displayName}
+                                >
+                                  {participant.displayName.charAt(0).toUpperCase()}
+                                </span>
+                              )}
                             </div>
 
                             <span>
                               <strong>
-                                Signal participant
+                                {participant.displayName}
+                                {participant.isMe ? ' · YOU' : ''}
                               </strong>
                               <small>
-                                Matched to this Signal
+                                {participant.membershipState === 'confirmed'
+                                  ? 'Confirmed for this Signal'
+                                  : 'Matched to this Signal'}
                               </small>
                             </span>
 

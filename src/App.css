@@ -4592,3 +4592,16 @@ button:disabled,
   font-weight: 800;
   letter-spacing: .08em;
 }
+
+.arrival-avatar-fallback {
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(107, 194, 255, .52);
+  border-radius: 50%;
+  background: rgba(29, 58, 91, .72);
+  color: rgba(235, 248, 255, .96);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  box-shadow: 0 0 18px rgba(74, 181, 255, .16);
+}
