@@ -1962,7 +1962,7 @@ function App() {
                   ⚡ SIGNAL LIVE
                 </span>
 
-                <h2>{suggestion.emoji} {suggestion.title}</h2>
+                <h2>{journeyPresentation.emoji} {journeyPresentation.title}</h2>
 
                 <p>
                   {authoritativeFormationCount}{' '}
@@ -2039,7 +2039,7 @@ function App() {
                       {authoritativeSignalGroupId ? (
                         <SignalPlaceStage
                           signalGroupId={authoritativeSignalGroupId}
-                          signalLabel={suggestion.title}
+                          signalLabel={journeyPresentation.title}
                           onVenueLocked={(venue) => {
                             setLockedSignalVenue(venue)
 
@@ -2076,7 +2076,7 @@ function App() {
                     >
                       <SignalTimeStage
                         signalGroupId={authoritativeSignalGroupId}
-                        signalLabel={suggestion.title}
+                        signalLabel={journeyPresentation.title}
                         venue={lockedSignalVenue}
                         onFindAnotherPlace={() => {
                           setLockedSignalVenue(null)
