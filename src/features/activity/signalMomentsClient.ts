@@ -320,3 +320,29 @@ export async function reportSignalMoment(input: {
 
   return requireString(data, 'report_id')
 }
+
+export async function deleteMySignalMoment(momentId: string): Promise<void> {
+  const { data, error } = await supabase.rpc('delete_my_signal_moment', {
+    p_moment_id: momentId,
+  })
+
+  if (error) {
+    throw new Error(error.message || 'Unable to delete this Signal Moment.')
+  }
+
+  const paths = Array.isArray(data)
+    ? data.filter((value): value is string => typeof value === 'string' && value.length > 0)
+    : []
+
+  if (paths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from(MOMENT_BUCKET)
+      .remove(paths)
+
+    if (storageError) {
+      throw new Error(storageError.message || 'Moment was removed, but media cleanup failed.')
+    }
+  }
+
+  void broadcastSignalMomentsChanged().catch(() => undefined)
+}

@@ -15,6 +15,7 @@ import { motion } from 'framer-motion'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ActivityItem } from './activityClient'
 import {
+  deleteMySignalMoment,
   getMySignalMomentEligiblePlans,
   getSignalMoments,
   publishSignalMoment,
@@ -132,9 +133,11 @@ function CurrentActivityCard({
 }function MomentCard({
   moment,
   currentUserId,
+  onDeleted,
 }: {
   moment: SignalMoment
   currentUserId: string
+  onDeleted: () => Promise<void>
 }) {
   const [reportOpen, setReportOpen] = useState(false)
   const [reportReason, setReportReason] =
@@ -142,6 +145,23 @@ function CurrentActivityCard({
   const [reportDetails, setReportDetails] = useState('')
   const [reporting, setReporting] = useState(false)
   const [reportStatus, setReportStatus] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!window.confirm('Delete this Signal Moment?')) return
+    setDeleting(true)
+    setReportStatus(null)
+    try {
+      await deleteMySignalMoment(moment.momentId)
+      await onDeleted()
+    } catch (error) {
+      setReportStatus(
+        error instanceof Error ? error.message : 'Unable to delete this Moment.',
+      )
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const handleReport = async () => {
     setReporting(true)
@@ -186,7 +206,11 @@ function CurrentActivityCard({
           {moment.isLocal ? <span className="signal-moment-local">NEAR YOU</span> : null}
           {moment.authorUserId !== currentUserId ? (
             <button type="button" onClick={() => setReportOpen((value) => !value)}>REPORT</button>
-          ) : null}
+          ) : (
+            <button type="button" disabled={deleting} onClick={() => void handleDelete()}>
+              {deleting ? 'DELETING…' : 'DELETE'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -542,6 +566,7 @@ export default function ActivityView({
                 key={moment.momentId}
                 moment={moment}
                 currentUserId={currentUserId}
+                onDeleted={refreshMoments}
               />
             ))}
           </div>
