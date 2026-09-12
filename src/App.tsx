@@ -1975,24 +1975,33 @@ function App() {
                   className="room-avatar-row"
                   aria-label="Signal participants"
                 >
-                  {Array.from({
-                    length: Math.min(
-                      authoritativeFormationCount,
-                      4,
-                    ),
-                  }).map((_, index) => (
-                    <span
-                      className="aligned-avatar"
-                      key={index}
-                      aria-hidden="true"
-                    >
-                      ⚡
-                    </span>
+                  {signalParticipants.slice(0, 4).map((participant) => (
+                    participant.avatarUrl ? (
+                      <span
+                        className="aligned-avatar"
+                        key={participant.userId}
+                        title={participant.isMe ? `${participant.displayName} · YOU` : participant.displayName}
+                      >
+                        <img
+                          src={participant.avatarUrl}
+                          alt={participant.displayName}
+                        />
+                      </span>
+                    ) : (
+                      <span
+                        className="aligned-avatar arrival-avatar-fallback"
+                        key={participant.userId}
+                        title={participant.isMe ? `${participant.displayName} · YOU` : participant.displayName}
+                        aria-label={participant.displayName}
+                      >
+                        {participant.displayName.charAt(0).toUpperCase()}
+                      </span>
+                    )
                   ))}
 
-                  {authoritativeFormationCount > 4 && (
-                    <span className="aligned-avatar">
-                      +{authoritativeFormationCount - 4}
+                  {signalParticipants.length > 4 && (
+                    <span className="aligned-avatar arrival-avatar-fallback">
+                      +{signalParticipants.length - 4}
                     </span>
                   )}
                 </div>
