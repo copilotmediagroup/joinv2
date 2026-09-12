@@ -4153,3 +4153,442 @@ button:disabled,
   }
 }
 
+
+/* ============================================================
+   SIGNAL — G4.18-I11 FORMATION PREFERENCES
+   ============================================================ */
+
+.signal-preferences {
+  display: grid;
+  gap: 11px;
+  margin-top: 18px;
+  padding: 13px;
+  border: 1px solid rgba(255,255,255,.065);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(49,157,255,.055),
+      rgba(118,92,255,.035) 52%,
+      rgba(255,255,255,.018)
+    );
+  backdrop-filter: blur(12px);
+}
+
+.signal-preference-group {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.signal-preference-label {
+  color: #77717d;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.signal-preference-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.signal-preference-option {
+  min-height: 29px;
+  padding: 0 10px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 999px;
+  color: #918a96;
+  background: rgba(255,255,255,.028);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .055em;
+  transition:
+    border-color .18s ease,
+    background .18s ease,
+    color .18s ease,
+    box-shadow .18s ease,
+    transform .18s ease;
+}
+
+.signal-preference-option:hover {
+  color: #d9d5de;
+  border-color: rgba(108,174,255,.2);
+  transform: translateY(-1px);
+}
+
+.signal-preference-option.active {
+  color: #f8f6fb;
+  border-color: rgba(92,177,255,.33);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(52,159,255,.18),
+      rgba(118,92,255,.17)
+    );
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.025),
+    0 0 18px rgba(75,146,255,.08);
+}
+
+@media (max-width: 700px) {
+  .signal-preference-group {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .signal-preference-options {
+    width: 100%;
+  }
+
+  .signal-preference-option {
+    flex: 1 1 auto;
+  }
+}
+
+
+/* ==========================================================
+   SIGNAL — EXPLICIT WITHDRAWAL
+   ========================================================== */
+
+.signal-withdrawal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 18px;
+}
+
+.signal-withdrawal-button {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(10, 10, 12, 0.72);
+  color: rgba(255, 255, 255, 0.72);
+  padding: 10px 16px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
+}
+
+.signal-withdrawal-button:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.94);
+  transform: translateY(-1px);
+}
+
+.signal-withdrawal-button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
+.signal-withdrawal-error {
+  margin: 0;
+  max-width: 360px;
+  color: #ffb4b4;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+
+/* ============================================================
+   SIGNAL — G4.18-I14-R47B
+   COLLAPSIBLE PREFERENCES + EXPERIENCE TITLE PROTECTION
+   ============================================================ */
+
+.signal-preference-access {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 17px;
+}
+
+.signal-preference-trigger {
+  appearance: none;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  min-height: 34px;
+  padding: 0 12px;
+
+  border: 1px solid rgba(113, 196, 255, .26);
+  border-radius: 999px;
+
+  color: #dff5ff;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(36, 164, 255, .15),
+      rgba(116, 83, 255, .11)
+    );
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.025),
+    0 0 20px rgba(63, 171, 255, .08);
+
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+
+  transition:
+    transform .18s ease,
+    border-color .18s ease,
+    background .18s ease,
+    box-shadow .18s ease;
+}
+
+.signal-preference-trigger:hover {
+  transform: translateY(-1px);
+  border-color: rgba(113, 207, 255, .48);
+}
+
+.signal-preference-trigger.active {
+  border-color: rgba(111, 215, 255, .62);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(37, 178, 255, .24),
+      rgba(127, 83, 255, .18)
+    );
+  box-shadow:
+    0 0 22px rgba(54, 174, 255, .14);
+}
+
+.signal-preference-summary {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(255,255,255,.72);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-preference-drawer {
+  margin-top: 9px;
+  animation:
+    signalPreferenceDrawerIn
+    .2s cubic-bezier(.2,.8,.2,1)
+    both;
+}
+
+@keyframes signalPreferenceDrawerIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/*
+ * The old preference block keeps all existing option logic.
+ * Only its visual presentation changes.
+ */
+
+.signal-preference-drawer .signal-preferences {
+  margin-top: 0;
+}
+
+/*
+ * USER-LOCKED READABILITY RULE:
+ * option lettering is BLACK.
+ */
+
+.signal-preference-option {
+  color: #050608 !important;
+  border-color: rgba(255,255,255,.46) !important;
+  background:
+    rgba(255,255,255,.76) !important;
+  text-shadow: none !important;
+}
+
+.signal-preference-option:hover {
+  color: #000000 !important;
+  border-color: rgba(255,255,255,.78) !important;
+  background:
+    rgba(255,255,255,.9) !important;
+}
+
+/*
+ * Selected option remains visually obvious while keeping
+ * BLACK lettering.
+ */
+
+.signal-preference-option.active {
+  color: #000000 !important;
+  border-color: rgba(91, 190, 255, .86) !important;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(161, 224, 255, .98),
+      rgba(207, 193, 255, .98)
+    ) !important;
+
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.38),
+    0 0 18px rgba(68, 178, 255, .22) !important;
+}
+
+.signal-preference-done {
+  appearance: none;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 8px;
+
+  border: 1px solid rgba(94, 195, 255, .35);
+  border-radius: 13px;
+
+  color: #ffffff;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(38, 157, 255, .28),
+      rgba(127, 74, 255, .24)
+    );
+
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .1em;
+
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.06),
+    0 8px 24px rgba(0,0,0,.16);
+}
+
+/*
+ * EXPERIENCE TITLE PROTECTION
+ *
+ * This is specifically the chosen activity title:
+ * Basketball, Sip & Paint, Outdoors, Drinks, etc.
+ *
+ * The existing mobile rule reduced this card to 460px.
+ * Do not compress the experience identity out of view.
+ */
+
+@media (max-width: 700px) {
+  .suggestion-card:not(.accepted) {
+    min-height: 510px;
+  }
+
+  .suggestion-card:not(.accepted) .suggestion-content {
+    right: 18px;
+    bottom: 20px;
+    left: 18px;
+  }
+
+  .suggestion-card:not(.accepted) .suggestion-content h2 {
+    position: relative;
+    z-index: 8;
+    margin-top: 6px;
+    font-size: clamp(30px, 9vw, 42px);
+    line-height: .98;
+  }
+
+  .signal-preference-access {
+    gap: 7px;
+  }
+
+  .signal-preference-trigger {
+    min-height: 32px;
+    padding: 0 10px;
+  }
+
+  .signal-preference-summary {
+    font-size: 6.5px;
+  }
+}
+
+@media (hover: none) {
+  .signal-preference-trigger:hover {
+    transform: none;
+  }
+}
+
+
+/* ============================================================
+   SIGNAL — G4.18-I14-R49B
+   AUTHENTICATED PROFILE ELIGIBILITY GUARDRAILS
+   ============================================================ */
+
+.signal-preference-option:disabled {
+  cursor: not-allowed !important;
+
+  color: rgba(5, 6, 8, .42) !important;
+  border-color: rgba(255,255,255,.18) !important;
+  background:
+    rgba(255,255,255,.34) !important;
+
+  box-shadow: none !important;
+  opacity: .48;
+  filter: saturate(.35);
+}
+
+.signal-preference-option:disabled:hover {
+  transform: none !important;
+
+  color: rgba(5, 6, 8, .42) !important;
+  border-color: rgba(255,255,255,.18) !important;
+  background:
+    rgba(255,255,255,.34) !important;
+
+  box-shadow: none !important;
+}
+
+.signal-preference-option:disabled::after {
+  content: ' · LOCKED';
+  font-size: .76em;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.notification-trigger {
+  position: relative;
+}
+
+.notification-trigger-badge {
+  position: absolute;
+  top: -6px;
+  right: -7px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: currentColor;
+  color: #0b0d12;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.surface-loading {
+  width: min(100%, 920px);
+  min-height: 45vh;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  color: rgba(255,255,255,.48);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}

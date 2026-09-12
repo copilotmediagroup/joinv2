@@ -1,13 +1,15 @@
 export type SignalPlaceReview = {
-rating: number
-text: string
-relativeTime: string | null
-authorName: string
-authorPhotoUrl: string | null
-authorUri: string | null
-googleMapsUri: string | null
+  rating: number
+  text: string
+  relativeTime: string | null
+  authorName: string
+  authorPhotoUrl: string | null
+  authorUri: string | null
+  googleMapsUri: string | null
 }
+
 export type SignalPlace = {
+  optionId: string
   placeId: string
   name: string
   address: string
@@ -21,16 +23,8 @@ export type SignalPlace = {
   utcOffsetMinutes: number | null
   openingHours: {
     periods: Array<{
-      open: {
-        day: number
-        hour: number
-        minute: number
-      } | null
-      close: {
-        day: number
-        hour: number
-        minute: number
-      } | null
+      open: { day: number; hour: number; minute: number } | null
+      close: { day: number; hour: number; minute: number } | null
     }>
     weekdayDescriptions: string[]
   } | null
@@ -51,19 +45,41 @@ export type SignalPlace = {
     confidence: number
     availability: number
     relevance: number
+    facilityFit: number
   }
 }
 
+export type SignalVenueRound = {
+  id: string
+  roundNumber: 1 | 2
+  roundKind: 'initial' | 'runoff'
+  state: 'open' | 'won' | 'runoff' | 'deadlocked'
+  opensAt: string
+  closesAt: string
+  winnerOptionId: string | null
+  eligibleVoterCount: number
+  majorityRequired: number
+  currentUserOptionId: string | null
+  voteCounts: Record<string, number>
+}
+
 export type SignalPlacesRequest = {
-  signalId: string
-  city: string
-  latitude: number
-  longitude: number
+  signalGroupId: string
   limit?: number
 }
 
 export type SignalPlacesResponse = {
-  source: 'google'
-  query: string
+  version: 'signal-venue-vote-v1'
+  source: 'google' | 'database'
+  query: string | null
+  activitySlug: string
+  citySlug: string
+  round: SignalVenueRound
   places: SignalPlace[]
+}
+
+export type SignalVenueVoteResult = {
+  voteAccepted: boolean
+  roundState: SignalVenueRound['state']
+  winnerOptionId: string | null
 }

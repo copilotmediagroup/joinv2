@@ -1,0 +1,17 @@
+.signal-preferences { display: grid; gap: 14px; }
+.signal-preferences-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.signal-preferences-heading > div { display: grid; gap: 4px; }
+.signal-preferences-heading span { display: inline-flex; align-items: center; gap: 6px; color: var(--signal-blue-bright,#62c7ff); font-size: 10px; font-weight: 900; letter-spacing: .12em; }
+.signal-preferences-heading h3 { margin: 0; font-size: 18px; }
+.signal-preferences-heading > button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(255,255,255,.035); color: inherit; font: inherit; font-size: 9px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }
+.signal-preferences-summary { display: flex; flex-wrap: wrap; gap: 7px; }
+.signal-preferences-summary span { padding: 7px 10px; border: 1px solid rgba(98,199,255,.14); border-radius: 999px; background: rgba(98,199,255,.055); color: rgba(230,246,255,.84); font-size: 10px; font-weight: 750; }
+.signal-preferences-empty { margin: 0; color: rgba(255,255,255,.48); font-size: 12px; line-height: 1.5; }
+.signal-preferences-editor { display: grid; gap: 14px; }
+.signal-preferences-group { display: grid; gap: 7px; }
+.signal-preferences-group > small { color: rgba(255,255,255,.42); font-size: 9px; font-weight: 900; letter-spacing: .1em; }
+.signal-preferences-group > div { display: flex; flex-wrap: wrap; gap: 7px; }
+.signal-preferences-group button { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 10px; border: 1px solid rgba(255,255,255,.09); border-radius: 999px; background: rgba(255,255,255,.03); color: rgba(255,255,255,.65); font: inherit; font-size: 10px; cursor: pointer; }
+.signal-preferences-group button.active { border-color: rgba(98,199,255,.35); background: rgba(98,199,255,.11); color: white; }
+.signal-preferences-save { min-height: 42px; border: 1px solid rgba(98,199,255,.3); border-radius: 12px; background: linear-gradient(135deg,rgba(41,168,255,.17),rgba(142,92,255,.12)); color: white; font: inherit; font-size: 10px; font-weight: 900; letter-spacing: .1em; cursor: pointer; }
+.signal-preferences-error { margin: 0; color: #ff8b9e; font-size: 11px; }

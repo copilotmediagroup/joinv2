@@ -21,10 +21,17 @@ import {
 import {
   subscribeToPlanMessagesRealtime,
 } from './messagingRealtime'
+import PlanGovernancePanel from '../plan/PlanGovernancePanel'
+import {
+  getMyPlanMembers,
+  subscribeToPlanMembers,
+  type PlanMemberIdentity,
+} from '../plan/planMembersClient'
 import './MessagesView.css'
 
 type MessagesViewProps = {
   currentUserId: string
+  initialPlanId?: string | null
 }
 
 function formatMessageTime(
@@ -47,6 +54,7 @@ function formatMessageTime(
 
 export default function MessagesView({
   currentUserId,
+  initialPlanId = null,
 }: MessagesViewProps) {
   const [conversations, setConversations] =
     useState<PlanConversation[]>([])
@@ -54,6 +62,8 @@ export default function MessagesView({
     useState<string | null>(null)
   const [messages, setMessages] =
     useState<PlanMessage[]>([])
+  const [planMembers, setPlanMembers] =
+    useState<PlanMemberIdentity[]>([])
   const [draft, setDraft] = useState('')
   const [loadingConversations, setLoadingConversations] =
     useState(true)
@@ -62,6 +72,12 @@ export default function MessagesView({
   const [sending, setSending] = useState(false)
   const [error, setError] =
     useState<string | null>(null)
+
+  const selectedPlanId =
+    conversations.find(
+      (conversation) =>
+        conversation.conversationId === selectedConversationId,
+    )?.planId ?? null
 
   useEffect(() => {
     let cancelled = false
@@ -79,6 +95,18 @@ export default function MessagesView({
         }
 
         setConversations(result)
+
+        if (initialPlanId) {
+          const targetConversation = result.find(
+            (conversation) => conversation.planId === initialPlanId,
+          )
+
+          if (targetConversation) {
+            setSelectedConversationId(
+              targetConversation.conversationId,
+            )
+          }
+        }
       } catch (loadError) {
         if (cancelled) {
           return
@@ -101,11 +129,10 @@ export default function MessagesView({
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [initialPlanId])
 
   useEffect(() => {
     if (selectedConversationId === null) {
-      setMessages([])
       return
     }
 
@@ -163,6 +190,38 @@ export default function MessagesView({
       void subscription.stop()
     }
   }, [selectedConversationId])
+
+  useEffect(() => {
+    if (!selectedPlanId) return
+
+    let cancelled = false
+
+    const refreshMembers = async () => {
+      try {
+        const next = await getMyPlanMembers(selectedPlanId)
+        if (!cancelled) setPlanMembers(next)
+      } catch (memberError) {
+        if (!cancelled) {
+          setError(
+            memberError instanceof Error
+              ? memberError.message
+              : 'Unable to load Plan members.',
+          )
+        }
+      }
+    }
+
+    void refreshMembers()
+    const unsubscribe = subscribeToPlanMembers(
+      selectedPlanId,
+      () => { void refreshMembers() },
+    )
+
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [selectedPlanId])
 
   const handleSend = async (
     event: FormEvent<HTMLFormElement>,
@@ -243,9 +302,10 @@ export default function MessagesView({
           <button
             type="button"
             className="messages-back-button"
-            onClick={() =>
+            onClick={() => {
+              setMessages([])
               setSelectedConversationId(null)
-            }
+            }}
           >
             <ArrowLeft size={18} />
             MESSAGES
@@ -276,6 +336,42 @@ export default function MessagesView({
           </div>
         )}
 
+        {selectedConversation && planMembers.length > 0 && (
+          <div className="messages-plan-members" aria-label="Plan members">
+            {planMembers.slice(0, 8).map((member) => (
+              <div className="messages-plan-member" key={member.userId}>
+                {member.avatarUrl ? (
+                  <img src={member.avatarUrl} alt="" />
+                ) : (
+                  <span aria-hidden="true">
+                    {member.displayName.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                <small>{member.isMe ? 'YOU' : member.displayName}</small>
+              </div>
+            ))}
+            {planMembers.length > 8 && (
+              <strong>+{planMembers.length - 8}</strong>
+            )}
+          </div>
+        )}
+
+        {selectedConversation && (
+          <PlanGovernancePanel
+            planId={selectedConversation.planId}
+            onLeftPlan={() => {
+              setMessages([])
+              setConversations((current) =>
+                current.filter(
+                  (conversation) =>
+                    conversation.planId !== selectedConversation.planId,
+                ),
+              )
+              setSelectedConversationId(null)
+            }}
+          />
+        )}
+
         <div className="messages-thread-feed">
           {loadingMessages ? (
             <div className="messages-state">
@@ -296,6 +392,9 @@ export default function MessagesView({
               const isMine =
                 message.senderUserId ===
                 currentUserId
+              const sender = planMembers.find(
+                (member) => member.userId === message.senderUserId,
+              )
 
               return (
                 <article
@@ -306,9 +405,20 @@ export default function MessagesView({
                       : 'messages-bubble'
                   }
                 >
-                  <small>
-                    {isMine ? 'YOU' : 'SIGNAL MEMBER'}
-                  </small>
+                  <div className="messages-bubble-identity">
+                    {!isMine && (
+                      sender?.avatarUrl ? (
+                        <img src={sender.avatarUrl} alt="" />
+                      ) : (
+                        <span aria-hidden="true">
+                          {(sender?.displayName ?? 'S').slice(0, 1).toUpperCase()}
+                        </span>
+                      )
+                    )}
+                    <small>
+                      {isMine ? 'YOU' : sender?.displayName ?? 'SIGNAL MEMBER'}
+                    </small>
+                  </div>
                   <p>{message.body}</p>
                   <time>
                     {formatMessageTime(
@@ -399,11 +509,12 @@ export default function MessagesView({
                 key={conversation.conversationId}
                 type="button"
                 className="messages-conversation-row"
-                onClick={() =>
+                onClick={() => {
+                  setMessages([])
                   setSelectedConversationId(
                     conversation.conversationId,
                   )
-                }
+                }}
               >
                 <span className="messages-conversation-icon">
                   <Zap

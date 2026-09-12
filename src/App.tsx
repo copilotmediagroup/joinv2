@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Bell,
@@ -12,8 +12,8 @@ import {
   Zap,
 } from 'lucide-react'
 import './App.css'
-import ActivityView from './features/activity/ActivityView'
-import MessagesView from './features/messaging/MessagesView'
+import NotificationPanel from './features/notifications/NotificationPanel'
+import type { NotificationTarget } from './features/notifications/notificationClient'
 import {
   getMyActivity,
   type ActivityItem,
@@ -40,10 +40,25 @@ import {
 import {
   withdrawMySignal,
 } from './features/signal/withdrawal/signalWithdrawalClient'
-import SignalPlaceStage from './features/signal/SignalPlaceStage'
-import SignalTimeStage, {
-  type LockedSignalVenue,
+import type {
+  LockedSignalVenue,
 } from './features/signal/SignalTimeStage'
+
+const ActivityView = React.lazy(
+  () => import('./features/activity/ActivityView'),
+)
+const MessagesView = React.lazy(
+  () => import('./features/messaging/MessagesView'),
+)
+const ProfileView = React.lazy(
+  () => import('./features/profile/ProfileView'),
+)
+const SignalPlaceStage = React.lazy(
+  () => import('./features/signal/SignalPlaceStage'),
+)
+const SignalTimeStage = React.lazy(
+  () => import('./features/signal/SignalTimeStage'),
+)
 
 type Pulse = {
   id: string
@@ -284,13 +299,17 @@ function App() {
     useState<string | null>(null)
 
   const [activeSurface, setActiveSurface] =
-    useState<'discover' | 'activity' | 'messages'>('discover')
+    useState<'discover' | 'activity' | 'messages' | 'profile'>('discover')
   const [activityItems, setActivityItems] =
     useState<ActivityItem[]>([])
   const [activityLoading, setActivityLoading] =
     useState(false)
   const [activityError, setActivityError] =
     useState<string | null>(null)
+  const [notificationsOpen, setNotificationsOpen] =
+    useState(false)
+  const [notificationUnreadCount, setNotificationUnreadCount] =
+    useState(0)
 
   const [active, setActive] = useState('drinks')
   const [directActivitySlug, setDirectActivitySlug] =
@@ -319,42 +338,19 @@ function App() {
   const [withdrawalError, setWithdrawalError] =
     useState<string | null>(null)
 
-  useEffect(() => {
-    if (
-      signalCrowdPreference === 'women_only' &&
-      !canSelectWomenOnly
-    ) {
-      setSignalCrowdPreference('everyone')
-    }
+  const effectiveSignalCrowdPreference: SignalPreferenceCrowd =
+    signalCrowdPreference === 'women_only' && !canSelectWomenOnly
+      ? 'everyone'
+      : signalCrowdPreference === 'men_only' && !canSelectMenOnly
+        ? 'everyone'
+        : signalCrowdPreference
 
-    if (
-      signalCrowdPreference === 'men_only' &&
-      !canSelectMenOnly
-    ) {
-      setSignalCrowdPreference('everyone')
-    }
-
-    if (
-      signalAgePreference === '30_plus' &&
-      !canSelect30Plus
-    ) {
-      setSignalAgePreference('open')
-    }
-
-    if (
-      signalAgePreference === '40_plus' &&
-      !canSelect40Plus
-    ) {
-      setSignalAgePreference('open')
-    }
-  }, [
-    signalCrowdPreference,
-    signalAgePreference,
-    canSelectWomenOnly,
-    canSelectMenOnly,
-    canSelect30Plus,
-    canSelect40Plus,
-  ])
+  const effectiveSignalAgePreference: SignalPreferenceAge =
+    signalAgePreference === '40_plus' && !canSelect40Plus
+      ? 'open'
+      : signalAgePreference === '30_plus' && !canSelect30Plus
+        ? 'open'
+        : signalAgePreference
   const [signalThreshold, setSignalThreshold] = useState(false)
   const [signalRoomStage, setSignalRoomStage] = useState<
     'arrival' | 'places' | 'time'
@@ -365,6 +361,8 @@ function App() {
 
   const [signalPlanSetVisible, setSignalPlanSetVisible] =
     useState(false)
+  const [messagePlanId, setMessagePlanId] =
+    useState<string | null>(null)
 
   const suggestion = boredSuggestions[suggestionIndex]
 
@@ -523,6 +521,32 @@ function App() {
     formationResult?.groupState ??
     null
 
+  const authoritativeSignalGroupId =
+    signalRealtimeTarget?.signalGroupId ??
+    formationResult?.signalGroupId ??
+    null
+
+  const previousSignalGroupStateRef =
+    useRef<typeof authoritativeGroupState>(null)
+
+  useEffect(() => {
+    const previousGroupState =
+      previousSignalGroupStateRef.current
+
+    previousSignalGroupStateRef.current =
+      authoritativeGroupState
+
+    if (
+      authoritativeGroupState === 'locked' &&
+      previousGroupState !== 'locked'
+    ) {
+      setSignalRoomStage('arrival')
+      setLockedSignalVenue(null)
+      setSignalPlanSetVisible(false)
+      setSignalThreshold(true)
+    }
+  }, [authoritativeGroupState])
+
   const signalHasReachedCriticalMass =
     authoritativeGroupState === 'confirming' ||
     authoritativeGroupState === 'coordinating' ||
@@ -573,7 +597,57 @@ function App() {
   }
 
   const handleMessagesNavigation = () => {
+    setMessagePlanId(null)
     setActiveSurface('messages')
+  }
+
+  const handleOpenPlanChat = (planId: string) => {
+    setMessagePlanId(planId)
+    setNotificationsOpen(false)
+    setSignalThreshold(false)
+    setActiveSurface('messages')
+  }
+
+  const handleOpenSignalNotification = (
+    target: Extract<NotificationTarget, { targetType: 'signal' }>,
+    notificationType: string,
+  ) => {
+    setNotificationsOpen(false)
+    setFormationResult(null)
+    setSignalRealtimeTarget({
+      signalIntentId: target.signalIntentId,
+      signalGroupId: target.signalGroupId,
+    })
+    setAccepted(true)
+    setBored(true)
+    setActiveSurface('discover')
+
+    const matchingPulse = pulses.find(
+      (pulse) => pulse.id === target.activitySlug,
+    )
+    if (matchingPulse) {
+      setDirectActivitySlug(matchingPulse.id)
+      setActive(matchingPulse.id)
+    }
+
+    const coordinationReady =
+      target.groupState === 'coordinating' ||
+      target.groupState === 'locked' ||
+      target.groupState === 'active_outing'
+
+    setSignalThreshold(coordinationReady)
+    setLockedSignalVenue(null)
+    setSignalPlanSetVisible(false)
+    setSignalRoomStage(
+      coordinationReady &&
+      (notificationType === 'venue_vote' || notificationType === 'time_vote')
+        ? 'places'
+        : 'arrival',
+    )
+  }
+
+  const handleProfileNavigation = () => {
+    setActiveSurface('profile')
   }
 
   const handleSignalCenterNavigation = () => {
@@ -702,9 +776,9 @@ function App() {
       }
 
       const minAge =
-        signalAgePreference === '30_plus'
+        effectiveSignalAgePreference === '30_plus'
           ? 30
-          : signalAgePreference === '40_plus'
+          : effectiveSignalAgePreference === '40_plus'
             ? 40
             : null
 
@@ -715,7 +789,7 @@ function App() {
           timeWindow:
             signalTimePreference,
           crowdMode:
-            signalCrowdPreference,
+            effectiveSignalCrowdPreference,
           minAge,
           maxAge: null,
           journeyOrigin,
@@ -791,7 +865,8 @@ function App() {
     (
       authoritativeGroupState === 'forming' ||
       authoritativeGroupState === 'confirming' ||
-      authoritativeGroupState === 'coordinating'
+      authoritativeGroupState === 'coordinating' ||
+      authoritativeGroupState === 'locked'
     )
 
   const formedSignalTimeLabel =
@@ -801,14 +876,14 @@ function App() {
 
   const formedSignalCrowdMode =
     signalRealtimeSnapshot?.group.crowdMode ??
-    signalCrowdPreference
+    effectiveSignalCrowdPreference
 
   const formedSignalMinAge =
     signalRealtimeSnapshot?.group.minAge ??
     (
-      signalAgePreference === '30_plus'
+      effectiveSignalAgePreference === '30_plus'
         ? 30
-        : signalAgePreference === '40_plus'
+        : effectiveSignalAgePreference === '40_plus'
           ? 40
           : null
     )
@@ -839,7 +914,7 @@ function App() {
   const formedSignalCriteria =
     `${formedSignalTimeLabel} · ${formedSignalCrowdLabel} · ${formedSignalAgeLabel}`
 
-  const boredStatus = useMemo(() => {
+  const boredStatus = (() => {
     if (
       !bored &&
       !hasActiveSignalJourney
@@ -850,8 +925,6 @@ function App() {
     if (
       hasActiveSignalJourney &&
       (
-        authoritativeGroupState ===
-          'coordinating' ||
         authoritativeGroupState ===
           'locked' ||
         authoritativeGroupState ===
@@ -869,12 +942,7 @@ function App() {
     }
 
     return 'searching'
-  }, [
-    bored,
-    hasActiveSignalJourney,
-    authoritativeGroupState,
-    formationSubmitting,
-  ])
+  })()
 
   return (
     <main className="app">
@@ -906,12 +974,33 @@ function App() {
           <button>
             <Search size={18} />
           </button>
-          <button>
+          <button
+            type="button"
+            className="notification-trigger"
+            aria-label="Notifications"
+            aria-expanded={notificationsOpen}
+            onClick={() => setNotificationsOpen((current) => !current)}
+          >
             <Bell size={18} />
+            {notificationUnreadCount > 0 && (
+              <span className="notification-trigger-badge">
+                {notificationUnreadCount > 9 ? '9+' : notificationUnreadCount}
+              </span>
+            )}
           </button>
         </div>
       </header>
 
+      {notificationsOpen && (
+        <NotificationPanel
+          userId={currentUser.userId}
+          onUnreadCountChange={setNotificationUnreadCount}
+          onOpenPlan={handleOpenPlanChat}
+          onOpenSignal={handleOpenSignalNotification}
+        />
+      )}
+
+      <React.Suspense fallback={<div className="surface-loading">Loading…</div>}>
       {activeSurface === 'activity' ? (
         <ActivityView
           items={activityItems}
@@ -922,7 +1011,10 @@ function App() {
       ) : activeSurface === 'messages' ? (
         <MessagesView
           currentUserId={currentUser.userId}
+          initialPlanId={messagePlanId}
         />
+      ) : activeSurface === 'profile' ? (
+        <ProfileView />
       ) : (
         <>
       <section className="intro">
@@ -1108,17 +1200,17 @@ function App() {
                             }
                             {' · '}
                             {
-                              signalCrowdPreference === 'women_only'
+                              effectiveSignalCrowdPreference === 'women_only'
                                 ? 'WOMEN ONLY'
-                                : signalCrowdPreference === 'men_only'
+                                : effectiveSignalCrowdPreference === 'men_only'
                                   ? 'MEN ONLY'
                                   : 'EVERYONE'
                             }
                             {' · '}
                             {
-                              signalAgePreference === '30_plus'
+                              effectiveSignalAgePreference === '30_plus'
                                 ? '30+'
-                                : signalAgePreference === '40_plus'
+                                : effectiveSignalAgePreference === '40_plus'
                                   ? '40+'
                                   : 'OPEN'
                             }
@@ -1192,7 +1284,7 @@ function App() {
                                 key={option.value}
                                 type="button"
                                 className={
-                                  signalCrowdPreference === option.value
+                                  effectiveSignalCrowdPreference === option.value
                                     ? 'signal-preference-option active'
                                     : 'signal-preference-option'
                                 }
@@ -1251,7 +1343,7 @@ function App() {
                                 key={option.value}
                                 type="button"
                                 className={
-                                  signalAgePreference === option.value
+                                  effectiveSignalAgePreference === option.value
                                     ? 'signal-preference-option active'
                                     : 'signal-preference-option'
                                 }
@@ -1787,19 +1879,23 @@ function App() {
                         ease: [0.18, 0.82, 0.22, 1],
                       }}
                     >
-                      <SignalPlaceStage
-                        signalId={suggestion.id}
-                        signalLabel={suggestion.title}
-                        onVenueLocked={(venue) => {
-                          setLockedSignalVenue(venue)
+                      {authoritativeSignalGroupId ? (
+                        <SignalPlaceStage
+                          signalGroupId={authoritativeSignalGroupId}
+                          signalLabel={suggestion.title}
+                          onVenueLocked={(venue) => {
+                            setLockedSignalVenue(venue)
 
-                          window.setTimeout(() => {
-                            setSignalRoomStage('time')
-                          }, 5000)
-                        }}
-                      />
+                            window.setTimeout(() => {
+                              setSignalRoomStage('time')
+                            }, 5000)
+                          }}
+                        />
+                      ) : (
+                        <p>Unable to identify the live Signal group.</p>
+                      )}
                     </motion.div>
-                  ) : lockedSignalVenue ? (
+                  ) : lockedSignalVenue && authoritativeSignalGroupId ? (
                     <motion.div
                       key="signal-time"
                       initial={{
@@ -1822,6 +1918,7 @@ function App() {
                       }}
                     >
                       <SignalTimeStage
+                        signalGroupId={authoritativeSignalGroupId}
                         signalLabel={suggestion.title}
                         venue={lockedSignalVenue}
                         onFindAnotherPlace={() => {
@@ -1829,6 +1926,7 @@ function App() {
                           setSignalRoomStage('places')
                         }}
                         onPlanSetChange={setSignalPlanSetVisible}
+                        onOpenPlanChat={handleOpenPlanChat}
                       />
                     </motion.div>
                   ) : null}
@@ -1854,6 +1952,7 @@ function App() {
 
         </>
       )}
+      </React.Suspense>
 
       <nav className="bottom-nav">
         <button
@@ -1900,7 +1999,14 @@ function App() {
           <span>Messages</span>
         </button>
 
-        <button className="nav-item">
+        <button
+          className={
+            activeSurface === 'profile'
+              ? 'nav-item active'
+              : 'nav-item'
+          }
+          onClick={handleProfileNavigation}
+        >
           <UserRound size={20} />
           <span>Profile</span>
         </button>

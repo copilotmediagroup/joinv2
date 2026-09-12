@@ -1,22 +1,41 @@
 import {
+  useCallback,
   useEffect,
+  useMemo,
+  useRef,
   useState,
 } from 'react'
-
 import {
   Check,
   Clock3,
   MapPin,
   Zap,
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 
-import { AnimatePresence, motion } from 'framer-motion'
-import './SignalTimeStage.css'
-import SignalPlanExperience from '../plan/SignalPlanExperience'
+import { convertSignalToPlan } from '../plan/signalPlanClient'
+import {
+  getMyPlanMembers,
+  subscribeToPlanMembers,
+  type PlanMemberIdentity,
+} from '../plan/planMembersClient'
 import type {
   SignalPlace,
   SignalPlaceReview,
 } from './places/contract'
+import {
+  fetchSignalTimes,
+  reconcileSignalTimeRound,
+  recoverSignalVenue,
+  submitSignalTimeAvailability,
+  subscribeToSignalTimeRound,
+} from './time/signalTimeClient'
+import type {
+  SignalTimeOption,
+  SignalTimesResponse,
+} from './time/contract'
+import './SignalTimeStage.css'
+
 export type LockedSignalVenue = {
   placeId: string
   name: string
@@ -29,520 +48,404 @@ export type LockedSignalVenue = {
 }
 
 type SignalTimeStageProps = {
+  signalGroupId: string
   signalLabel: string
   venue: LockedSignalVenue
   onFindAnotherPlace?: () => void
   onPlanSetChange?: (isPlanSet: boolean) => void
+  onOpenPlanChat?: (planId: string) => void
 }
 
-type SignalTimeOption = {
-  id: string
-  time: string
-  detail: string
+function secondsUntil(isoTimestamp: string): number {
+  const closesAt = new Date(isoTimestamp).getTime()
+  if (!Number.isFinite(closesAt)) return 0
+  return Math.max(0, Math.ceil((closesAt - Date.now()) / 1000))
 }
 
-const timeResultAvatarUrl = (id: string) =>
-'https://i.pravatar.cc/100?img=' + id
-const SMART_TIME_LEAD_MINUTES = 30
-const SMART_TIME_DURATION_MINUTES = 90
-const SMART_TIME_CLOSING_BUFFER_MINUTES = 30
-const SMART_TIME_ALIGNMENT_MINUTES = 30
-
-const formatVenueTime = (
-  venueMinutes: number,
-) => {
-  const normalized =
-    ((venueMinutes % 1440) + 1440) % 1440
-
-  const hour24 =
-    Math.floor(normalized / 60)
-
-  const minute =
-    normalized % 60
-
-  const period =
-    hour24 >= 12 ? 'PM' : 'AM'
-
-  const hour12 =
-    hour24 % 12 || 12
-
-  return (
-    hour12 +
-    ':' +
-    String(minute).padStart(2, '0') +
-    ' ' +
-    period
-  )
+function formatCountdown(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const remainder = seconds % 60
+  return `${minutes}:${String(remainder).padStart(2, '0')}`
 }
 
-const alignUp = (
-  minutes: number,
-  alignment: number,
-) =>
-  Math.ceil(minutes / alignment) * alignment
-
-const buildSmartTimeOptions = (
-  venue: LockedSignalVenue,
-): SignalTimeOption[] => {
-  if (
-    venue.utcOffsetMinutes === null ||
-    !venue.openingHours?.periods?.length
-  ) {
-    return []
+function displayOptionTime(option: SignalTimeOption): string {
+  if (typeof option.displayTime === 'string' && option.displayTime.trim()) {
+    return option.displayTime
   }
 
-  const venueNowMs =
-    Date.now() +
-    venue.utcOffsetMinutes * 60_000
-
-  const venueNow =
-    new Date(venueNowMs)
-
-  const venueDay =
-    venueNow.getUTCDay()
-
-  const venueMinute =
-    venueNow.getUTCHours() * 60 +
-    venueNow.getUTCMinutes()
-
-  const earliestStart =
-    alignUp(
-      venueMinute + SMART_TIME_LEAD_MINUTES,
-      SMART_TIME_ALIGNMENT_MINUTES,
-    )
-
-  const candidates: number[] = []
-
-  for (const period of venue.openingHours.periods) {
-    if (!period.open) continue
-
-    const openDay =
-      period.open.day
-
-    const openMinute =
-      period.open.hour * 60 +
-      period.open.minute
-
-    let closeMinute =
-      period.close
-        ? period.close.hour * 60 +
-          period.close.minute
-        : 1440
-
-    if (
-      period.close &&
-      (
-        period.close.day !== openDay ||
-        closeMinute <= openMinute
-      )
-    ) {
-      closeMinute += 1440
-    }
-
-    const previousDay =
-      (venueDay + 6) % 7
-
-    let relativeOpenMinute: number
-    let relativeCloseMinute: number
-
-    if (openDay === venueDay) {
-      relativeOpenMinute =
-        openMinute
-
-      relativeCloseMinute =
-        closeMinute
-    } else if (
-      openDay === previousDay &&
-      closeMinute > 1440
-    ) {
-      relativeOpenMinute =
-        openMinute - 1440
-
-      relativeCloseMinute =
-        closeMinute - 1440
-    } else {
-      continue
-    }
-
-    const firstCandidate =
-      alignUp(
-        Math.max(
-          earliestStart,
-          relativeOpenMinute,
-        ),
-        SMART_TIME_ALIGNMENT_MINUTES,
-      )
-
-    const latestStart =
-      relativeCloseMinute -
-      SMART_TIME_DURATION_MINUTES -
-      SMART_TIME_CLOSING_BUFFER_MINUTES
-
-    for (
-      let candidate = firstCandidate;
-      candidate <= latestStart;
-      candidate += SMART_TIME_ALIGNMENT_MINUTES
-    ) {
-      candidates.push(candidate)
-    }
-  }
-
-  const uniqueCandidates =
-    [...new Set(candidates)]
-      .sort((a, b) => a - b)
-      .slice(0, 3)
-
-  const details =
-    uniqueCandidates.length === 1
-      ? ['BEST FIT']
-      : uniqueCandidates.length === 2
-        ? ['EARLIER', 'BEST FIT']
-        : ['EARLIER', 'BEST FIT', 'LATER']
-
-  return uniqueCandidates.map(
-    (minutes, index) => ({
-      id: 'smart-' + minutes,
-      time: formatVenueTime(minutes),
-      detail: details[index],
-    }),
-  )
-}
-
-type SignalTimeVoter = {
-  id: string
-  timeId: string
-}
-
-const buildGroupTimeVotes = (
-  options: SignalTimeOption[],
-): SignalTimeVoter[] => {
-  if (options.length === 0) return []
-
-  const first =
-    options[0]
-
-  const best =
-    options[Math.min(1, options.length - 1)]
-
-  const last =
-    options[options.length - 1]
-
-  return [
-    {
-      id: '13',
-      timeId: best.id,
-    },
-    {
-      id: '15',
-      timeId: best.id,
-    },
-    {
-      id: '17',
-      timeId: first.id,
-    },
-    {
-      id: '22',
-      timeId: best.id,
-    },
-    {
-      id: '28',
-      timeId: last.id,
-    },
-  ]
+  const parsed = new Date(option.startsAt)
+  if (Number.isNaN(parsed.getTime())) return 'TIME'
+  return parsed.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
 export default function SignalTimeStage({
+  signalGroupId,
   signalLabel,
   venue,
   onFindAnotherPlace,
   onPlanSetChange,
+  onOpenPlanChat,
 }: SignalTimeStageProps) {
-  const timeOptions =
-    buildSmartTimeOptions(venue)
+  const [snapshot, setSnapshot] =
+    useState<SignalTimesResponse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [recovering, setRecovering] = useState(false)
+  const [planId, setPlanId] = useState<string | null>(null)
+  const [planMembers, setPlanMembers] =
+    useState<PlanMemberIdentity[]>([])
+  const [planCreating, setPlanCreating] = useState(false)
+  const [planError, setPlanError] = useState<string | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(0)
+  const [recoverySeconds, setRecoverySeconds] = useState(10)
+  const recoveryStartedRef = useRef(false)
+  const planConversionStartedRef = useRef(false)
 
-  const noUsableTimes =
-    timeOptions.length === 0
+  const loadSnapshot = useCallback(async () => {
+    try {
+      const next = await fetchSignalTimes(signalGroupId)
+      setSnapshot(next)
+      setError(null)
 
-  const [recoverySeconds, setRecoverySeconds] =
-    useState(10)
-
-  const groupTimeVotes =
-    buildGroupTimeVotes(timeOptions)
-
-  const [secondsLeft, setSecondsLeft] =
-    useState(10)
-
-  const [
-    selectedTimeId,
-    setSelectedTimeId,
-  ] = useState<string | null>(null)
-
-  const [
-    lockedTimeId,
-    setLockedTimeId,
-  ] = useState<string | null>(null)
+      if (next.status === 'ready') {
+        setSecondsLeft(secondsUntil(next.round.closesAt))
+      }
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Unable to coordinate a Signal time.',
+      )
+    } finally {
+      setLoading(false)
+    }
+  }, [signalGroupId])
 
   useEffect(() => {
-    if (secondsLeft <= 0) return
+    let active = true
 
-    const timer = window.setTimeout(() => {
-      setSecondsLeft((current) =>
-        Math.max(0, current - 1)
-      )
-    }, 1000)
+    queueMicrotask(() => {
+      if (!active) return
+      setLoading(true)
+      setError(null)
+      void loadSnapshot()
+    })
 
     return () => {
-      window.clearTimeout(timer)
+      active = false
     }
-  }, [secondsLeft])
+  }, [loadSnapshot])
 
   useEffect(() => {
-    if (!noUsableTimes) return
+    return subscribeToSignalTimeRound(signalGroupId, () => {
+      void loadSnapshot()
+    })
+  }, [signalGroupId, loadSnapshot])
 
-    setRecoverySeconds(10)
+  const round = snapshot?.status === 'ready'
+    ? snapshot.round
+    : null
+
+  const options = useMemo(
+    () => snapshot?.status === 'ready' ? snapshot.options : [],
+    [snapshot],
+  )
+
+  const selectedIds = useMemo(
+    () => new Set(round?.currentUserAvailableOptionIds ?? []),
+    [round?.currentUserAvailableOptionIds],
+  )
+
+  const winner = useMemo(() => {
+    if (!round?.winnerOptionId) return null
+    return options.find(
+      (option) => option.optionId === round.winnerOptionId,
+    ) ?? null
+  }, [options, round])
+
+  useEffect(() => {
+    if (!planId) return
+
+    let cancelled = false
+    const refreshMembers = async () => {
+      try {
+        const members = await getMyPlanMembers(planId)
+        if (!cancelled) setPlanMembers(members)
+      } catch (memberError) {
+        if (!cancelled) {
+          setPlanError(
+            memberError instanceof Error
+              ? memberError.message
+              : 'Unable to load Plan members.',
+          )
+        }
+      }
+    }
+
+    void refreshMembers()
+    const unsubscribe = subscribeToPlanMembers(
+      planId,
+      () => { void refreshMembers() },
+    )
+
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [planId])
+
+  useEffect(() => {
+    onPlanSetChange?.(planId !== null)
+    return () => onPlanSetChange?.(false)
+  }, [onPlanSetChange, planId])
+
+  useEffect(() => {
+    if (!round || round.state !== 'open') return
+
+    const tick = () => {
+      setSecondsLeft(secondsUntil(round.closesAt))
+    }
+
+    tick()
+    const timer = window.setInterval(tick, 1000)
+    return () => window.clearInterval(timer)
+  }, [round])
+
+  useEffect(() => {
+    if (!round || round.state !== 'open' || secondsLeft > 0) return
+
+    let cancelled = false
+    void reconcileSignalTimeRound(round.id)
+      .then(() => {
+        if (!cancelled) return loadSnapshot()
+      })
+      .catch((reconcileError) => {
+        if (!cancelled) {
+          setError(
+            reconcileError instanceof Error
+              ? reconcileError.message
+              : 'Unable to finish time coordination.',
+          )
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [round, secondsLeft, loadSnapshot])
+
+  const recoveryRequired =
+    snapshot?.status === 'no_options' ||
+    round?.state === 'no_eligible'
+
+  const ensurePlan = useCallback(async () => {
+    if (planConversionStartedRef.current || planId) return
+
+    planConversionStartedRef.current = true
+    setPlanCreating(true)
+    setPlanError(null)
+
+    try {
+      const result = await convertSignalToPlan(signalGroupId)
+      setPlanId(result.planId)
+    } catch (conversionError) {
+      planConversionStartedRef.current = false
+      setPlanError(
+        conversionError instanceof Error
+          ? conversionError.message
+          : 'Unable to create the Signal Plan.',
+      )
+    } finally {
+      setPlanCreating(false)
+    }
+  }, [planId, signalGroupId])
+
+  useEffect(() => {
+    if (round?.state !== 'won' || !winner || planId) return
+
+    const timer = window.setTimeout(() => {
+      void ensurePlan()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [ensurePlan, planId, round?.state, winner])
+
+  const runRecovery = useCallback(async () => {
+    if (recovering || recoveryStartedRef.current) return
+
+    recoveryStartedRef.current = true
+    setRecovering(true)
+    setError(null)
+
+    try {
+      await recoverSignalVenue(
+        signalGroupId,
+        venue.placeId,
+        venue.openNow === false
+          ? 'closed'
+          : 'no_eligible_time',
+      )
+      onFindAnotherPlace?.()
+    } catch (recoveryError) {
+      recoveryStartedRef.current = false
+      setError(
+        recoveryError instanceof Error
+          ? recoveryError.message
+          : 'Unable to find another Signal venue.',
+      )
+    } finally {
+      setRecovering(false)
+    }
   }, [
-    noUsableTimes,
+    onFindAnotherPlace,
+    recovering,
+    signalGroupId,
+    venue.openNow,
     venue.placeId,
   ])
 
   useEffect(() => {
-    if (!noUsableTimes) return
-
-    if (recoverySeconds <= 0) {
-      onFindAnotherPlace?.()
-      return
-    }
-
-    const timer =
-      window.setTimeout(() => {
-        setRecoverySeconds((current) =>
-          Math.max(0, current - 1)
-        )
-      }, 1000)
-
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [
-    noUsableTimes,
-    recoverySeconds,
-    onFindAnotherPlace,
-  ])
-
-  const votingClosed = secondsLeft <= 0
-
-  const timeVoteCounts =
-    timeOptions.reduce<Record<string, number>>(
-      (counts, option) => {
-        counts[option.id] =
-          groupTimeVotes.filter(
-            (vote) =>
-              vote.timeId === option.id
-          ).length
-
-        if (selectedTimeId === option.id) {
-          counts[option.id] += 1
-        }
-
-        return counts
-      },
-      {},
-    )
-
-  const winningTimeId =
-    timeOptions.reduce(
-      (winnerId, option) => {
-        if (winnerId === null) {
-          return option.id
-        }
-
-        const winnerVotes =
-          timeVoteCounts[winnerId] ?? 0
-
-        const optionVotes =
-          timeVoteCounts[option.id] ?? 0
-
-        return optionVotes > winnerVotes
-          ? option.id
-          : winnerId
-      },
-      null as string | null,
-    )
-
-  const lockedTime =
-    lockedTimeId === null
-      ? null
-      : timeOptions.find(
-          (option) =>
-            option.id === lockedTimeId
-        ) ?? null
-
-  const reviewSlides =
-    venue.reviews
-      .filter((review) =>
-        review.rating > 0 &&
-        review.text.trim().length > 0
-      )
-
-  const [planSet, setPlanSet] =
-    useState(false)
-  const [postPlanView, setPostPlanView] =
-    useState<'plan' | 'chat' | null>(null)
-
-  useEffect(() => {
-    onPlanSetChange?.(planSet)
-
-    return () => {
-      onPlanSetChange?.(false)
-    }
-  }, [planSet, onPlanSetChange])
-
-  const [reviewIndex, setReviewIndex] =
-    useState(0)
-
-  const activeReview =
-    reviewSlides.length > 0
-      ? reviewSlides[
-          reviewIndex % reviewSlides.length
-        ]
-      : null
-
-  useEffect(() => {
-    if (lockedTimeId === null) return
-    if (reviewSlides.length <= 1) return
-
-    setReviewIndex(0)
-
-    const timer = window.setInterval(() => {
-      setReviewIndex((current) =>
-        (current + 1) % reviewSlides.length
-      )
-    }, 1500)
-
-    return () =>
-      window.clearInterval(timer)
-  }, [
-    lockedTimeId,
-    reviewSlides.length,
-  ])
-
-  useEffect(() => {
-    if (lockedTimeId === null) return
+    if (!recoveryRequired || recovering) return
 
     const timer = window.setTimeout(() => {
-      setPlanSet(true)
-    }, 5000)
+      if (recoverySeconds <= 0) {
+        void runRecovery()
+        return
+      }
 
-    return () => {
-      window.clearTimeout(timer)
+      setRecoverySeconds((current) => Math.max(0, current - 1))
+    }, recoverySeconds <= 0 ? 0 : 1000)
+
+    return () => window.clearTimeout(timer)
+  }, [recoveryRequired, recovering, recoverySeconds, runRecovery])
+
+  const toggleAvailability = async (optionId: string) => {
+    if (!round || round.state !== 'open' || submitting) return
+
+    const next = new Set(selectedIds)
+    if (next.has(optionId)) {
+      next.delete(optionId)
+    } else {
+      next.add(optionId)
     }
-  }, [lockedTimeId])
 
-  const resultTimeVoters = [
-    ...groupTimeVotes,
-    ...(selectedTimeId
-      ? [{
-          id: '8',
-          timeId: selectedTimeId,
-        }]
-      : []),
-].map((vote) => {
-const option =      timeOptions.find(
-        (item) =>
-          item.id === vote.timeId
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      await submitSignalTimeAvailability(
+        round.id,
+        [...next],
+        round.currentUserPreferredOptionId && next.has(round.currentUserPreferredOptionId)
+          ? round.currentUserPreferredOptionId
+          : null,
       )
-
-    return {
-      ...vote,
-      time:
-        option?.time ?? 'NO TIME',
-      winner:
-        vote.timeId === lockedTimeId,
+      await loadSnapshot()
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : 'Unable to submit your available times.',
+      )
+    } finally {
+      setSubmitting(false)
     }
-  })
+  }
 
-  useEffect(() => {
-    if (!votingClosed) return
-    if (lockedTimeId !== null) return
-    if (winningTimeId === null) return
+  const choosePreference = async (optionId: string) => {
+    if (!round || round.state !== 'open' || submitting) return
 
-    setLockedTimeId(winningTimeId)
-  }, [
-    votingClosed,
-    lockedTimeId,
-    winningTimeId,
-  ])
+    const nextAvailable = new Set(selectedIds)
+    nextAvailable.add(optionId)
+    const nextPreferred =
+      round.currentUserPreferredOptionId === optionId
+        ? null
+        : optionId
 
-  if (planSet && lockedTime && postPlanView) {
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      await submitSignalTimeAvailability(
+        round.id,
+        [...nextAvailable],
+        nextPreferred,
+      )
+      await loadSnapshot()
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : 'Unable to save your preferred time.',
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading && !snapshot) {
     return (
-      <SignalPlanExperience
-        view={postPlanView}
-        signalLabel={signalLabel}
-        venueName={venue.name}
-        venueAddress={venue.address}
-        venuePhotoUrl={venue.photoUrl}
-        meetupTime={lockedTime.time}
-        onOpenPlan={() => setPostPlanView('plan')}
-        onOpenChat={() => setPostPlanView('chat')}
-      />
+      <section className="signal-time-stage">
+        <p className="signal-time-context">
+          Building the group’s live time window...
+        </p>
+      </section>
     )
   }
 
-  if (planSet && lockedTime) {
+  if (recoveryRequired) {
     return (
-      <section className="signal-plan-set">
-        <div className="signal-plan-set-kicker">
-          ⚡ YOUR PLAN IS SET
-        </div>
-
-        {venue.photoUrl && (
-          <div className="signal-plan-set-photo">
-            <img
-              src={venue.photoUrl}
-              alt={venue.name}
-            />
+      <section className="signal-time-stage">
+        <div className="signal-time-venue">
+          <div className="signal-time-venue-icon"><MapPin size={16} /></div>
+          <div>
+            <small>VENUE CHECK</small>
+            <strong>{venue.name}</strong>
+            <span>{venue.address}</span>
           </div>
-        )}
-
-        <h2>{venue.name}</h2>
-        <p>{venue.address}</p>
-
-        <div className="signal-plan-set-time">
-          <small>MEETUP TIME</small>
-          <strong>{lockedTime.time}</strong>
         </div>
 
-        <div className="signal-plan-set-people">
-          {['8', '13', '15', '17', '22', '28'].map(
-            (id) => (
-              <img
-                key={id}
-                src={timeResultAvatarUrl(id)}
-                alt=""
-              />
-            ),
-          )}
+        <div className="signal-time-empty">
+          <div className="signal-time-empty-icon"><Clock3 size={22} /></div>
+          <strong>
+            {venue.openNow === false
+              ? 'THIS BUSINESS IS CLOSED'
+              : 'NO GROUP TIME WORKS HERE'}
+          </strong>
+          <p>
+            {venue.openNow === false
+              ? `${venue.name} is currently closed. SIGNAL will move the group to a fresh venue vote.`
+              : 'This venue does not have an eligible meetup time for enough active Signal members.'}
+          </p>
+          <button
+            type="button"
+            className="signal-time-empty-action"
+            disabled={recovering}
+            onClick={() => { void runRecovery() }}
+          >
+            {recovering ? 'FINDING ANOTHER PLACE...' : 'FIND ANOTHER PLACE'}
+          </button>
+          <small className="signal-time-recovery-countdown">
+            {recovering
+              ? 'Refreshing venue selection…'
+              : `Returning to venue selection in ${recoverySeconds}s`}
+          </small>
+          {error && <p role="alert">{error}</p>}
         </div>
+      </section>
+    )
+  }
 
-        <strong className="signal-plan-set-count">
-          6 PEOPLE ARE IN
-        </strong>
-
-        <button
-          type="button"
-          className="signal-plan-set-primary"
-          onClick={() => setPostPlanView('plan')}
-        >
-          OPEN PLAN
-        </button>
-
-        <button
-          type="button"
-          className="signal-plan-set-secondary"
-          onClick={() => setPostPlanView('chat')}
-        >
-          OPEN GROUP CHAT
-        </button>
+  if (!round) {
+    return (
+      <section className="signal-time-stage">
+        <p className="signal-time-context" role="alert">
+          {error ?? 'Time coordination is unavailable.'}
+        </p>
       </section>
     )
   }
@@ -551,33 +454,21 @@ const option =      timeOptions.find(
     <section className="signal-time-stage">
       <div className="signal-time-title-row">
         <div className="signal-time-title">
-          <span>
-            <Zap
-              size={14}
-              fill="currentColor"
-            />
-            NEXT
-          </span>
-
+          <span><Zap size={14} fill="currentColor" /> NEXT</span>
           <h3>PICK THE TIME</h3>
-
           <p>
-            {votingClosed
-              ? 'TIME LOCKING'
-              : `CHOOSE YOUR TIME · ${secondsLeft}s`}
+            {round.state === 'won'
+              ? 'TIME LOCKED'
+              : `MARK EVERY TIME THAT WORKS · ${formatCountdown(secondsLeft)}`}
           </p>
         </div>
-
         <div className="signal-time-context">
-          {signalLabel}
+          {signalLabel} · {round.respondedParticipantCount}/{round.eligibleParticipantCount} RESPONDED
         </div>
       </div>
 
       <div className="signal-time-venue">
-        <div className="signal-time-venue-icon">
-          <MapPin size={16} />
-        </div>
-
+        <div className="signal-time-venue-icon"><MapPin size={16} /></div>
         <div>
           <small>VENUE LOCKED</small>
           <strong>{venue.name}</strong>
@@ -585,292 +476,173 @@ const option =      timeOptions.find(
         </div>
       </div>
 
-      {timeOptions.length === 0 ? (
-        <div className="signal-time-empty">
-          <div className="signal-time-empty-icon">
-            <Clock3 size={22} />
-          </div>
+      {error && (
+        <p className="signal-time-context" role="alert">{error}</p>
+      )}
 
-          <strong>
-            {venue.openNow === false
-              ? 'THIS BUSINESS IS CLOSED'
-              : 'NO TIMES LEFT TONIGHT'}
-          </strong>
+      {round.state === 'open' && (
+        <div className="signal-time-options">
+          {options.map((option) => {
+            const selected = selectedIds.has(option.optionId)
+            const preferred = round.currentUserPreferredOptionId === option.optionId
+            const availableCount = round.availableCounts[option.optionId] ?? 0
 
-          <p>
-            {venue.openNow === false
-              ? `${venue.name} is currently closed. SIGNAL can find an open place for the group.`
-              : venue.openNow === true
-                ? `${venue.name} is open, but there isn’t enough time remaining for this Signal before closing.`
-                : `${venue.name} doesn’t have a usable time remaining for this Signal. SIGNAL can find another place for the group.`}
-          </p>
-
-          <button
-            type="button"
-            className="signal-time-empty-action"
-            onClick={onFindAnotherPlace}
-          >
-            {venue.openNow === false
-              ? 'FIND AN OPEN PLACE'
-              : 'FIND ANOTHER PLACE'}
-          </button>
-
-          <small className="signal-time-recovery-countdown">
-            Returning to venue selection in {recoverySeconds}s
-          </small>
-        </div>
-      ) : (
-        <div className={
-          lockedTime
-            ? "signal-time-options signal-time-options-hidden"
-            : "signal-time-options"
-        }>
-        {timeOptions.map((option) => {
-          const selected =
-            selectedTimeId === option.id
-
-          return (
-            <button
-              type="button"
-              key={option.id}
-              disabled={votingClosed}
-              className={[
-                'signal-time-option',
-                selected
-                  ? 'signal-time-option-selected'
-                  : '',
-                lockedTimeId === option.id
-                  ? 'signal-time-option-winner'
-                  : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              onClick={() => {
-                if (votingClosed) return
-
-                setSelectedTimeId(
-                  (current) =>
-                    current === option.id
-                      ? null
-                      : option.id
-                )
-              }}
-            >
-              <div className="signal-time-option-energy" />
-
-              <div className="signal-time-option-top">
-                <Clock3 size={16} />
-
-                <span>
-                  {option.detail}
-                </span>
-              </div>
-
-              <strong>
-                {option.time}
-              </strong>
-
-              <small>
-                {selected
-                  ? 'YOUR VOTE'
-                  : 'TAP TO VOTE'}
-              </small>
-
-              {selected && (
-                <>
-                  <span className="signal-time-check">
-                    <Check size={17} />
-                  </span>
-
-                  <span className="signal-time-vote-pulse" />
-                </>
-              )}
-            </button>
-          )
-        })}
+            return (
+              <button
+                type="button"
+                key={option.optionId}
+                disabled={submitting}
+                className={[
+                  'signal-time-option',
+                  selected ? 'signal-time-option-selected' : '',
+                ].filter(Boolean).join(' ')}
+                onClick={() => { void toggleAvailability(option.optionId) }}
+              >
+                <div className="signal-time-option-energy" />
+                <div className="signal-time-option-top">
+                  <Clock3 size={16} />
+                  <span>{option.label}</span>
+                </div>
+                <strong>{displayOptionTime(option)}</strong>
+                <small>
+                  {selected
+                    ? `AVAILABLE · ${availableCount} IN`
+                    : `${availableCount} AVAILABLE · TAP IF YOU CAN MAKE IT`}
+                </small>
+                {selected && (
+                  <>
+                    <span className="signal-time-check"><Check size={17} /></span>
+                    <span className="signal-time-vote-pulse" />
+                    <button
+                      type="button"
+                      className="signal-time-preference-button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void choosePreference(option.optionId)
+                      }}
+                    >
+                      {preferred ? '★ PREFERRED' : '☆ PREFER'}
+                    </button>
+                  </>
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
 
-      {lockedTime && (
-        <>
-          <div className="signal-time-result-grid">
-          <motion.div
-          className="signal-time-lock-diagnostic"
-          data-voter-count={resultTimeVoters.length}
+      {round.state === 'won' && winner && (
+        <motion.div
+          className="signal-time-result-grid"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
         >
-        {venue.photoUrl && (
-<div className="signal-time-winner-photo">
-<img
-src={venue.photoUrl}
-alt={venue.name}
-/>
-<div className="signal-time-winner-photo-shade" />
-</div>
-)}
-<span>⚡ GROUP CHOICE</span>
-<strong>{venue.name}</strong>
-<small>{venue.address}</small>
-<span>WINNING TIME</span>
-<strong>{lockedTime.time}</strong>
-<small>VENUE + TIME CONFIRMED</small>        </motion.div>
-<div className="signal-time-review-stage">
-<AnimatePresence mode="wait">
-{activeReview && (
-<motion.div
-key={
-  activeReview.authorName +
-  reviewIndex
-}
-className="signal-time-review"
-initial={{
-  opacity: 0,
-  x: 260,
-  scale: 0.97,
-}}
-animate={{
-  opacity: 1,
-  x: 0,
-  scale: 1,
-}}
-exit={{
-  opacity: 0,
-  x: -260,
-  scale: 0.97,
-}}
-transition={{
-  x: {
-    duration: 0.28,
-    ease: [0.18, 0.82, 0.22, 1],
-  },
-  opacity: {
-    duration: 0.2,
-  },
-  scale: {
-    duration: 0.28,
-  },
-}}
->
-<div className="signal-time-review-top">
-<span>GOOGLE REVIEW</span>
-
-<strong>
-{"★".repeat(
-  Math.max(
-    1,
-    Math.min(
-      5,
-      Math.round(activeReview.rating),
-    ),
-  ),
-)}
-</strong>
-</div>
-
-<p>
-{activeReview.text}
-</p>
-
-<div className="signal-time-review-author">
-<strong>
-{activeReview.authorName ||
-  "Google user"}
-</strong>
-
-{activeReview.relativeTime && (
-<span>
-{activeReview.relativeTime}
-</span>
-)}
-</div>
-</motion.div>
-)}
-</AnimatePresence>
-</div>
-
-<div className="signal-time-live-rail">
-<div className="signal-time-live-rail-heading">
-<span>⚡ SIGNAL LIVE</span>
-<strong>TIME VOTES</strong>
-</div>
-
-<div className="forming-people arrival-list signal-live-rail">
-{resultTimeVoters.slice(0, 4).map((voter, index) => (
-<motion.div
-className="arrival-person pulse-connected signal-live-rail-person"
-key={voter.id}
-initial={{ opacity: 0, y: 18, scale: 0.97 }}
-animate={{ opacity: 1, y: 0, scale: 1 }}
-transition={{
-delay: 0.22 + index * 0.1,
-duration: 0.34,
-}}
->
-<div className="arrival-avatar-wrap">
-<span className="arrival-lock-pulse" />
-<img
-src={timeResultAvatarUrl(voter.id)}
-alt=""
-/>
-</div>
-
-<span className="signal-live-rail-copy">
-<strong>
-{voter.winner
-? 'VOTED FOR THE WINNER'
-: 'VOTED'}
-</strong>
-<small>{voter.time}</small>
-</span>
-
-<span className={
-voter.winner
-? 'signal-time-vote-status signal-time-vote-status-winner'
-: 'signal-time-vote-status'
-}>
-{voter.winner ? 'WINNER' : 'VOTE'}
-</span>
-</motion.div>
-))}
-
-{resultTimeVoters.length > 4 && (
-<motion.div
-className="signal-live-rail-overflow signal-time-live-rail-overflow"
-initial={{ opacity: 0, y: 10, scale: 0.96 }}
-animate={{ opacity: 1, y: 0, scale: 1 }}
-transition={{ delay: 0.7, duration: 0.3 }}
->
-<div className="signal-live-rail-overflow-avatars">
-{resultTimeVoters.slice(4, 7).map((voter) => (
-<span
-className="signal-live-rail-overflow-avatar"
-key={voter.id}
->
-<img
-src={timeResultAvatarUrl(voter.id)}
-alt=""
-/>
-</span>
-))}
-</div>
-<strong>+{resultTimeVoters.length - 4}</strong>
-<span>MORE</span>
-</motion.div>
-)}
-</div>
-</div>
+          <div className="signal-time-lock-diagnostic">
+            {venue.photoUrl && (
+              <div className="signal-time-winner-photo">
+                <img src={venue.photoUrl} alt={venue.name} />
+                <div className="signal-time-winner-photo-shade" />
+              </div>
+            )}
+            <span>⚡ GROUP TIME LOCKED</span>
+            <strong>{venue.name}</strong>
+            <small>{venue.address}</small>
+            <span>MEETUP TIME</span>
+            <strong>{displayOptionTime(winner)}</strong>
+            <small>
+              {round.availableCounts[winner.optionId] ?? 0} ACTIVE MEMBERS CAN MAKE IT
+            </small>
           </div>
-        </>
+
+          <div className="signal-time-live-rail">
+            <div className="signal-time-live-rail-heading">
+              <span>⚡ {planId ? 'PLAN SET' : 'SIGNAL LIVE'}</span>
+              <strong>
+                {planId
+                  ? 'YOUR PLAN IS SET'
+                  : planCreating
+                    ? 'CREATING PLAN...'
+                    : 'AVAILABILITY'}
+              </strong>
+            </div>
+            {planError && (
+              <p className="signal-time-context" role="alert">{planError}</p>
+            )}
+            {planId && onOpenPlanChat && (
+              <button
+                type="button"
+                className="signal-time-open-chat"
+                onClick={() => onOpenPlanChat(planId)}
+              >
+                OPEN GROUP CHAT
+              </button>
+            )}
+            <div className="forming-people arrival-list signal-live-rail">
+              {planId && planMembers.length > 0
+                ? planMembers.map((member) => (
+                    <div
+                      className="arrival-person pulse-connected signal-live-rail-person"
+                      key={member.userId}
+                    >
+                      <div className="arrival-avatar-wrap">
+                        <span className="arrival-lock-pulse" />
+                        {member.avatarUrl ? (
+                          <img
+                            className="signal-time-member-avatar"
+                            src={member.avatarUrl}
+                            alt=""
+                          />
+                        ) : (
+                          <span className="aligned-avatar" aria-hidden="true">
+                            {member.displayName.slice(0, 1).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <span className="signal-live-rail-copy">
+                        <strong>{member.isMe ? 'YOU' : member.displayName}</strong>
+                        <small>LOCKED IN</small>
+                      </span>
+                      <span className="signal-time-vote-status signal-time-vote-status-winner">
+                        IN
+                      </span>
+                    </div>
+                  ))
+                : options.map((option) => (
+                    <div
+                      className="arrival-person pulse-connected signal-live-rail-person"
+                      key={option.optionId}
+                    >
+                      <div className="arrival-avatar-wrap">
+                        <span className="arrival-lock-pulse" />
+                        <span className="aligned-avatar" aria-hidden="true">⚡</span>
+                      </div>
+                      <span className="signal-live-rail-copy">
+                        <strong>{displayOptionTime(option)}</strong>
+                        <small>
+                          {round.availableCounts[option.optionId] ?? 0} available
+                          {round.preferredCounts[option.optionId]
+                            ? ` · ${round.preferredCounts[option.optionId]} prefer`
+                            : ''}
+                        </small>
+                      </span>
+                      <span className={
+                        option.optionId === winner.optionId
+                          ? 'signal-time-vote-status signal-time-vote-status-winner'
+                          : 'signal-time-vote-status'
+                      }>
+                        {option.optionId === winner.optionId ? 'WINNER' : 'TIME'}
+                      </span>
+                    </div>
+                  ))}
+            </div>
+          </div>
+        </motion.div>
       )}
 
       <div className="signal-time-footer">
-        <Zap
-          size={14}
-          fill="currentColor"
-        />
-
+        <Zap size={14} fill="currentColor" />
         <span>
-          SIGNAL is finding the time that
-          works best for the group.
+          SIGNAL chooses the time that works for the most active members, then preference, then earliest practical time.
         </span>
       </div>
     </section>

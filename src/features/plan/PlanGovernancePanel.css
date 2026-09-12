@@ -1,0 +1,51 @@
+.plan-governance {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 18px;
+  background: rgba(255,255,255,.025);
+}
+.plan-governance > header,
+.plan-governance-facts,
+.plan-governance-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.plan-governance > header span,
+.plan-governance > header strong,
+.plan-governance-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+.plan-governance-facts { flex-wrap: wrap; opacity: .68; font-size: 11px; }
+.plan-governance-facts span { display: inline-flex; align-items: center; gap: 6px; }
+.plan-governance-card { display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,.04); }
+.plan-governance-card > strong { font-size: 13px; }
+.plan-governance-card > small { opacity: .62; line-height: 1.35; }
+.plan-governance-actions button,
+.plan-governance-propose button,
+.plan-governance-leave {
+  min-height: 36px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px;
+  background: rgba(255,255,255,.04);
+  color: inherit;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+.plan-governance-actions button { flex: 1; }
+.plan-governance-actions button.active { border-color: currentColor; background: rgba(255,255,255,.12); }
+.plan-governance-propose input { min-height: 38px; padding: 0 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(0,0,0,.22); color: inherit; }
+.plan-governance-leave { display: inline-flex; align-items: center; justify-content: center; gap: 7px; opacity: .72; }
+.plan-governance-error { margin: 0; font-size: 11px; }

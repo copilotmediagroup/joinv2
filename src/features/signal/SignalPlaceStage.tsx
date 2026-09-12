@@ -1,109 +1,28 @@
-import { useEffect, useMemo, useState } from 'react'
-import { fetchSignalPlaces } from './places/googlePlacesClient'
-import type { SignalPlace as LiveSignalPlace, SignalPlaceReview } from './places/contract'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { motion } from 'framer-motion'
 import { Check, MapPin, Star, Zap } from 'lucide-react'
+
+import {
+  castSignalVenueVote,
+  fetchSignalPlaces,
+  reconcileSignalVenueRound,
+  subscribeToSignalVenueRound,
+} from './places/googlePlacesClient'
+import type {
+  SignalPlace,
+  SignalPlaceReview,
+  SignalPlacesResponse,
+} from './places/contract'
 import './SignalPlaceStage.css'
 
-import { motion } from 'framer-motion'
-type SignalPlace = {
-  placeId: string
-  name: string
-  address: string
-  lat: number
-  lng: number
-  distanceMiles: number
-  rating: number
-  ratingCount: number
-  category: string
-  openNow: boolean
-  photoUrl: string | null
-  baseVotes: number
-  voterIds: string[]
-  signalRank?: number
-  signalScore?: number
-  reviews?: SignalPlaceReview[]
-  openingHours?: LiveSignalPlace['openingHours']
-  utcOffsetMinutes?: LiveSignalPlace['utcOffsetMinutes']
-}
-
-const avatarUrl = (id: string) =>
-  ['https:', '//i.pravatar.cc/100?img=', id].join('')
-
-const basePlaces: SignalPlace[] = [
-  {
-    placeId: 'mock-julian-b-lane',
-    name: 'Julian B. Lane Riverfront Park',
-    address: '1001 N Blvd, Tampa, FL',
-    lat: 27.9594,
-    lng: -82.4697,
-    distanceMiles: 2.1,
-    rating: 4.7,
-    ratingCount: 842,
-    category: 'Outdoor courts',
-    openNow: true,
-    photoUrl: null,
-    baseVotes: 3,
-    voterIds: ['8', '13', '15'],
-  },
-  {
-    placeId: 'mock-cuscaden-park',
-    name: 'Cuscaden Park',
-    address: '2900 N 15th St, Tampa, FL',
-    lat: 27.9717,
-    lng: -82.4428,
-    distanceMiles: 2.8,
-    rating: 4.5,
-    ratingCount: 318,
-    category: 'Outdoor courts',
-    openNow: true,
-    photoUrl: null,
-    baseVotes: 2,
-    voterIds: ['17', '22'],
-  },
-  {
-    placeId: 'mock-kate-jackson',
-    name: 'Kate Jackson Park',
-    address: '821 S Rome Ave, Tampa, FL',
-    lat: 27.9357,
-    lng: -82.4766,
-    distanceMiles: 3.4,
-    rating: 4.6,
-    ratingCount: 214,
-    category: 'Neighborhood court',
-    openNow: true,
-    photoUrl: null,
-    baseVotes: 1,
-    voterIds: ['28'],
-  },
-]
-
-const venueProfiles = {
-  basketball: [
-    { name: "Julian B. Lane Riverfront Park", address: "1001 N Blvd, Tampa, FL", category: "Outdoor basketball courts" },
-    { name: "Cuscaden Park", address: "2900 N 15th St, Tampa, FL", category: "Basketball courts" },
-    { name: "Kate Jackson Park", address: "821 S Rome Ave, Tampa, FL", category: "Neighborhood basketball court" },
-  ],
-  rooftop: [
-    { name: "Skyline Rooftop", address: "Downtown Tampa", category: "Rooftop bar" },
-    { name: "Bay View Social", address: "Water Street, Tampa", category: "Rooftop lounge" },
-    { name: "Moon Deck", address: "Ybor City, Tampa", category: "Nightlife rooftop" },
-  ],
-  paint: [
-    { name: "Color Social Studio", address: "Downtown Tampa", category: "Paint & sip studio" },
-    { name: "The Canvas Room", address: "Hyde Park, Tampa", category: "Creative studio" },
-    { name: "Art House Social", address: "Seminole Heights, Tampa", category: "Art workshop" },
-  ],
-  music: [
-    { name: "The Live Room", address: "Downtown Tampa", category: "Live music venue" },
-    { name: "Ybor Stage", address: "Ybor City, Tampa", category: "Music bar" },
-    { name: "River Sessions", address: "Tampa Riverwalk", category: "Live performance" },
-  ],
-} as const
-
-type SignalVenueKey = keyof typeof venueProfiles
-
 type SignalPlaceStageProps = {
-  signalId: string
+  signalGroupId: string
   signalLabel: string
   onVenueLocked?: (venue: {
     placeId: string
@@ -111,540 +30,342 @@ type SignalPlaceStageProps = {
     address: string
     photoUrl: string | null
     reviews: SignalPlaceReview[]
-    openingHours: LiveSignalPlace['openingHours']
-    utcOffsetMinutes: LiveSignalPlace['utcOffsetMinutes']
-    openNow: LiveSignalPlace['openNow']
+    openingHours: SignalPlace['openingHours']
+    utcOffsetMinutes: SignalPlace['utcOffsetMinutes']
+    openNow: SignalPlace['openNow']
   }) => void
 }
 
+function secondsUntil(isoTimestamp: string): number {
+  const closesAt = new Date(isoTimestamp).getTime()
+  if (!Number.isFinite(closesAt)) return 0
+  return Math.max(0, Math.ceil((closesAt - Date.now()) / 1000))
+}
+
+function formatCountdown(seconds: number): string {
+  const minutes = Math.floor(seconds / 60)
+  const remainder = seconds % 60
+  return `${minutes}:${String(remainder).padStart(2, '0')}`
+}
+
 export default function SignalPlaceStage({
-  signalId,
+  signalGroupId,
   signalLabel,
   onVenueLocked,
 }: SignalPlaceStageProps) {
-  const venueKey = (
-    signalId in venueProfiles ? signalId : "basketball"
-  ) as SignalVenueKey
+  const [snapshot, setSnapshot] = useState<SignalPlacesResponse | null>(null)
+  const [placesLoading, setPlacesLoading] = useState(true)
+  const [placesError, setPlacesError] = useState<string | null>(null)
+  const [voteSubmitting, setVoteSubmitting] = useState(false)
+  const [secondsLeft, setSecondsLeft] = useState(0)
+  const notifiedWinnerId = useRef<string | null>(null)
 
-  const fallbackPlaces = basePlaces.map((place, index) => ({
-    ...place,
-    ...venueProfiles[venueKey][index],
-    placeId: `${venueKey}-${index + 1}`,
-  }))
-
-  const [livePlaces, setLivePlaces] = useState<LiveSignalPlace[]>([])
-  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null)
-  const [secondsLeft, setSecondsLeft] = useState(10)
-  const [venueLocked, setVenueLocked] = useState(false)
-  const [venueLocking, setVenueLocking] = useState(false)
-  const [lockedPlaceId, setLockedPlaceId] = useState<string | null>(null)
+  const loadRound = useCallback(async () => {
+    try {
+      const next = await fetchSignalPlaces({ signalGroupId, limit: 3 })
+      setSnapshot(next)
+      setPlacesError(null)
+      setSecondsLeft(secondsUntil(next.round.closesAt))
+    } catch (error) {
+      setPlacesError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to load Signal venues',
+      )
+    } finally {
+      setPlacesLoading(false)
+    }
+  }, [signalGroupId])
 
   useEffect(() => {
-    let cancelled = false
-
-    fetchSignalPlaces({
-      signalId,
-      city: 'Tampa, FL',
-      latitude: 27.9506,
-      longitude: -82.4572,
-      limit: 3,
+    let active = true
+    queueMicrotask(() => {
+      if (!active) return
+      setPlacesLoading(true)
+      setPlacesError(null)
+      void loadRound()
     })
-      .then((response) => {
-        if (!cancelled) {
-          setLivePlaces(response.places)
-        }
+    return () => { active = false }
+  }, [loadRound])
+
+  useEffect(() => {
+    return subscribeToSignalVenueRound(signalGroupId, () => {
+      void loadRound()
+    })
+  }, [signalGroupId, loadRound])
+
+  const round = snapshot?.round ?? null
+  const places = useMemo(
+    () => snapshot?.places ?? [],
+    [snapshot?.places],
+  )
+
+  useEffect(() => {
+    if (!round || round.state !== 'open') return
+
+    const updateCountdown = () => {
+      setSecondsLeft(secondsUntil(round.closesAt))
+    }
+
+    updateCountdown()
+    const timer = window.setInterval(updateCountdown, 1000)
+    return () => window.clearInterval(timer)
+  }, [round])
+
+  useEffect(() => {
+    if (!round || round.state !== 'open' || secondsLeft > 0) return
+
+    let cancelled = false
+    void reconcileSignalVenueRound(round.id)
+      .then(() => {
+        if (!cancelled) return loadRound()
       })
       .catch((error) => {
-        console.error('Signal Places live fetch failed', error)
-
         if (!cancelled) {
-          setLivePlaces([])
+          setPlacesError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to finish venue voting',
+          )
         }
       })
 
-    return () => {
-      cancelled = true
-    }
-  }, [signalId])
+    return () => { cancelled = true }
+  }, [round, secondsLeft, loadRound])
 
-  const places = livePlaces.length
-    ? basePlaces.map((presentation, index) => {
-        const live = livePlaces[index]
-
-        if (!live) {
-          return fallbackPlaces[index]
-        }
-
-        return {
-          ...presentation,
-          placeId: live.placeId,
-          photoUrl: live.photoUrl,
-          photoAttributions: live.photoAttributions,
-          googleMapsUri: live.googleMapsUri,
-          name: live.name,
-          address: live.address,
-          openingHours: live.openingHours,
-          utcOffsetMinutes: live.utcOffsetMinutes,
-          lat: live.lat,
-          lng: live.lng,
-          distanceMiles: live.distanceMiles,
-          rating: live.rating ?? presentation.rating,
-          ratingCount: live.ratingCount,
-          category: live.category,
-          openNow: live.openNow,
-          signalRank: live.signalRank,
-          signalScore: live.signalScore,
-          reviews: live.reviews ?? [],
-        }
-      })
-    : fallbackPlaces
-
-  const votes = useMemo(() => {
-    const result: Record<string, number> = {}
-
-    places.forEach((place) => {
-      result[place.placeId] =
-        place.baseVotes +
-        (selectedPlaceId === place.placeId ? 1 : 0)
-    })
-
-    return result
-  }, [selectedPlaceId])
-
-  const maxVotes = Math.max(...Object.values(votes))
-
-  const lockedPlace =
-    lockedPlaceId === null
-      ? null
-      : places.find((place) => place.placeId === lockedPlaceId) ?? null
-
-  const lockedVoteCount =
-    lockedPlaceId === null
-      ? 0
-      : votes[lockedPlaceId] ?? 0
-
-  const totalVotes = Object.values(votes).reduce(
-    (sum, count) => sum + count,
-    0,
-  )
-
-  const lockedVotePercent =
-    totalVotes > 0
-      ? Math.round((lockedVoteCount / totalVotes) * 100)
-      : 0
-
-  const resultVoters = places.flatMap((place) =>
-    place.voterIds.map((id) => ({
-      id,
-      placeId: place.placeId,
-      placeName: place.name,
-      winner: place.placeId === lockedPlaceId,
-    })),
-  )
+  const winner = useMemo(() => {
+    if (!round?.winnerOptionId) return null
+    return places.find(
+      (place) => place.optionId === round.winnerOptionId,
+    ) ?? null
+  }, [places, round])
 
   useEffect(() => {
-    if (venueLocked) return
+    if (!round || round.state !== 'won' || !winner || !onVenueLocked) return
+    if (notifiedWinnerId.current === winner.optionId) return
 
-    if (secondsLeft <= 0) {
-      const winner = places.reduce((best, place) => {
-        const placeVotes = votes[place.placeId] ?? 0
-        const bestVotes = votes[best.placeId] ?? 0
-
-        if (placeVotes > bestVotes) {
-          return place
-        }
-
-        if (
-          placeVotes === bestVotes &&
-          (place.signalRank ?? Number.MAX_SAFE_INTEGER) <
-            (best.signalRank ?? Number.MAX_SAFE_INTEGER)
-        ) {
-          return place
-        }
-
-        return best
-      }, places[0])
-
-      if (winner) {
-        setLockedPlaceId(winner.placeId)
-        setVenueLocking(true)
-
-        const lockTimer = window.setTimeout(() => {
-          setVenueLocking(false)
-          setVenueLocked(true)
-
-          onVenueLocked?.({
-            placeId: winner.placeId,
-            name: winner.name,
-            address: winner.address,
-            photoUrl: winner.photoUrl ?? null,
-            reviews: winner.reviews ?? [],
-            openingHours: winner.openingHours ?? null,
-            utcOffsetMinutes:
-              winner.utcOffsetMinutes ?? null,
-            openNow:
-              winner.openNow ?? null,
-          })
-        }, 1500)
-
-        return () => window.clearTimeout(lockTimer)
-      }
-
-      return
-    }
-
+    notifiedWinnerId.current = winner.optionId
     const timer = window.setTimeout(() => {
-      setSecondsLeft((current) => Math.max(0, current - 1))
-    }, 1000)
+      onVenueLocked({
+        placeId: winner.placeId,
+        name: winner.name,
+        address: winner.address,
+        photoUrl: winner.photoUrl,
+        reviews: winner.reviews,
+        openingHours: winner.openingHours,
+        utcOffsetMinutes: winner.utcOffsetMinutes,
+        openNow: winner.openNow,
+      })
+    }, 1500)
 
     return () => window.clearTimeout(timer)
-  }, [
-    secondsLeft,
-    venueLocked,
-    places,
-    votes,
-    onVenueLocked,
-  ])
+  }, [round, winner, onVenueLocked])
+
+  const totalVotes = round
+    ? Object.values(round.voteCounts).reduce((sum, count) => sum + count, 0)
+    : 0
+
+  const castVote = async (optionId: string) => {
+    if (!round || round.state !== 'open' || voteSubmitting) return
+
+    setVoteSubmitting(true)
+    setPlacesError(null)
+    try {
+      await castSignalVenueVote(round.id, optionId)
+      await loadRound()
+    } catch (error) {
+      setPlacesError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to cast your venue vote',
+      )
+    } finally {
+      setVoteSubmitting(false)
+    }
+  }
+
+  if (placesLoading && !snapshot) {
+    return (
+      <section className="signal-place-stage">
+        <p className="signal-place-ranking-copy">
+          Finding live venues for this Signal...
+        </p>
+      </section>
+    )
+  }
 
   return (
     <section className="signal-place-stage">
       <div className="signal-place-title-row">
         <div className="signal-place-title">
-          <span>
-            <Zap size={14} fill="currentColor" />
-            NEXT
-          </span>
-
+          <span><Zap size={14} fill="currentColor" /> NEXT</span>
           <h3>PICK THE PLACE</h3>
-          <p
-            className={
-              venueLocked
-                ? 'signal-place-countdown signal-place-countdown-locked'
-                : 'signal-place-countdown'
-            }
-          >
-            {venueLocked
+          <p className={round?.state === 'won'
+            ? 'signal-place-countdown signal-place-countdown-locked'
+            : 'signal-place-countdown'}>
+            {round?.state === 'won'
               ? 'VENUE LOCKED'
-              : `CHOOSE YOUR VENUE · ${secondsLeft}s`}
+              : round?.state === 'runoff'
+                ? 'RUNOFF STARTING...'
+                : round?.state === 'deadlocked'
+                  ? 'VOTE ENDED'
+                  : round
+                    ? `${round.roundKind === 'runoff' ? 'RUNOFF' : 'CHOOSE YOUR VENUE'} · ${formatCountdown(secondsLeft)}`
+                    : 'VENUE VOTE'}
           </p>
         </div>
 
         <div className="signal-place-ranking-copy">
-          {signalLabel} · SIGNAL ranked these for your group
+          {signalLabel} · {round
+            ? `${totalVotes} of ${round.eligibleVoterCount} voted · ${round.majorityRequired} needed to win`
+            : 'SIGNAL ranked these for your group'}
         </div>
       </div>
 
-      {!venueLocked && (
-        <div
-          className={
-            venueLocking
-              ? 'signal-place-grid signal-place-grid-locking'
-              : 'signal-place-grid'
-          }
-        >
-        {places.map((place, index) => {
-          const selected = selectedPlaceId === place.placeId
-          const leading = votes[place.placeId] === maxVotes
+      {placesError && (
+        <p className="signal-place-ranking-copy" role="alert">
+          {placesError}
+        </p>
+      )}
 
-          return (
-            <button
-              type="button"
-              key={place.placeId}
-              className={[
-                'signal-venue-card',
-                `signal-venue-position-${index + 1}`,
-                index === 0 ? 'signal-venue-featured' : '',
-                leading ? 'signal-venue-leading' : '',
-                selected ? 'signal-venue-selected' : '',
-                venueLocked && place.placeId === lockedPlaceId
-                  ? 'signal-venue-card-winner'
-                  : '',
-                venueLocked && place.placeId !== lockedPlaceId
-                  ? 'signal-venue-card-loser'
-                  : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              disabled={venueLocked || venueLocking}
-              onClick={() => {
-                if (venueLocked || venueLocking) return
+      {round?.state === 'deadlocked' && (
+        <p className="signal-place-ranking-copy" role="status">
+          The runoff ended without a majority. SIGNAL did not invent a winner.
+        </p>
+      )}
 
-                setSelectedPlaceId((current) =>
-                  current === place.placeId ? null : place.placeId
-                )
-              }}
-            >
-              <div className="signal-venue-energy" />
+      {round?.state !== 'won' && places.length > 0 && (
+        <div className="signal-place-grid">
+          {places.map((place, index) => {
+            const selected = round?.currentUserOptionId === place.optionId
+            const voteCount = round?.voteCounts[place.optionId] ?? 0
+            const leading = places.every(
+              (other) => voteCount >= (round?.voteCounts[other.optionId] ?? 0),
+            )
 
-              <div className="signal-venue-image-wrap">
-                {place.photoUrl ? (
-                  <img src={place.photoUrl} alt="" />
-                ) : (
-                  <div className="signal-venue-image-placeholder" />
-                )}
-
-                <span className="signal-venue-rank">
-                  {place.signalRank === 1 ? 'BEST FIT' : `OPTION ${place.signalRank ?? index + 1}`}
-                </span>
-
-                {selected && (
-                  <span className="signal-venue-check">
-                    <Check size={18} />
+            return (
+              <button
+                type="button"
+                key={place.optionId}
+                className={[
+                  'signal-venue-card',
+                  `signal-venue-position-${index + 1}`,
+                  index === 0 ? 'signal-venue-featured' : '',
+                  leading ? 'signal-venue-leading' : '',
+                  selected ? 'signal-venue-selected' : '',
+                ].filter(Boolean).join(' ')}
+                disabled={round?.state !== 'open' || voteSubmitting}
+                onClick={() => { void castVote(place.optionId) }}
+              >
+                <div className="signal-venue-energy" />
+                <div className="signal-venue-image-wrap">
+                  {place.photoUrl
+                    ? <img src={place.photoUrl} alt="" />
+                    : <div className="signal-venue-image-placeholder" />}
+                  <span className="signal-venue-rank">
+                    {round?.roundKind === 'runoff'
+                      ? 'RUNOFF'
+                      : place.signalRank === 1
+                        ? 'BEST FIT'
+                        : `OPTION ${place.signalRank ?? index + 1}`}
                   </span>
-                )}
-
-                <div className="signal-venue-image-shade" />
-              </div>
-
-              <div className="signal-venue-body">
-                <h4>{place.name}</h4>
-
-                <div className="signal-venue-address">
-                  <MapPin size={13} />
-                  <span>{place.address}</span>
-                </div>
-
-                <div className="signal-venue-facts">
-                  {typeof place.signalScore === 'number' && (
-                    <>
-                      <span>{place.signalScore.toFixed(0)} SIGNAL</span>
-                      <i />
-                    </>
+                  {selected && (
+                    <span className="signal-venue-check"><Check size={18} /></span>
                   )}
-                  <span>{place.distanceMiles.toFixed(1)} mi avg</span>
-                  <i />
-                  <span>{place.category}</span>
-                  <i />
-                  <strong>{place.openNow ? 'Open now' : 'Closed'}</strong>
+                  <div className="signal-venue-image-shade" />
                 </div>
 
-                <div className="signal-venue-bottom">
-                  <div className="signal-venue-rating">
-                    <Star size={13} fill="currentColor" />
-                    <strong>{place.rating.toFixed(1)}</strong>
-                    <span>({place.ratingCount})</span>
+                <div className="signal-venue-body">
+                  <h4>{place.name}</h4>
+                  <div className="signal-venue-address">
+                    <MapPin size={13} /><span>{place.address}</span>
                   </div>
-
-                  <div className="signal-venue-voters">
-                    {place.voterIds.map((id) => (
-                      <img
-                        key={id}
-                        src={avatarUrl(id)}
-                        alt=""
-                      />
-                    ))}
-
-                    {selected && (
-                      <span className="signal-you-voted">YOU</span>
-                    )}
+                  <div className="signal-venue-facts">
+                    <span>{place.signalScore.toFixed(0)} SIGNAL</span><i />
+                    <span>{place.distanceMiles.toFixed(1)} mi avg</span><i />
+                    <span>{place.category}</span><i />
+                    <strong>{place.openNow === true ? 'Open now' : place.openNow === false ? 'Closed' : 'Hours unavailable'}</strong>
                   </div>
-
-                  <div className="signal-venue-votes">
-                    <strong>{votes[place.placeId]}</strong>
-                    <span>{votes[place.placeId] === 1 ? 'VOTE' : 'VOTES'}</span>
+                  <div className="signal-venue-bottom">
+                    <div className="signal-venue-rating">
+                      <Star size={13} fill="currentColor" />
+                      <strong>{(place.rating ?? 0).toFixed(1)}</strong>
+                      <span>({place.ratingCount})</span>
+                    </div>
+                    {selected && <span className="signal-you-voted">YOU</span>}
+                    <div className="signal-venue-votes">
+                      <strong>{voteCount}</strong>
+                      <span>{voteCount === 1 ? 'VOTE' : 'VOTES'}</span>
+                    </div>
+                    <span className="signal-venue-cast"><Zap size={17} fill="currentColor" /></span>
                   </div>
-
-                  <span className="signal-venue-cast">
-                    <Zap size={17} fill="currentColor" />
-                  </span>
                 </div>
-              </div>
-
-              {selected && (
-                <div className="signal-vote-pulse" />
-              )}
-            </button>
-          )
-        })}
+                {selected && <div className="signal-vote-pulse" />}
+              </button>
+            )
+          })}
         </div>
       )}
 
-      {venueLocked && lockedPlace && (
-        <div className="signal-venue-result-stage">
+      {round?.state === 'won' && winner && (
+        <motion.div
+          className="signal-venue-result-stage"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
           <div className="signal-venue-result-winner">
             <div className="signal-venue-result-energy" />
-
             <div className="signal-venue-result-image">
-              {lockedPlace.photoUrl ? (
-                <img
-                  src={lockedPlace.photoUrl}
-                  alt=""
-                />
-              ) : (
-                <div className="signal-venue-image-placeholder" />
-              )}
-
+              {winner.photoUrl
+                ? <img src={winner.photoUrl} alt="" />
+                : <div className="signal-venue-image-placeholder" />}
               <div className="signal-venue-image-shade" />
-
               <span className="signal-venue-result-badge">
-                <Zap
-                  size={13}
-                  fill="currentColor"
-                />
-                VENUE LOCKED
+                <Zap size={13} fill="currentColor" /> VENUE LOCKED
               </span>
             </div>
-
             <div className="signal-venue-result-winner-body">
-              <h3>{lockedPlace.name}</h3>
-
+              <h3>{winner.name}</h3>
               <div className="signal-venue-address">
-                <MapPin size={13} />
-                <span>{lockedPlace.address}</span>
+                <MapPin size={13} /><span>{winner.address}</span>
               </div>
-
               <div className="signal-venue-meta">
-                <span>
-                  <Star
-                    size={13}
-                    fill="currentColor"
-                  />
-                  {lockedPlace.rating.toFixed(1)}
-                </span>
-
+                <span><Star size={13} fill="currentColor" />{(winner.rating ?? 0).toFixed(1)}</span>
                 <i />
-
-                <span>
-                  {lockedPlace.distanceMiles.toFixed(1)} mi
-                </span>
-
+                <span>{winner.distanceMiles.toFixed(1)} mi</span>
                 <i />
-
-                <span>
-                  {lockedPlace.openNow
-                    ? 'Open now'
-                    : 'Closed'}
-                </span>
+                <span>{round.voteCounts[winner.optionId] ?? 0} votes</span>
               </div>
             </div>
           </div>
-
           <div className="signal-venue-result-rail">
-        <aside className="signal-venue-result">
-          <div className="signal-venue-result-kicker">
-            ⚡ GROUP CHOICE
+            <aside className="signal-venue-result">
+              <div className="signal-venue-result-kicker">⚡ GROUP CHOICE</div>
+              <h3>{winner.name}</h3>
+              <div className="signal-venue-result-summary">
+                <strong>{round.voteCounts[winner.optionId] ?? 0}</strong>
+                <span>VOTES</span><i />
+                <strong>{round.majorityRequired} NEEDED</strong>
+              </div>
+            </aside>
           </div>
-
-          <h3>{lockedPlace.name}</h3>
-
-          <div className="signal-venue-result-summary">
-            <strong>{lockedVoteCount}</strong>
-            <span>
-              {lockedVoteCount === 1 ? 'VOTE' : 'VOTES'}
-            </span>
-            <i />
-            <strong>{lockedVotePercent}%</strong>
-          </div>
-
-          <div className="forming-people arrival-list signal-live-rail">
-            {resultVoters.slice(0, 4).map((voter, index) => (
-              <motion.div
-                className="arrival-person pulse-connected signal-live-rail-person"
-                key={voter.id}
-                initial={{
-                  opacity: 0,
-                  x: -16,
-                  scale: 0.92,
-                }}
-                animate={{
-                  opacity: 1,
-                  x: 0,
-                  scale: 1,
-                }}
-                transition={{
-                  delay: index * 0.42,
-                  duration: 0.32,
-                }}
-              >
-                <div className="arrival-avatar-wrap">
-                  <span className="arrival-lock-pulse" />
-                  <img
-                    src={avatarUrl(voter.id)}
-                    alt=""
-                  />
-                </div>
-
-                <span className="signal-live-rail-copy">
-                  <strong>
-                    {voter.winner
-                      ? 'VOTED FOR THE WINNER'
-                      : 'VOTED'}
-                  </strong>
-
-                  <small>
-                    {voter.placeName}
-                  </small>
-                </span>
-
-                <em>
-                  {voter.winner
-                    ? '✓ WINNER'
-                    : 'VOTED'}
-                </em>
-              </motion.div>
-            ))}
-
-            {resultVoters.length > 4 && (
-              <motion.div
-                className="signal-live-rail-overflow"
-                initial={{
-                  opacity: 0,
-                  y: 10,
-                  scale: 0.96,
-                }}
-                animate={{
-                  opacity: 1,
-                  y: 0,
-                  scale: 1,
-                }}
-                transition={{
-                  delay: 1.72,
-                  duration: 0.32,
-                }}
-              >
-                <div className="signal-live-rail-overflow-avatars">
-                  {resultVoters
-                    .slice(4, 7)
-                    .map((voter) => (
-                      <span
-                        className="signal-live-rail-overflow-avatar"
-                        key={voter.id}
-                      >
-                        <img
-                          src={avatarUrl(voter.id)}
-                          alt=""
-                        />
-                      </span>
-                    ))}
-                </div>
-
-                <strong>
-                  +{resultVoters.length - 4}
-                </strong>
-              </motion.div>
-            )}
-          </div>
-        </aside>
-          </div>
-        </div>
+        </motion.div>
       )}
 
       <div className="signal-place-footer">
         <div>
-          <span className="signal-place-footer-icon">
-            <Zap size={15} />
-          </span>
-
+          <span className="signal-place-footer-icon"><Zap size={15} /></span>
           <p>
-            <strong>SIGNAL</strong> ranked these spots for your group.
-            <small>Based on distance, availability and group fit.</small>
+            <strong>SIGNAL</strong> keeps this vote authoritative for the entire group.
+            <small>Votes can change until a majority locks the venue or the round ends.</small>
           </p>
         </div>
-
         <strong className="signal-place-action">
-          {selectedPlaceId
+          {round?.currentUserOptionId
             ? 'YOUR VOTE IS LIVE'
-            : 'TAP A PLACE TO CAST YOUR VOTE'}
+            : round?.state === 'open'
+              ? 'TAP A PLACE TO CAST YOUR VOTE'
+              : 'WAITING FOR THE GROUP'}
           <span>›</span>
         </strong>
       </div>

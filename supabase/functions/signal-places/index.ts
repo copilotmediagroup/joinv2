@@ -1,83 +1,57 @@
-type SignalPlacesRequest = {
-  signalId: string
-  city: string
-  latitude: number
-  longitude: number
-  limit?: number
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+type RequestBody = { signalGroupId: string; limit?: number }
+type DomainClient = ReturnType<typeof createClient>
+type Json = Record<string, unknown>
+
+const GOOGLE_PLACES_URL = 'https://places.googleapis.com/v1/places:searchText'
+const SEARCH_QUERIES: Record<string, string> = {
+  sports: 'sports complexes recreation centers gyms and athletic centers',
+  creative: 'art studios creative workshops and paint and sip studios',
+  nightlife: 'nightlife bars lounges and rooftop venues',
+  music: 'live music venues',
+  outdoors: 'parks outdoor recreation and activity venues',
+  explore: 'local attractions experiences and things to do',
+  chill: 'casual social lounges coffee shops and relaxed hangout spots',
 }
 
-type SignalPlaceReview = {
-rating: number
-text: string
-relativeTime: string | null
-authorName: string
-authorPhotoUrl: string | null
-authorUri: string | null
-googleMapsUri: string | null
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
-type SignalPlace = {
-  placeId: string
-  name: string
-  address: string
-  lat: number
-  lng: number
-  distanceMiles: number
-  rating: number | null
-  ratingCount: number
-  category: string
-  openNow: boolean | null
-  utcOffsetMinutes: number | null
-  openingHours: {
-    periods: Array<{
-      open: {
-        day: number
-        hour: number
-        minute: number
-      } | null
-      close: {
-        day: number
-        hour: number
-        minute: number
-      } | null
-    }>
-    weekdayDescriptions: string[]
-  } | null
-  photoName: string | null
-  photoUrl: string | null
-  photoAttributions: Array<{
-    displayName: string
-    uri: string | null
-    photoUri: string | null
-  }>
-  googleMapsUri: string | null
-  reviews: SignalPlaceReview[]
-  signalRank: number
-  signalScore: number
-  scoreBreakdown: {
-    distance: number
-    rating: number
-    confidence: number
-    availability: number
-    relevance: number
-    facilityFit: number
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  })
+}
+
+function isUuid(value: unknown): value is string {
+  return typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
+function hostedKey(name: string): string | null {
+  const raw = Deno.env.get(name)
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed.default === 'string' ? parsed.default : null
+  } catch {
+    return null
   }
 }
 
-const GOOGLE_PLACES_URL =
-  'https://places.googleapis.com/v1/places:searchText'
-
-const SIGNAL_SEARCH_QUERIES: Record<string, string> = {
-  basketball: 'indoor basketball courts recreation centers community centers sports complexes gyms with basketball courts',
-  rooftop: 'rooftop bars and rooftop lounges',
-  paint: 'paint and sip studios and art studios',
-  music: 'live music venues',
+function radians(value: number) { return (value * Math.PI) / 180 }
+function milesBetween(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const dLat = radians(lat2 - lat1)
+  const dLng = radians(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(dLng / 2) ** 2
+  return 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
-
-function toRadians(value: number): number {
-  return (value * Math.PI) / 180
-}
-
-function scoreDistance(miles: number): number {
+function distanceScore(miles: number) {
   if (miles <= 1) return 35
   if (miles <= 2) return 31
   if (miles <= 3) return 27
@@ -86,8 +60,7 @@ function scoreDistance(miles: number): number {
   if (miles <= 10) return 7
   return 0
 }
-
-function scoreRating(rating: number | null): number {
+function ratingScore(rating: number | null) {
   if (rating === null) return 8
   if (rating >= 4.8) return 25
   if (rating >= 4.6) return 22
@@ -97,515 +70,294 @@ function scoreRating(rating: number | null): number {
   if (rating >= 3.5) return 8
   return 3
 }
-
-function scoreConfidence(ratingCount: number): number {
-  if (ratingCount >= 1000) return 20
-  if (ratingCount >= 500) return 18
-  if (ratingCount >= 250) return 16
-  if (ratingCount >= 100) return 13
-  if (ratingCount >= 50) return 10
-  if (ratingCount >= 20) return 7
-  if (ratingCount >= 5) return 4
+function confidenceScore(count: number) {
+  if (count >= 1000) return 20
+  if (count >= 500) return 18
+  if (count >= 250) return 16
+  if (count >= 100) return 13
+  if (count >= 50) return 10
+  if (count >= 20) return 7
+  if (count >= 5) return 4
   return 1
 }
-
-function scoreAvailability(openNow: boolean | null): number {
-  if (openNow === true) return 10
-  if (openNow === null) return 5
-  return 0
-}
-
-function scoreRelevance(index: number, total: number): number {
-  if (total <= 1) return 10
-
-  const normalized =
-    1 - index / Math.max(total - 1, 1)
-
-  return Number((normalized * 10).toFixed(2))
-}
-
-function scoreBasketballFacilityFit(
-  signalId: string,
-  name: string,
-  category: string,
-): number {
-  if (signalId !== 'basketball') return 0
-
+function facilityFit(slug: string, name: string, category: string) {
+  if (slug !== 'sports') return 0
   const text = `${name} ${category}`.toLowerCase()
-
-  const strongIndoorSignals = [
-    'basketball',
-    'recreation center',
-    'recreation_center',
-    'community center',
-    'community_center',
-    'sports complex',
-    'sports_complex',
-    'sports center',
-    'sports_center',
-    'athletic center',
-    'athletic_center',
-    'gym',
-    'fitness',
-    'ymca',
-  ]
-
-  const outdoorSignals = [
-    'park',
-    'playground',
-    'trail',
-    'nature',
-    'outdoor',
-  ]
-
-  const hasIndoorFit = strongIndoorSignals.some(
-    (term) => text.includes(term),
-  )
-
-  const hasOutdoorFit = outdoorSignals.some(
-    (term) => text.includes(term),
-  )
-
-  if (hasIndoorFit && !hasOutdoorFit) return 25
-  if (hasIndoorFit && hasOutdoorFit) return 8
-  if (hasOutdoorFit) return -30
-
+  const indoor = ['basketball', 'recreation center', 'community center', 'sports complex', 'sports center', 'athletic center', 'gym', 'fitness', 'ymca']
+  const outdoor = ['park', 'playground', 'trail', 'nature', 'outdoor']
+  const inside = indoor.some((term) => text.includes(term))
+  const outside = outdoor.some((term) => text.includes(term))
+  if (inside && !outside) return 25
+  if (inside && outside) return 8
+  if (outside) return -30
   return 0
 }
 
-function distanceMiles(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const earthRadiusMiles = 3958.8
+async function loadRound(client: DomainClient, groupId: string, userId: string) {
+  const { data: round, error: roundError } = await client
+    .from('signal_venue_rounds')
+    .select('id,round_number,round_kind,state,opens_at,closes_at,winner_option_id,eligible_voter_count,majority_required')
+    .eq('signal_group_id', groupId)
+    .order('round_number', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (roundError) throw roundError
+  if (!round) return null
 
-  const dLat = toRadians(lat2 - lat1)
-  const dLng = toRadians(lng2 - lng1)
+  const [optionsResult, votesResult] = await Promise.all([
+    client.from('signal_venue_options')
+      .select('id,source_rank,payload')
+      .eq('round_id', round.id)
+      .order('source_rank', { ascending: true }),
+    client.from('signal_venue_votes')
+      .select('user_id,option_id')
+      .eq('round_id', round.id),
+  ])
+  if (optionsResult.error) throw optionsResult.error
+  if (votesResult.error) throw votesResult.error
 
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRadians(lat1)) *
-      Math.cos(toRadians(lat2)) *
-      Math.sin(dLng / 2) ** 2
+  const voteCounts: Record<string, number> = {}
+  let currentUserOptionId: string | null = null
+  for (const vote of votesResult.data ?? []) {
+    voteCounts[vote.option_id] = (voteCounts[vote.option_id] ?? 0) + 1
+    if (vote.user_id === userId) currentUserOptionId = vote.option_id
+  }
 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return {
+    round: {
+      id: round.id,
+      roundNumber: round.round_number,
+      roundKind: round.round_kind,
+      state: round.state,
+      opensAt: round.opens_at,
+      closesAt: round.closes_at,
+      winnerOptionId: round.winner_option_id,
+      eligibleVoterCount: round.eligible_voter_count,
+      majorityRequired: round.majority_required,
+      currentUserOptionId,
+      voteCounts,
+    },
+    places: (optionsResult.data ?? []).map((option) => ({
+      ...(option.payload as Json),
+      optionId: option.id,
+    })),
+  }
+}
 
-  return earthRadiusMiles * c
+async function placePhotoUrl(apiKey: string, photoName: string | null) {
+  if (!photoName) return null
+  try {
+    const response = await fetch(
+      `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1200&skipHttpRedirect=true&key=${encodeURIComponent(apiKey)}`,
+    )
+    if (!response.ok) return null
+    const data = await response.json()
+    return typeof data.photoUri === 'string' ? data.photoUri : null
+  } catch {
+    return null
+  }
 }
 
 Deno.serve(async (request: Request) => {
-  if (request.method === 'OPTIONS') {
-    return new Response('ok', {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers':
-          'authorization, x-client-info, apikey, content-type',
-      },
-    })
-  }
-
-  if (request.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      {
-        status: 405,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      },
-    )
-  }
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
   try {
-    const body = (await request.json()) as SignalPlacesRequest
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const publishableKey = hostedKey('SUPABASE_PUBLISHABLE_KEYS') ?? Deno.env.get('SUPABASE_ANON_KEY')
+    const serverKey = hostedKey('SUPABASE_SECRET_KEYS') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!supabaseUrl || !publishableKey || !serverKey) {
+      throw new Error('Signal Places server configuration is incomplete')
+    }
 
-    const {
-      signalId,
-      city,
-      latitude,
-      longitude,
-      limit = 5,
-    } = body
+    const authorization = request.headers.get('Authorization')
+    if (!authorization?.startsWith('Bearer ')) return json({ error: 'Authentication required' }, 401)
 
-    if (
-      !signalId ||
-      !city ||
-      typeof latitude !== 'number' ||
-      typeof longitude !== 'number'
-    ) {
-      return new Response(
-        JSON.stringify({
-          error:
-            'signalId, city, latitude and longitude are required',
-        }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-          },
-        },
-      )
+    const authClient = createClient(supabaseUrl, publishableKey, {
+      global: { headers: { Authorization: authorization } },
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    })
+    const { data: { user }, error: userError } = await authClient.auth.getUser()
+    if (userError || !user) return json({ error: 'Invalid or expired authentication' }, 401)
+
+    const { signalGroupId, limit = 3 } = await request.json() as RequestBody
+    if (!isUuid(signalGroupId)) return json({ error: 'signalGroupId must be a UUID' }, 400)
+
+    const domain = createClient(supabaseUrl, serverKey, {
+      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    })
+
+    const { data: membership, error: membershipError } = await domain
+      .from('signal_group_memberships')
+      .select('id')
+      .eq('signal_group_id', signalGroupId)
+      .eq('user_id', user.id)
+      .in('state', ['matched', 'confirmed'])
+      .maybeSingle()
+    if (membershipError) throw membershipError
+    if (!membership) return json({ error: 'Signal membership required' }, 403)
+
+    const { data: group, error: groupError } = await domain
+      .from('signal_groups')
+      .select('city_id,activity_id,state')
+      .eq('id', signalGroupId)
+      .single()
+    if (groupError || !group) throw groupError ?? new Error('Signal group not found')
+    if (!['locked', 'coordinating'].includes(group.state)) {
+      return json({ error: 'Signal is not ready for venue selection' }, 409)
+    }
+
+    const [{ data: city, error: cityError }, { data: activity, error: activityError }] = await Promise.all([
+      domain.from('cities').select('name,slug,latitude,longitude,is_active').eq('id', group.city_id).single(),
+      domain.from('activities').select('name,slug,is_active').eq('id', group.activity_id).single(),
+    ])
+    if (cityError || !city?.is_active) throw cityError ?? new Error('Signal city is unavailable')
+    if (activityError || !activity?.is_active) throw activityError ?? new Error('Signal activity is unavailable')
+
+    const existing = await loadRound(domain, signalGroupId, user.id)
+    if (existing) {
+      return json({
+        version: 'signal-venue-vote-v1', source: 'database', query: null,
+        activitySlug: activity.slug, citySlug: city.slug, ...existing,
+      })
+    }
+
+    const { data: exclusionRows, error: exclusionError } = await domain
+      .from('signal_venue_exclusions')
+      .select('place_id')
+      .eq('signal_group_id', signalGroupId)
+    if (exclusionError) throw exclusionError
+    const excludedPlaceIds = new Set(
+      (exclusionRows ?? []).map((row) => row.place_id),
+    )
+
+    const latitude = Number(city.latitude)
+    const longitude = Number(city.longitude)
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      throw new Error('Signal city coordinates are unavailable')
     }
 
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
+    if (!apiKey) throw new Error('GOOGLE_MAPS_API_KEY is not configured')
 
-    if (!apiKey) {
-      throw new Error('GOOGLE_MAPS_API_KEY is not configured')
-    }
-
-    const searchIntent =
-      SIGNAL_SEARCH_QUERIES[signalId] ?? signalId
-
-    const query = `${searchIntent} in ${city}`
-
+    const searchIntent = SEARCH_QUERIES[activity.slug] ?? `${activity.name} venues and activities`
+    const query = `${searchIntent} in ${city.name}`
     const googleResponse = await fetch(GOOGLE_PLACES_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': apiKey,
         'X-Goog-FieldMask': [
-          'places.id',
-          'places.displayName',
-          'places.formattedAddress',
-          'places.location',
-          'places.rating',
-          'places.userRatingCount',
-          'places.primaryType',
-          'places.currentOpeningHours.openNow',
-          'places.utcOffsetMinutes',
-          'places.currentOpeningHours.periods',
-          'places.currentOpeningHours.weekdayDescriptions',
-          'places.photos',
-          'places.googleMapsUri',
-'places.reviews',
+          'places.id','places.displayName','places.formattedAddress','places.location',
+          'places.rating','places.userRatingCount','places.primaryType',
+          'places.currentOpeningHours.openNow','places.currentOpeningHours.periods',
+          'places.currentOpeningHours.weekdayDescriptions','places.utcOffsetMinutes',
+          'places.photos','places.googleMapsUri','places.reviews',
         ].join(','),
       },
       body: JSON.stringify({
         textQuery: query,
         maxResultCount: 15,
-        locationBias: {
-          circle: {
-            center: {
-              latitude,
-              longitude,
-            },
-            radius: 16093.4,
-          },
-        },
+        locationBias: { circle: { center: { latitude, longitude }, radius: 16093.4 } },
       }),
     })
-
     if (!googleResponse.ok) {
-      const googleError = await googleResponse.text()
-
-      throw new Error(
-        `Google Places failed (${googleResponse.status}): ${googleError}`,
-      )
+      throw new Error(`Google Places failed (${googleResponse.status}): ${await googleResponse.text()}`)
     }
 
     const googleData = await googleResponse.json()
-
-    const rawPlaces = (
-      Array.isArray(googleData.places) ? googleData.places : []
-    )
-
-    const places: SignalPlace[] = await Promise.all(
-      rawPlaces.map(async (place: any) => {
-      const lat = place.location?.latitude ?? 0
-      const lng = place.location?.longitude ?? 0
-
-      const photoName = place.photos?.[0]?.name ?? null
-
-      let photoUrl: string | null = null
-      let photoAttributions: Array<{
-        displayName: string
-        uri: string | null
-        photoUri: string | null
-      }> = []
-
-      if (photoName) {
-        try {
-          const photoResponse = await fetch(
-            `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=1200&skipHttpRedirect=true&key=${encodeURIComponent(apiKey)}`,
-          )
-
-          if (photoResponse.ok) {
-            const photoData = await photoResponse.json()
-
-            photoUrl =
-              typeof photoData.photoUri === 'string'
-                ? photoData.photoUri
-                : null
-          }
-        } catch (photoError) {
-          console.error('Google Place Photo failed', photoError)
-        }
-
-        photoAttributions = Array.isArray(
-          place.photos?.[0]?.authorAttributions,
-        )
-          ? place.photos[0].authorAttributions.map(
-              (attribution: any) => ({
-                displayName:
-                  attribution.displayName ?? 'Google Maps contributor',
-                uri:
-                  typeof attribution.uri === 'string'
-                    ? attribution.uri
-                    : null,
-                photoUri:
-                  typeof attribution.photoUri === 'string'
-                    ? attribution.photoUri
-                    : null,
-              }),
-            )
-          : []
-      }
-
-      const miles = Number(
-        distanceMiles(
-          latitude,
-          longitude,
-          lat,
-          lng,
-        ).toFixed(2),
+    const rawPlaces = (Array.isArray(googleData.places) ? googleData.places : [])
+      .filter((place: { id?: unknown }) =>
+        typeof place.id !== 'string' || !excludedPlaceIds.has(place.id),
       )
-
-      const rating =
-        typeof place.rating === 'number'
-          ? place.rating
-          : null
-
-      const ratingCount =
-        typeof place.userRatingCount === 'number'
-          ? place.userRatingCount
-          : 0
-
-      const reviews: SignalPlaceReview[] =
-        Array.isArray(place.reviews)
-          ? place.reviews
-              .slice(0, 3)
-              .map((review: any) => ({
-                rating:
-                  typeof review.rating === 'number'
-                    ? review.rating
-                    : 0,
-                text:
-                  typeof review.text?.text === 'string'
-                    ? review.text.text
-                    : '',
-                relativeTime:
-                  typeof review.relativePublishTimeDescription === 'string'
-                    ? review.relativePublishTimeDescription
-                    : null,
-                authorName:
-                  typeof review.authorAttribution?.displayName === 'string'
-                    ? review.authorAttribution.displayName
-                    : 'Google Maps user',
-                authorPhotoUrl:
-                  typeof review.authorAttribution?.photoUri === 'string'
-                    ? review.authorAttribution.photoUri
-                    : null,
-                authorUri:
-                  typeof review.authorAttribution?.uri === 'string'
-                    ? review.authorAttribution.uri
-                    : null,
-                googleMapsUri:
-                  typeof review.googleMapsUri === 'string'
-                    ? review.googleMapsUri
-                    : null,
-              }))
-              .filter(
-                (review: SignalPlaceReview) =>
-                  review.text.length > 0,
-              )
-          : []
-      const openNow =
-        typeof place.currentOpeningHours?.openNow === 'boolean'
-          ? place.currentOpeningHours.openNow
-          : null
-
-      const utcOffsetMinutes =
-        typeof place.utcOffsetMinutes === 'number'
-          ? place.utcOffsetMinutes
-          : null
-
-      const rawOpeningHours = place.currentOpeningHours
-
-      const openingHours =
-        rawOpeningHours &&
-        (
-          Array.isArray(rawOpeningHours.periods) ||
-          Array.isArray(rawOpeningHours.weekdayDescriptions)
-        )
-          ? {
-              periods: Array.isArray(rawOpeningHours.periods)
-                ? rawOpeningHours.periods.map((period: any) => ({
-                    open: period?.open
-                      ? {
-                          day:
-                            typeof period.open.day === 'number'
-                              ? period.open.day
-                              : 0,
-                          hour:
-                            typeof period.open.hour === 'number'
-                              ? period.open.hour
-                              : 0,
-                          minute:
-                            typeof period.open.minute === 'number'
-                              ? period.open.minute
-                              : 0,
-                        }
-                      : null,
-                    close: period?.close
-                      ? {
-                          day:
-                            typeof period.close.day === 'number'
-                              ? period.close.day
-                              : 0,
-                          hour:
-                            typeof period.close.hour === 'number'
-                              ? period.close.hour
-                              : 0,
-                          minute:
-                            typeof period.close.minute === 'number'
-                              ? period.close.minute
-                              : 0,
-                        }
-                      : null,
-                  }))
-                : [],
-              weekdayDescriptions:
-                Array.isArray(rawOpeningHours.weekdayDescriptions)
-                  ? rawOpeningHours.weekdayDescriptions.filter(
-                      (description: unknown) =>
-                        typeof description === 'string',
-                    )
-                  : [],
-            }
-          : null
-
-      const distanceScore = scoreDistance(miles)
-      const ratingScore = scoreRating(rating)
-      const confidenceScore = scoreConfidence(ratingCount)
-      const availabilityScore = scoreAvailability(openNow)
-
-      const facilityFitScore = scoreBasketballFacilityFit(
-        signalId,
-        place.displayName?.text ?? '',
-        place.primaryType ?? '',
-      )
+    // Google Places response is runtime-validated field-by-field below.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const places = await Promise.all(rawPlaces.map(async (place: any, index: number) => {
+      const lat = Number(place.location?.latitude ?? 0)
+      const lng = Number(place.location?.longitude ?? 0)
+      const miles = Number(milesBetween(latitude, longitude, lat, lng).toFixed(2))
+      const rating = typeof place.rating === 'number' ? place.rating : null
+      const ratingCount = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0
+      const openNow = typeof place.currentOpeningHours?.openNow === 'boolean'
+        ? place.currentOpeningHours.openNow : null
+      const category = place.primaryType ?? activity.slug
+      const photo = place.photos?.[0] ?? null
+      const photoName = typeof photo?.name === 'string' ? photo.name : null
+      const relevance = rawPlaces.length <= 1 ? 10 : Number((10 * (1 - index / (rawPlaces.length - 1))).toFixed(2))
+      const fit = facilityFit(activity.slug, place.displayName?.text ?? '', category)
+      const score = distanceScore(miles) + ratingScore(rating) + confidenceScore(ratingCount) +
+        (openNow === true ? 10 : openNow === null ? 5 : 0) + relevance + fit
 
       return {
         placeId: place.id ?? '',
         name: place.displayName?.text ?? 'Unknown place',
-        address: place.formattedAddress ?? '',
-        lat,
-        lng,
-        distanceMiles: miles,
-        rating,
-        ratingCount,
-        category: place.primaryType ?? signalId,
-        openNow,
-        utcOffsetMinutes,
-        openingHours,
+        address: place.formattedAddress ?? '', lat, lng, distanceMiles: miles,
+        rating, ratingCount, category, openNow,
+        utcOffsetMinutes: typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null,
+        openingHours: place.currentOpeningHours ? {
+          periods: Array.isArray(place.currentOpeningHours.periods) ? place.currentOpeningHours.periods : [],
+          weekdayDescriptions: Array.isArray(place.currentOpeningHours.weekdayDescriptions)
+            ? place.currentOpeningHours.weekdayDescriptions.filter((x: unknown) => typeof x === 'string') : [],
+        } : null,
         photoName,
-        photoUrl,
-        photoAttributions,
-        googleMapsUri:
-          place.googleMapsUri ?? null,
-        reviews,
+        photoUrl: await placePhotoUrl(apiKey, photoName),
+        photoAttributions: Array.isArray(photo?.authorAttributions) ? photo.authorAttributions.map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (a: any) => ({
+          displayName: typeof a.displayName === 'string' ? a.displayName : 'Google Maps contributor',
+          uri: typeof a.uri === 'string' ? a.uri : null,
+          photoUri: typeof a.photoUri === 'string' ? a.photoUri : null,
+          }),
+        ) : [],
+        googleMapsUri: typeof place.googleMapsUri === 'string' ? place.googleMapsUri : null,
+        reviews: Array.isArray(place.reviews) ? place.reviews.slice(0, 3).map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (review: any) => ({
+          rating: typeof review.rating === 'number' ? review.rating : 0,
+          text: typeof review.text?.text === 'string' ? review.text.text : '',
+          relativeTime: typeof review.relativePublishTimeDescription === 'string' ? review.relativePublishTimeDescription : null,
+          authorName: typeof review.authorAttribution?.displayName === 'string' ? review.authorAttribution.displayName : 'Google Maps user',
+          authorPhotoUrl: typeof review.authorAttribution?.photoUri === 'string' ? review.authorAttribution.photoUri : null,
+          authorUri: typeof review.authorAttribution?.uri === 'string' ? review.authorAttribution.uri : null,
+          googleMapsUri: typeof review.googleMapsUri === 'string' ? review.googleMapsUri : null,
+          }),
+        ).filter((review: { text: string }) => review.text.length > 0) : [],
         signalRank: 0,
-        signalScore: 0,
+        signalScore: Number(score.toFixed(2)),
         scoreBreakdown: {
-          distance: distanceScore,
-          rating: ratingScore,
-          confidence: confidenceScore,
-          availability: availabilityScore,
-          relevance: 0,
-          facilityFit: facilityFitScore,
+          distance: distanceScore(miles), rating: ratingScore(rating),
+          confidence: confidenceScore(ratingCount),
+          availability: openNow === true ? 10 : openNow === null ? 5 : 0,
+          relevance, facilityFit: fit,
         },
       }
-      }),
-    )
+    }))
 
-    const rankedPlaces = places
-      .map((place, index) => {
-        const relevanceScore =
-          scoreRelevance(index, places.length)
+    const ranked = places
+      .filter((place) => place.placeId.length > 0)
+      .sort((a, b) => b.signalScore - a.signalScore || b.ratingCount - a.ratingCount || a.distanceMiles - b.distanceMiles)
+      .slice(0, Math.min(Math.max(limit, 2), 3))
+      .map((place, index) => ({ ...place, signalRank: index + 1 }))
 
-        const signalScore = Number(
-          (
-            place.scoreBreakdown.distance +
-            place.scoreBreakdown.rating +
-            place.scoreBreakdown.confidence +
-            place.scoreBreakdown.availability +
-            relevanceScore +
-            place.scoreBreakdown.facilityFit
-          ).toFixed(2),
-        )
+    if (ranked.length < 2) {
+      return json({ error: 'Not enough eligible venues remain for this Signal' }, 409)
+    }
 
-        return {
-          ...place,
-          signalScore,
-          scoreBreakdown: {
-            ...place.scoreBreakdown,
-            relevance: relevanceScore,
-          },
-        }
-      })
-      .sort((a, b) => {
-        if (b.signalScore !== a.signalScore) {
-          return b.signalScore - a.signalScore
-        }
+    const { error: ensureError } = await domain.rpc('ensure_signal_venue_round', {
+      p_signal_group_id: signalGroupId,
+      p_options: ranked,
+    })
+    if (ensureError) throw ensureError
 
-        if (b.ratingCount !== a.ratingCount) {
-          return b.ratingCount - a.ratingCount
-        }
+    const persisted = await loadRound(domain, signalGroupId, user.id)
+    if (!persisted) throw new Error('Signal venue round could not be initialized')
 
-        return a.distanceMiles - b.distanceMiles
-      })
-      .slice(0, Math.min(Math.max(limit, 1), 3))
-      .map((place, index) => ({
-        ...place,
-        signalRank: index + 1,
-      }))
-
-    return new Response(
-      JSON.stringify({
-        version: 'g410b-basketball-fit-v1',
-        source: 'google',
-        query,
-        places: rankedPlaces,
-      }),
-      {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      },
-    )
+    return json({
+      version: 'signal-venue-vote-v1', source: 'google', query,
+      activitySlug: activity.slug, citySlug: city.slug, ...persisted,
+    })
   } catch (error) {
     console.error(error)
-
-    return new Response(
-      JSON.stringify({
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Unknown server error',
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-        },
-      },
-    )
+    return json({ error: error instanceof Error ? error.message : 'Unknown server error' }, 500)
   }
 })
