@@ -322,3 +322,456 @@
     0 0 0 3px rgba(66, 121, 255, .16),
     0 18px 50px rgba(0, 0, 0, .24);
 }
+
+.activity-current-section {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-section-label {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 2px;
+}
+
+.activity-section-label > span,
+.activity-section-kicker {
+  color: #83aaff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .15em;
+}
+
+.activity-section-label small {
+  color: rgba(229, 235, 248, .42);
+  font-size: 11px;
+}
+
+.activity-open-hint {
+  margin-left: auto;
+  color: #89adff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+.signal-moments-section {
+  display: grid;
+  gap: 18px;
+  margin-top: 34px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(143, 164, 210, .1);
+}
+
+.signal-moments-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 0 2px;
+}
+
+.signal-moments-heading h2 {
+  margin: 6px 0 0;
+  color: #f7f9ff;
+  font-size: clamp(25px, 4vw, 34px);
+  line-height: 1.02;
+  letter-spacing: -.035em;
+}
+
+.signal-moments-heading p {
+  max-width: 520px;
+  margin: 8px 0 0;
+  color: rgba(225, 232, 247, .5);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.share-moment-button,
+.signal-moment-publish,
+.signal-moment-feed-status button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(108, 151, 255, .24);
+  border-radius: 12px;
+  background: rgba(67, 112, 225, .12);
+  color: #dce7ff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .09em;
+  cursor: pointer;
+}
+
+.share-moment-button {
+  flex: 0 0 auto;
+  padding: 11px 14px;
+}
+
+.signal-moments-feed {
+  display: grid;
+  gap: 18px;
+}
+
+.signal-moment-card {
+  overflow: hidden;
+  border: 1px solid rgba(143, 164, 210, .12);
+  border-radius: 22px;
+  background: rgba(9, 12, 19, .94);
+  box-shadow: 0 22px 58px rgba(0, 0, 0, .25);
+}
+.signal-moment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 15px;
+}
+
+.signal-moment-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.signal-moment-author > img,
+.signal-moment-author > span {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.signal-moment-author > span {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(123, 159, 244, .22);
+  background: rgba(73, 111, 205, .14);
+  color: #cfe0ff;
+  font-size: 13px;
+  font-weight: 900;
+}
+.signal-moment-author div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.signal-moment-author strong {
+  overflow: hidden;
+  color: #f4f7ff;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-moment-author small {
+  overflow: hidden;
+  color: rgba(225, 232, 247, .46);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-moment-local {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border: 1px solid rgba(95, 148, 255, .18);
+  border-radius: 999px;
+  background: rgba(71, 117, 224, .08);
+  color: #87adff;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+.signal-moment-media {
+  display: grid;
+  gap: 2px;
+  min-height: 280px;
+  background: #05070b;
+}
+
+.signal-moment-media.media-count-1 {
+  grid-template-columns: 1fr;
+}
+
+.signal-moment-media.media-count-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.signal-moment-media.media-count-3,
+.signal-moment-media.media-count-4 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.signal-moment-media img,
+.signal-moment-media video {
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  max-height: 560px;
+  display: block;
+  object-fit: cover;
+  background: #05070b;
+}
+
+.signal-moment-media.media-count-3 img,
+.signal-moment-media.media-count-3 video,
+.signal-moment-media.media-count-4 img,
+.signal-moment-media.media-count-4 video {
+  min-height: 190px;
+  max-height: 340px;
+}
+.signal-moment-body {
+  display: grid;
+  gap: 13px;
+  padding: 15px 16px 17px;
+}
+
+.signal-moment-body p {
+  margin: 0;
+  color: rgba(239, 243, 252, .88);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.signal-moment-proof {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(143, 164, 210, .08);
+}
+
+.signal-moment-proof span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(220, 229, 248, .5);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .035em;
+}
+.signal-moment-composer {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(108, 151, 255, .16);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(17, 22, 33, .96), rgba(8, 11, 18, .96));
+}
+
+.signal-moment-composer-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.signal-moment-composer-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.signal-moment-composer-head span,
+.signal-moment-field > span {
+  color: #82aaff;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.signal-moment-composer-head strong {
+  color: #f5f7fd;
+  font-size: 17px;
+}
+.signal-moment-composer-head button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(143, 164, 210, .12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .03);
+  color: rgba(225, 233, 250, .62);
+  cursor: pointer;
+}
+
+.signal-moment-field {
+  display: grid;
+  gap: 7px;
+}
+
+.signal-moment-field select,
+.signal-moment-field textarea {
+  width: 100%;
+  border: 1px solid rgba(143, 164, 210, .13);
+  border-radius: 12px;
+  background: rgba(6, 9, 15, .74);
+  color: #eef3ff;
+  font: inherit;
+  outline: none;
+}
+
+.signal-moment-field select {
+  height: 42px;
+  padding: 0 11px;
+}
+
+.signal-moment-field textarea {
+  min-height: 96px;
+  padding: 11px 12px;
+  resize: vertical;
+}
+.signal-moment-upload {
+  display: flex;
+  min-height: 116px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 18px;
+  border: 1px dashed rgba(111, 153, 255, .3);
+  border-radius: 14px;
+  background: rgba(59, 100, 202, .06);
+  color: rgba(231, 238, 255, .78);
+  text-align: center;
+  cursor: pointer;
+}
+
+.signal-moment-upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.signal-moment-upload-icon {
+  color: #88adff;
+}
+
+.signal-moment-upload strong {
+  font-size: 12px;
+}
+
+.signal-moment-upload small {
+  color: rgba(224, 232, 249, .45);
+  font-size: 10px;
+}
+.signal-moment-file-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.signal-moment-file-list span {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 6px 8px;
+  border: 1px solid rgba(143, 164, 210, .11);
+  border-radius: 999px;
+  color: rgba(224, 232, 249, .56);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signal-moment-publish {
+  min-height: 42px;
+}
+
+.signal-moment-publish:disabled {
+  cursor: default;
+  opacity: .45;
+}
+
+.signal-moment-error {
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 126, 126, .16);
+  border-radius: 10px;
+  background: rgba(160, 55, 55, .08);
+  color: #ffb5b5;
+  font-size: 11px;
+}
+.signal-moment-feed-status {
+  display: flex;
+  min-height: 170px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px;
+  border: 1px solid rgba(143, 164, 210, .11);
+  border-radius: 18px;
+  background: rgba(9, 12, 19, .74);
+  text-align: center;
+}
+
+.signal-moment-feed-status strong {
+  color: #f2f5fb;
+  font-size: 11px;
+  letter-spacing: .11em;
+}
+
+.signal-moment-feed-status > span {
+  max-width: 390px;
+  color: rgba(225, 232, 247, .48);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.signal-moment-feed-status button {
+  margin-top: 7px;
+  padding: 9px 13px;
+}
+
+.signal-moment-empty-icons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 3px;
+  color: #83aaff;
+}
+.signal-moment-pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #83aaff;
+  box-shadow: 0 0 0 0 rgba(131, 170, 255, .45);
+  animation: signal-moment-pulse 1.25s ease-out infinite;
+}
+
+@keyframes signal-moment-pulse {
+  70% {
+    box-shadow: 0 0 0 10px rgba(131, 170, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(131, 170, 255, 0);
+  }
+}
+
+@media (max-width: 620px) {
+  .signal-moments-heading,
+  .activity-section-label {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .share-moment-button {
+    width: 100%;
+  }
+
+  .signal-moment-media.media-count-2,
+  .signal-moment-media.media-count-3,
+  .signal-moment-media.media-count-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .signal-moment-media img,
+  .signal-moment-media video {
+    min-height: 250px;
+  }
+}

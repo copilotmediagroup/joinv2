@@ -1,13 +1,26 @@
 import {
   CalendarClock,
+  Camera,
   Clock3,
+  MapPin,
   RefreshCw,
   Radio,
+  Upload,
   Users,
+  Video,
+  X,
   Zap,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { useEffect, useMemo, useState } from 'react'
 import type { ActivityItem } from './activityClient'
+import {
+  getMySignalMomentEligiblePlans,
+  getSignalMoments,
+  publishSignalMoment,
+  type SignalMoment,
+  type SignalMomentEligiblePlan,
+} from './signalMomentsClient'
 import './ActivityView.css'
 
 type ActivityViewProps = {
@@ -19,20 +32,13 @@ type ActivityViewProps = {
 }
 
 function formatState(value: string): string {
-  return value
-    .replaceAll('_', ' ')
-    .toUpperCase()
+  return value.replaceAll('_', ' ').toUpperCase()
 }
 
 function formatDateTime(value: string | null): string | null {
   if (!value) return null
-
   const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return null
-  }
-
+  if (Number.isNaN(date.getTime())) return null
   return new Intl.DateTimeFormat(undefined, {
     weekday: 'short',
     month: 'short',
@@ -42,49 +48,43 @@ function formatDateTime(value: string | null): string | null {
   }).format(date)
 }
 
+function formatMomentTime(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
+
 function getPrimaryTime(item: ActivityItem): string | null {
   return formatDateTime(
-    item.itemType === 'plan'
-      ? item.scheduledStartsAt
-      : item.startsAt,
+    item.itemType === 'plan' ? item.scheduledStartsAt : item.startsAt,
   )
 }
 
 function getItemLabel(item: ActivityItem): string {
-  return item.itemType === 'signal'
-    ? 'LIVE SIGNAL'
-    : 'SIGNAL PLAN'
-}
-
-function getMembershipLabel(item: ActivityItem): string {
-  if (item.itemType === 'signal' && item.isActiveCore) {
-    return 'ACTIVE CORE'
-  }
-
-  if (item.itemType === 'plan' && item.isActiveCore) {
-    return 'LOCKED MEMBER'
-  }
-
+  return item.itemType === 'signal' ? 'CURRENT SIGNAL' : 'CURRENT PLAN'
+}function getMembershipLabel(item: ActivityItem): string {
+  if (item.itemType === 'signal' && item.isActiveCore) return 'ACTIVE CORE'
+  if (item.itemType === 'plan' && item.isActiveCore) return 'LOCKED MEMBER'
   return formatState(item.membershipState)
 }
 
-function ActivityCard({
+function CurrentActivityCard({
   item,
-  index,
   onOpen,
 }: {
   item: ActivityItem
-  index: number
   onOpen: (item: ActivityItem) => void
 }) {
   const primaryTime = getPrimaryTime(item)
-
   return (
     <motion.article
       className={`activity-card activity-card-${item.itemType}`}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.045 }}
       role="button"
       tabIndex={0}
       onClick={() => onOpen(item)}
@@ -96,55 +96,183 @@ function ActivityCard({
       }}
       whileHover={{ y: -3 }}
       whileTap={{ scale: 0.99 }}
-    >
-      <div className="activity-card-rail" aria-hidden="true">
-        <span />
-      </div>
-
+    >      <div className="activity-card-rail" aria-hidden="true"><span /></div>
       <div className="activity-card-top">
         <span className="activity-kind">
-          {item.itemType === 'signal' ? (
-            <Radio size={13} />
-          ) : (
-            <Zap size={13} fill="currentColor" />
-          )}
+          {item.itemType === 'signal' ? <Radio size={13} /> : <Zap size={13} fill="currentColor" />}
           {getItemLabel(item)}
         </span>
-
-        <span className="activity-state">
-          {formatState(item.lifecycleState)}
-        </span>
+        <span className="activity-state">{formatState(item.lifecycleState)}</span>
       </div>
-
       <div className="activity-card-main">
         <div className="activity-bolt" aria-hidden="true">
           <Zap size={18} fill="currentColor" />
         </div>
-
         <div className="activity-card-copy">
           <h2>{item.activityName}</h2>
-
           <div className="activity-membership">
             <Users size={14} />
             <span>{getMembershipLabel(item)}</span>
           </div>
         </div>
       </div>
-
       <div className="activity-card-meta">
-        {primaryTime ? (
-          <div>
-            <Clock3 size={15} />
-            <span>{primaryTime}</span>
-          </div>
-        ) : (
-          <div>
-            <CalendarClock size={15} />
-            <span>TIME NOT LOCKED YET</span>
-          </div>
-        )}
+        <div>
+          {primaryTime ? <Clock3 size={15} /> : <CalendarClock size={15} />}
+          <span>{primaryTime ?? 'TIME NOT LOCKED YET'}</span>
+        </div>
+        <span className="activity-open-hint">OPEN →</span>
       </div>
     </motion.article>
+  )
+}function MomentCard({ moment }: { moment: SignalMoment }) {
+  return (
+    <motion.article
+      className="signal-moment-card"
+      initial={{ opacity: 0, y: 18 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <div className="signal-moment-head">
+        <div className="signal-moment-author">
+          {moment.authorAvatarUrl ? (
+            <img src={moment.authorAvatarUrl} alt="" />
+          ) : (
+            <span>{moment.authorDisplayName.slice(0, 1).toUpperCase()}</span>
+          )}
+          <div>
+            <strong>{moment.authorDisplayName}</strong>
+            <small>{moment.activityName} · {formatMomentTime(moment.publishedAt)}</small>
+          </div>
+        </div>
+        {moment.isLocal ? <span className="signal-moment-local">NEAR YOU</span> : null}
+      </div>
+
+      <div className={`signal-moment-media media-count-${Math.min(moment.media.length, 4)}`}>
+        {moment.media.map((media) => (
+          media.mediaKind === 'video' ? (
+            <video key={media.storagePath} src={media.url} controls playsInline preload="metadata" />
+          ) : (
+            <img key={media.storagePath} src={media.url} alt="Signal outing moment" />
+          )
+        ))}
+      </div>      <div className="signal-moment-body">
+        {moment.caption ? <p>{moment.caption}</p> : null}
+        <div className="signal-moment-proof">
+          <span><MapPin size={13} /> {moment.cityName}, {moment.stateCode}</span>
+          <span><Users size={13} /> {moment.participantCount} met through SIGNAL</span>
+        </div>
+      </div>
+    </motion.article>
+  )
+}
+
+function ShareMomentPanel({
+  eligiblePlans,
+  onPublished,
+  onClose,
+}: {
+  eligiblePlans: SignalMomentEligiblePlan[]
+  onPublished: () => Promise<void>
+  onClose: () => void
+}) {
+  const [planId, setPlanId] = useState(eligiblePlans[0]?.planId ?? '')
+  const [caption, setCaption] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [publishing, setPublishing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const selectedPlan = useMemo(
+    () => eligiblePlans.find((plan) => plan.planId === planId) ?? eligiblePlans[0] ?? null,
+    [eligiblePlans, planId],
+  )
+
+  const handlePublish = async () => {
+    if (!selectedPlan || files.length === 0) return
+    setPublishing(true)
+    setError(null)
+    try {
+      await publishSignalMoment({
+        planId: selectedPlan.planId,
+        caption,
+        files,
+      })
+      await onPublished()
+      onClose()
+    } catch (publishError) {
+      setError(
+        publishError instanceof Error
+          ? publishError.message
+          : 'Unable to publish this Signal Moment.',
+      )
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  return (
+    <div className="signal-moment-composer">
+      <div className="signal-moment-composer-head">
+        <div>
+          <span>SHARE A MOMENT</span>
+          <strong>Show what actually happened.</strong>
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close Share a Moment">
+          <X size={17} />
+        </button>
+      </div>      <label className="signal-moment-field">
+        <span>OUTING</span>
+        <select
+          value={selectedPlan?.planId ?? ''}
+          onChange={(event) => setPlanId(event.target.value)}
+        >
+          {eligiblePlans.map((plan) => (
+            <option key={plan.planId} value={plan.planId}>
+              {plan.activityName} · {plan.cityName}, {plan.stateCode}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="signal-moment-upload">
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
+          multiple
+          onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, 6))}
+        />
+        <span className="signal-moment-upload-icon">
+          {files.some((file) => file.type.startsWith('video/')) ? <Video size={22} /> : <Camera size={22} />}
+        </span>
+        <strong>{files.length > 0 ? `${files.length} selected` : 'Add photos or video'}</strong>
+        <small>Up to 6 files · 100 MB each</small>
+      </label>
+
+      {files.length > 0 ? (
+        <div className="signal-moment-file-list">
+          {files.map((file) => <span key={`${file.name}-${file.size}`}>{file.name}</span>)}
+        </div>
+      ) : null}      <label className="signal-moment-field">
+        <span>CAPTION</span>
+        <textarea
+          value={caption}
+          maxLength={500}
+          placeholder="What made this one worth remembering?"
+          onChange={(event) => setCaption(event.target.value)}
+        />
+      </label>
+
+      {error ? <div className="signal-moment-error">{error}</div> : null}
+
+      <button
+        type="button"
+        className="signal-moment-publish"
+        disabled={!selectedPlan || files.length === 0 || publishing}
+        onClick={() => void handlePublish()}
+      >
+        <Upload size={15} />
+        {publishing ? 'PUBLISHING…' : 'PUBLISH MOMENT'}
+      </button>
+    </div>
   )
 }
 
@@ -155,6 +283,70 @@ export default function ActivityView({
   onRefresh,
   onOpenItem,
 }: ActivityViewProps) {
+  const currentItem = items[0] ?? null
+  const [moments, setMoments] = useState<SignalMoment[]>([])
+  const [eligiblePlans, setEligiblePlans] = useState<SignalMomentEligiblePlan[]>([])
+  const [momentsLoading, setMomentsLoading] = useState(true)
+  const [momentsError, setMomentsError] = useState<string | null>(null)
+  const [composerOpen, setComposerOpen] = useState(false)
+
+  const refreshMoments = async () => {
+    setMomentsLoading(true)
+    setMomentsError(null)
+    try {
+      const [nextMoments, nextEligiblePlans] = await Promise.all([
+        getSignalMoments(20),
+        getMySignalMomentEligiblePlans(),
+      ])
+      setMoments(nextMoments)
+      setEligiblePlans(nextEligiblePlans)
+    } catch (loadError) {
+      setMomentsError(
+        loadError instanceof Error
+          ? loadError.message
+          : 'Unable to load Signal Moments.',
+      )
+    } finally {
+      setMomentsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadInitialMoments = async () => {
+      try {
+        const [nextMoments, nextEligiblePlans] = await Promise.all([
+          getSignalMoments(20),
+          getMySignalMomentEligiblePlans(),
+        ])
+
+        if (!cancelled) {
+          setMoments(nextMoments)
+          setEligiblePlans(nextEligiblePlans)
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setMomentsError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'Unable to load Signal Moments.',
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setMomentsLoading(false)
+        }
+      }
+    }
+
+    void loadInitialMoments()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <section className="activity-view">
       <header className="activity-view-header">
@@ -163,78 +355,110 @@ export default function ActivityView({
             <Zap size={13} fill="currentColor" />
             ACTIVITY
           </span>
-
-          <h1>Your Signal</h1>
-
-          <p>
-            What you’re part of right now.
-          </p>
-        </div>
-
-        <button
+          <h1>Right now.</h1>
+          <p>Your current Signal, then the moments SIGNAL made possible.</p>
+        </div>        <button
           type="button"
           className="activity-refresh"
-          onClick={() => void onRefresh()}
-          disabled={loading}
+          onClick={() => {
+            void onRefresh()
+            void refreshMoments()
+          }}
+          disabled={loading || momentsLoading}
           aria-label="Refresh Activity"
         >
           <RefreshCw
             size={17}
-            className={loading ? 'is-spinning' : undefined}
+            className={loading || momentsLoading ? 'is-spinning' : undefined}
           />
         </button>
       </header>
 
-      {loading && items.length === 0 ? (
-        <div className="activity-status-card">
-          <div className="activity-status-bolt">
-            <Zap size={19} fill="currentColor" />
+      <section className="activity-current-section">
+        <div className="activity-section-label">
+          <span>YOUR CURRENT SIGNAL</span>
+          <small>One place for what you’re part of right now.</small>
+        </div>
+
+        {loading && !currentItem ? (
+          <div className="activity-status-card">
+            <div className="activity-status-bolt"><Zap size={19} fill="currentColor" /></div>
+            <strong>CHECKING YOUR SIGNAL…</strong>
+            <span>Finding what you’re part of right now.</span>
           </div>
-          <strong>CHECKING YOUR SIGNAL…</strong>
-          <span>Finding what you’re part of right now.</span>
-        </div>
-      ) : null}
-
-      {error ? (
-        <div
-          className="activity-status-card activity-status-error"
-          role="status"
-        >
-          <strong>ACTIVITY COULDN’T LOAD</strong>
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={() => void onRefresh()}
-          >
-            TRY AGAIN
-          </button>
-        </div>
-      ) : null}
-
-      {!loading && !error && items.length === 0 ? (
-        <div className="activity-status-card activity-status-empty">
-          <div className="activity-status-bolt">
-            <Zap size={19} fill="currentColor" />
+        ) : null}        {error ? (
+          <div className="activity-status-card activity-status-error" role="status">
+            <strong>ACTIVITY COULDN’T LOAD</strong>
+            <span>{error}</span>
+            <button type="button" onClick={() => void onRefresh()}>TRY AGAIN</button>
           </div>
-          <strong>NO ACTIVE SIGNAL YET</strong>
-          <span>
-            When you join a Signal or lock a Plan, it’ll live here.
-          </span>
-        </div>
-      ) : null}
+        ) : null}
 
-      {items.length > 0 ? (
-        <div className="activity-list">
-          {items.map((item, index) => (
-            <ActivityCard
-              key={`${item.itemType}-${item.itemId}`}
-              item={item}
-              index={index}
-              onOpen={onOpenItem}
-            />
-          ))}
-        </div>
-      ) : null}
+        {!loading && !error && !currentItem ? (
+          <div className="activity-status-card activity-status-empty">
+            <div className="activity-status-bolt"><Zap size={19} fill="currentColor" /></div>
+            <strong>NO ACTIVE SIGNAL YET</strong>
+            <span>When you join a Signal or form a Plan, it’ll live here.</span>
+          </div>
+        ) : null}
+
+        {currentItem ? (
+          <CurrentActivityCard item={currentItem} onOpen={onOpenItem} />
+        ) : null}
+      </section>
+
+      <section className="signal-moments-section">
+        <div className="signal-moments-heading">
+          <div>
+            <span className="activity-section-kicker">SIGNAL MOMENTS</span>
+            <h2>People actually went.</h2>
+            <p>Photos and videos from real groupings that happened through SIGNAL.</p>
+          </div>
+          {eligiblePlans.length > 0 && !composerOpen ? (
+            <button type="button" className="share-moment-button" onClick={() => setComposerOpen(true)}>
+              <Camera size={15} /> SHARE A MOMENT
+            </button>
+          ) : null}
+        </div>        {composerOpen ? (
+          <ShareMomentPanel
+            eligiblePlans={eligiblePlans}
+            onPublished={refreshMoments}
+            onClose={() => setComposerOpen(false)}
+          />
+        ) : null}
+
+        {momentsError ? (
+          <div className="signal-moment-feed-status signal-moment-feed-error">
+            <strong>MOMENTS COULDN’T LOAD</strong>
+            <span>{momentsError}</span>
+            <button type="button" onClick={() => void refreshMoments()}>TRY AGAIN</button>
+          </div>
+        ) : null}
+
+        {momentsLoading && moments.length === 0 ? (
+          <div className="signal-moment-feed-status">
+            <span className="signal-moment-pulse" />
+            <strong>LOADING SIGNAL MOMENTS…</strong>
+          </div>
+        ) : null}
+
+        {!momentsLoading && !momentsError && moments.length === 0 ? (
+          <div className="signal-moment-feed-status signal-moment-feed-empty">
+            <div className="signal-moment-empty-icons">
+              <Camera size={22} />
+              <Video size={22} />
+            </div>
+            <strong>THE FIRST MOMENT IS COMING.</strong>
+            <span>After real SIGNAL outings, member photos and videos will build this timeline.</span>
+          </div>
+        ) : null}
+
+        {moments.length > 0 ? (
+          <div className="signal-moments-feed">
+            {moments.map((moment) => <MomentCard key={moment.momentId} moment={moment} />)}
+          </div>
+        ) : null}
+      </section>
     </section>
   )
 }
