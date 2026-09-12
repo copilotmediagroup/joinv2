@@ -1,6 +1,30 @@
 import { supabase } from '../../../lib/supabaseClient'
 import type { SignalTimesResponse } from './contract'
 
+async function getFunctionErrorMessage(error: unknown): Promise<string> {
+  if (!error || typeof error !== 'object') return 'Signal time coordination failed'
+  const candidate = error as { message?: unknown; context?: unknown }
+  const fallback = typeof candidate.message === 'string' && candidate.message.trim()
+    ? candidate.message
+    : 'Signal time coordination failed'
+
+  if (candidate.context instanceof Response) {
+    try {
+      const payload = await candidate.context.clone().json() as { error?: unknown }
+      if (typeof payload?.error === 'string' && payload.error.trim()) return payload.error
+    } catch {
+      try {
+        const text = await candidate.context.clone().text()
+        if (text.trim()) return text.trim()
+      } catch {
+        // Fall through to the SDK message.
+      }
+    }
+  }
+
+  return fallback
+}
+
 export async function fetchSignalTimes(
   signalGroupId: string,
 ): Promise<SignalTimesResponse> {
@@ -11,7 +35,7 @@ export async function fetchSignalTimes(
   const { data, error } = await supabase.functions.invoke('signal-times', {
     body: { signalGroupId },
   })
-  if (error) throw new Error(error.message || 'Signal time coordination failed')
+  if (error) throw new Error(await getFunctionErrorMessage(error))
   if (!data || typeof data !== 'object') throw new Error('Signal time coordination returned an invalid response')
   return data as SignalTimesResponse
 }

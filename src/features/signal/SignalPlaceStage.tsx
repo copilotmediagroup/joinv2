@@ -12,6 +12,7 @@ import {
   castSignalVenueVote,
   fetchSignalPlaces,
   reconcileSignalVenueRound,
+  restartDeadlockedSignalVenueVote,
   subscribeToSignalVenueRound,
 } from './places/googlePlacesClient'
 import type {
@@ -59,6 +60,8 @@ export default function SignalPlaceStage({
   const [voteSubmitting, setVoteSubmitting] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const notifiedWinnerId = useRef<string | null>(null)
+  const deadlockRestartingRef = useRef(false)
+  const deadlockRetryCountRef = useRef(0)
 
   const loadRound = useCallback(async () => {
     try {
@@ -133,6 +136,32 @@ export default function SignalPlaceStage({
     return () => { cancelled = true }
   }, [round, secondsLeft, loadRound])
 
+  useEffect(() => {
+    deadlockRetryCountRef.current = 0
+  }, [signalGroupId])
+
+  useEffect(() => {
+    if (!round || round.state !== 'deadlocked') {
+      deadlockRestartingRef.current = false
+      return
+    }
+    if (deadlockRestartingRef.current || deadlockRetryCountRef.current >= 1) return
+
+    deadlockRestartingRef.current = true
+    deadlockRetryCountRef.current += 1
+    setPlacesError(null)
+    void restartDeadlockedSignalVenueVote(signalGroupId)
+      .then(() => loadRound())
+      .catch((error) => {
+        deadlockRestartingRef.current = false
+        setPlacesError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to restart venue voting',
+        )
+      })
+  }, [round, signalGroupId, loadRound])
+
   const winner = useMemo(() => {
     if (!round?.winnerOptionId) return null
     return places.find(
@@ -145,20 +174,16 @@ export default function SignalPlaceStage({
     if (notifiedWinnerId.current === winner.optionId) return
 
     notifiedWinnerId.current = winner.optionId
-    const timer = window.setTimeout(() => {
-      onVenueLocked({
-        placeId: winner.placeId,
-        name: winner.name,
-        address: winner.address,
-        photoUrl: winner.photoUrl,
-        reviews: winner.reviews,
-        openingHours: winner.openingHours,
-        utcOffsetMinutes: winner.utcOffsetMinutes,
-        openNow: winner.openNow,
-      })
-    }, 1500)
-
-    return () => window.clearTimeout(timer)
+    onVenueLocked({
+      placeId: winner.placeId,
+      name: winner.name,
+      address: winner.address,
+      photoUrl: winner.photoUrl,
+      reviews: winner.reviews,
+      openingHours: winner.openingHours,
+      utcOffsetMinutes: winner.utcOffsetMinutes,
+      openNow: winner.openNow,
+    })
   }, [round, winner, onVenueLocked])
 
   const totalVotes = round

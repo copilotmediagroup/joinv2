@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Bell,
@@ -38,6 +38,9 @@ import {
 import {
   getMyActiveSignalResume,
 } from './features/signal/resume/signalResumeClient'
+import {
+  claimMatchingPlanReplacement,
+} from './features/plan/planGovernanceClient'
 import type {
   SignalRealtimeTarget,
 } from './features/signal/realtime/contract'
@@ -372,6 +375,8 @@ function App() {
     useState(false)
   const [messagePlanId, setMessagePlanId] =
     useState<string | null>(null)
+  const [planExitNotice, setPlanExitNotice] =
+    useState<string | null>(null)
 
   const suggestion = boredSuggestions[suggestionIndex]
 
@@ -493,63 +498,94 @@ function App() {
     }
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
+  const restoreActiveSignal = useCallback(async (openJourney = false) => {
+    try {
+      const resume = await getMyActiveSignalResume()
+      if (!resume) return
 
-    const restoreActiveSignal = async () => {
-      try {
-        const resume = await getMyActiveSignalResume()
+      const matchingPulse = pulses.find(
+        (pulse) => pulse.id === resume.activitySlug,
+      )
+      if (!matchingPulse) return
 
-        if (cancelled || !resume) return
+      setActive(matchingPulse.id)
+      setDirectActivitySlug(matchingPulse.id)
 
-        const matchingPulse = pulses.find(
-          (pulse) => pulse.id === resume.activitySlug,
-        )
-
-        if (!matchingPulse) return
-
-        setActive(matchingPulse.id)
-        setDirectActivitySlug(matchingPulse.id)
-
-        if (resume.timeWindowCode) {
-          setSignalTimePreference(resume.timeWindowCode)
-        }
-
-        setSignalCrowdPreference(resume.crowdMode)
-        setSignalAgePreference(
-          resume.minAge !== null && resume.minAge >= 40
-            ? '40_plus'
-            : resume.minAge !== null && resume.minAge >= 30
-              ? '30_plus'
-              : 'open',
-        )
-
-        setFormationResult({
-          signalIntentId: resume.signalIntentId,
-          signalGroupId: resume.signalGroupId,
-          groupState: resume.groupState,
-          memberCount: resume.memberCount,
-          activationThreshold: resume.activationThreshold,
-        })
-        setSignalRealtimeTarget({
-          signalIntentId: resume.signalIntentId,
-          signalGroupId: resume.signalGroupId,
-        })
+      if (resume.groupState === 'active_outing' && resume.planId) {
+        setMessagePlanId(resume.planId)
+        setSignalPlanSetVisible(true)
+        setSignalThreshold(false)
+        setLockedSignalVenue(null)
+        setSignalRealtimeTarget(null)
+        setFormationResult(null)
+        setAccepted(false)
+        setBored(false)
         setFormationError(null)
         setWithdrawalError(null)
-        setAccepted(true)
-        setBored(true)
-      } catch {
-        // Discovery remains available if resume authority is unavailable.
+        if (openJourney) setActiveSurface('messages')
+        return
       }
-    }
 
-    void restoreActiveSignal()
+      if (!resume.signalIntentId) {
+        return
+      }
 
-    return () => {
-      cancelled = true
+      if (resume.timeWindowCode) setSignalTimePreference(resume.timeWindowCode)
+      setSignalCrowdPreference(resume.crowdMode)
+      setSignalAgePreference(
+        resume.minAge !== null && resume.minAge >= 40
+          ? '40_plus'
+          : resume.minAge !== null && resume.minAge >= 30
+            ? '30_plus'
+            : 'open',
+      )
+      setFormationResult({
+        signalIntentId: resume.signalIntentId,
+        signalGroupId: resume.signalGroupId,
+        groupState: resume.groupState,
+        memberCount: resume.memberCount,
+        activationThreshold: resume.activationThreshold,
+      })
+      setSignalRealtimeTarget({
+        signalIntentId: resume.signalIntentId,
+        signalGroupId: resume.signalGroupId,
+      })
+      setFormationError(null)
+      setWithdrawalError(null)
+      setAccepted(true)
+      setBored(true)
+
+      const coordinationReady =
+        resume.groupState === 'coordinating' ||
+        resume.groupState === 'locked' ||
+        resume.groupState === 'active_outing'
+      setSignalThreshold(coordinationReady)
+      setSignalRoomStage(
+        resume.signalStage === 'plan' ? 'arrival' : resume.signalStage,
+      )
+      setLockedSignalVenue(resume.lockedVenue)
+      setSignalPlanSetVisible(false)
+    } catch {
+      // Discovery remains available if resume authority is temporarily unavailable.
     }
   }, [])
+
+  useEffect(() => {
+    queueMicrotask(() => { void restoreActiveSignal(true) })
+  }, [restoreActiveSignal])
+
+  useEffect(() => {
+    const refreshJourney = () => { void restoreActiveSignal(false) }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshJourney()
+    }
+    window.addEventListener('focus', refreshJourney)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('focus', refreshJourney)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [restoreActiveSignal])
 
   const discoveryBySlug = useMemo(
     () =>
@@ -637,14 +673,15 @@ function App() {
 
     if (
       authoritativeGroupState === 'locked' &&
-      previousGroupState !== 'locked'
+      previousGroupState !== 'locked' &&
+      !signalThreshold
     ) {
       setSignalRoomStage('arrival')
       setLockedSignalVenue(null)
       setSignalPlanSetVisible(false)
       setSignalThreshold(true)
     }
-  }, [authoritativeGroupState])
+  }, [authoritativeGroupState, signalThreshold])
 
   const signalHasReachedCriticalMass =
     authoritativeGroupState === 'confirming' ||
@@ -726,15 +763,7 @@ function App() {
       setActive(matchingPulse.id)
     }
 
-    const coordinationReady =
-      item.lifecycleState === 'coordinating' ||
-      item.lifecycleState === 'locked' ||
-      item.lifecycleState === 'active_outing'
-
-    setSignalThreshold(coordinationReady)
-    setLockedSignalVenue(null)
-    setSignalPlanSetVisible(false)
-    setSignalRoomStage('arrival')
+    void restoreActiveSignal(true)
   }
 
   const handleMessagesNavigation = () => {
@@ -770,19 +799,7 @@ function App() {
       setActive(matchingPulse.id)
     }
 
-    const coordinationReady =
-      target.groupState === 'coordinating' ||
-      target.groupState === 'locked' ||
-      target.groupState === 'active_outing'
-
-    setSignalThreshold(coordinationReady)
-    setLockedSignalVenue(null)
-    setSignalPlanSetVisible(false)
-    setSignalRoomStage(
-      coordinationReady && target.signalStage !== 'arrival'
-        ? 'places'
-        : 'arrival',
-    )
+    void restoreActiveSignal(true)
   }
 
   const handleProfileNavigation = () => {
@@ -794,11 +811,7 @@ function App() {
 
     if (hasActiveSignalJourney) {
       setBored(true)
-
-      if (boredStatus === 'locked') {
-        setSignalThreshold(true)
-      }
-
+      void restoreActiveSignal(true)
       return
     }
 
@@ -816,12 +829,18 @@ function App() {
 
   const handleDiscoverNavigation = () => {
     setActiveSurface('discover')
+
+    if (hasActiveSignalJourney) {
+      setBored(true)
+      void restoreActiveSignal(true)
+      return
+    }
+
     setBored(false)
     setSignalThreshold(false)
     setSignalRoomStage('arrival')
     setLockedSignalVenue(null)
     setSignalPlanSetVisible(false)
-
     void refreshDiscovery()
   }
 
@@ -891,6 +910,12 @@ function App() {
       return
     }
 
+    const existingJourney = await getMyActiveSignalResume().catch(() => null)
+    if (existingJourney) {
+      await restoreActiveSignal(true)
+      return
+    }
+
     setFormationSubmitting(true)
     setFormationError(null)
 
@@ -920,6 +945,29 @@ function App() {
           : effectiveSignalAgePreference === '40_plus'
             ? 40
             : null
+
+      const replacement = await claimMatchingPlanReplacement({
+        citySlug: homeCity.slug,
+        activitySlug,
+        timeWindow: signalTimePreference,
+        crowdMode: effectiveSignalCrowdPreference,
+        minAge,
+        maxAge: null,
+      })
+
+      if (replacement.claimed && replacement.planId) {
+        setFormationResult(null)
+        setSignalRealtimeTarget(null)
+        setSignalThreshold(false)
+        setSignalRoomStage('arrival')
+        setLockedSignalVenue(null)
+        setAccepted(false)
+        setBored(false)
+        setMessagePlanId(replacement.planId)
+        setActiveSurface('messages')
+        await Promise.all([refreshActivity(), refreshDiscovery()])
+        return
+      }
 
       const result =
         await formSignal({
@@ -998,6 +1046,27 @@ function App() {
       signalRealtimeTarget ||
       formationResult,
     )
+
+  useEffect(() => {
+    if (!hasActiveSignalJourney) return
+
+    const guardState = {
+      ...(window.history.state ?? {}),
+      signalJourneyGuard: true,
+    }
+
+    if (!window.history.state?.signalJourneyGuard) {
+      window.history.pushState(guardState, '', window.location.href)
+    }
+
+    const handlePopState = () => {
+      window.history.pushState(guardState, '', window.location.href)
+      void restoreActiveSignal(true)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [hasActiveSignalJourney, restoreActiveSignal])
 
   const canWithdrawSignal =
     hasActiveSignalJourney &&
@@ -1153,6 +1222,19 @@ function App() {
         <MessagesView
           currentUserId={currentUser.userId}
           initialPlanId={messagePlanId}
+          onPlanEnded={(reason) => {
+            setMessagePlanId(null)
+            setSignalPlanSetVisible(false)
+            setActiveSurface('discover')
+            setBored(false)
+            setAccepted(false)
+            setPlanExitNotice(
+              reason === 'ended'
+                ? 'This Signal didn’t come together in time. You’re back in Discover.'
+                : 'You left the Plan. You’re back in Discover.',
+            )
+            void Promise.all([refreshActivity(), refreshDiscovery()])
+          }}
         />
       ) : activeSurface === 'profile' ? (
         <ProfileView />
@@ -1167,6 +1249,14 @@ function App() {
         <h1>What are you feeling?</h1>
         <p>Don’t think about it. Pick a vibe.</p>
       </section>
+
+      {planExitNotice && (
+        <div className="signal-journey-notice" role="status">
+          <Zap size={15} fill="currentColor" />
+          <span>{planExitNotice}</span>
+          <button type="button" onClick={() => setPlanExitNotice(null)}>GOT IT</button>
+        </div>
+      )}
 
       <AnimatePresence mode="wait">
         {!bored ? (
@@ -1194,6 +1284,7 @@ function App() {
                 onClick={() => {
                   if (hasActiveSignalJourney) {
                     setBored(true)
+                    void restoreActiveSignal(true)
                     return
                   }
 
@@ -1777,11 +1868,7 @@ function App() {
         onClick={() => {
           if (hasActiveSignalJourney) {
             setBored(true)
-
-            if (boredStatus === 'locked') {
-              setSignalThreshold(true)
-            }
-
+            void restoreActiveSignal(true)
             return
           }
 

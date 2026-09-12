@@ -1,18 +1,33 @@
 import { supabase } from '../../../lib/supabaseClient'
+import type { SignalPlace, SignalPlaceReview } from '../places/contract'
 
 export type SignalResumeState =
   | 'forming'
   | 'confirming'
   | 'coordinating'
   | 'locked'
+  | 'active_outing'
 
 export type SignalResumeCrowdMode =
   | 'everyone'
   | 'women_only'
   | 'men_only'
 
+export type SignalResumeStage = 'arrival' | 'places' | 'time' | 'plan'
+
+export type SignalResumeVenue = {
+  placeId: string
+  name: string
+  address: string
+  photoUrl: string | null
+  reviews: SignalPlaceReview[]
+  openingHours: SignalPlace['openingHours']
+  utcOffsetMinutes: number | null
+  openNow: boolean | null
+}
+
 export type SignalResumeResult = {
-  signalIntentId: string
+  signalIntentId: string | null
   signalGroupId: string
   groupState: SignalResumeState
   memberCount: number
@@ -22,6 +37,9 @@ export type SignalResumeResult = {
   crowdMode: SignalResumeCrowdMode
   minAge: number | null
   maxAge: number | null
+  signalStage: SignalResumeStage
+  lockedVenue: SignalResumeVenue | null
+  planId: string | null
 }
 
 type ResumeRpcRow = {
@@ -35,6 +53,9 @@ type ResumeRpcRow = {
   crowd_mode: unknown
   min_age: unknown
   max_age: unknown
+  signal_stage: unknown
+  locked_venue: unknown
+  plan_id: unknown
 }
 
 function requireString(value: unknown, field: string): string {
@@ -50,21 +71,54 @@ function requireNumber(value: unknown, field: string): number {
   }
   return value
 }
-
 function nullableNumber(value: unknown, field: string): number | null {
   if (value === null) return null
   return requireNumber(value, field)
 }
 
+function parseVenue(value: unknown): SignalResumeVenue | null {
+  if (value === null) return null
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Invalid Signal resume response: locked_venue')
+  }
+
+  const venue = value as Record<string, unknown>
+  const openNow = venue.openNow
+  const utcOffsetMinutes = venue.utcOffsetMinutes
+
+  return {
+    placeId: requireString(venue.placeId, 'locked_venue.placeId'),
+    name: requireString(venue.name, 'locked_venue.name'),
+    address: typeof venue.address === 'string' ? venue.address : '',
+    photoUrl: typeof venue.photoUrl === 'string' ? venue.photoUrl : null,
+    reviews: Array.isArray(venue.reviews)
+      ? venue.reviews as SignalPlaceReview[]
+      : [],
+    openingHours:
+      venue.openingHours && typeof venue.openingHours === 'object'
+        ? venue.openingHours as SignalPlace['openingHours']
+        : null,
+    utcOffsetMinutes:
+      typeof utcOffsetMinutes === 'number' && Number.isFinite(utcOffsetMinutes)
+        ? utcOffsetMinutes
+        : null,
+    openNow: typeof openNow === 'boolean' ? openNow : null,
+  }
+}
 function parseResumeRow(row: ResumeRpcRow): SignalResumeResult {
   const groupState = requireString(row.group_state, 'group_state')
-  if (!['forming', 'confirming', 'coordinating', 'locked'].includes(groupState)) {
+  if (!['forming', 'confirming', 'coordinating', 'locked', 'active_outing'].includes(groupState)) {
     throw new Error('Invalid Signal resume response: group_state')
   }
 
   const crowdMode = requireString(row.crowd_mode, 'crowd_mode')
   if (!['everyone', 'women_only', 'men_only'].includes(crowdMode)) {
     throw new Error('Invalid Signal resume response: crowd_mode')
+  }
+
+  const signalStage = requireString(row.signal_stage, 'signal_stage')
+  if (!['arrival', 'places', 'time', 'plan'].includes(signalStage)) {
+    throw new Error('Invalid Signal resume response: signal_stage')
   }
 
   let timeWindowCode: SignalResumeResult['timeWindowCode'] = null
@@ -77,7 +131,7 @@ function parseResumeRow(row: ResumeRpcRow): SignalResumeResult {
   }
 
   return {
-    signalIntentId: requireString(row.signal_intent_id, 'signal_intent_id'),
+    signalIntentId: typeof row.signal_intent_id === 'string' ? row.signal_intent_id : null,
     signalGroupId: requireString(row.signal_group_id, 'signal_group_id'),
     groupState: groupState as SignalResumeState,
     memberCount: requireNumber(row.member_count, 'member_count'),
@@ -87,11 +141,14 @@ function parseResumeRow(row: ResumeRpcRow): SignalResumeResult {
     crowdMode: crowdMode as SignalResumeCrowdMode,
     minAge: nullableNumber(row.min_age, 'min_age'),
     maxAge: nullableNumber(row.max_age, 'max_age'),
+    signalStage: signalStage as SignalResumeStage,
+    lockedVenue: parseVenue(row.locked_venue),
+    planId: typeof row.plan_id === 'string' ? row.plan_id : null,
   }
 }
 
 export async function getMyActiveSignalResume(): Promise<SignalResumeResult | null> {
-  const { data, error } = await supabase.rpc('get_my_active_signal_resume')
+  const { data, error } = await supabase.rpc('get_my_active_signal_journey_resume')
 
   if (error) {
     throw new Error(error.message || 'Unable to restore your active Signal.')

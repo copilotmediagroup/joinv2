@@ -2,19 +2,22 @@ import { useCallback, useEffect, useState } from 'react'
 import { Clock3, LogOut, ShieldCheck, Users, Zap } from 'lucide-react'
 import {
   getMyPlanGovernance,
+  getMyPlanReplacementStatus,
   leaveMyPlan,
   proposePlanTimeChange,
   subscribeToPlanGovernance,
   voteOnPlanChange,
   voteOnPlanJoinRequest,
+  PlanAccessLostError,
   type PlanGovernanceSnapshot,
+  type PlanReplacementStatus,
   type PlanGovernanceVote,
 } from './planGovernanceClient'
 import './PlanGovernancePanel.css'
 
 type Props = {
   planId: string
-  onLeftPlan?: () => void
+  onLeftPlan?: (reason: 'left' | 'ended') => void
 }
 
 function formatTime(iso: string | null): string {
@@ -44,11 +47,22 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [newTime, setNewTime] = useState('')
   const [changesFrozen, setChangesFrozen] = useState(true)
+  const [replacement, setReplacement] = useState<PlanReplacementStatus | null>(null)
+  const [replacementSeconds, setReplacementSeconds] = useState(0)
 
   const refresh = useCallback(async () => {
     try {
-      const next = await getMyPlanGovernance(planId)
+      const [next, replacementStatus] = await Promise.all([
+        getMyPlanGovernance(planId),
+        getMyPlanReplacementStatus(planId),
+      ])
       setSnapshot(next)
+      setReplacement(replacementStatus)
+      setReplacementSeconds(
+        replacementStatus?.state === 'open'
+          ? Math.max(0, Math.ceil((new Date(replacementStatus.deadlineAt).getTime() - Date.now()) / 1000))
+          : 0,
+      )
       setError(null)
       setChangesFrozen(
         !next.changeFreezeAt ||
@@ -56,11 +70,18 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
       )
       setNewTime((current) => current || toLocalInputValue(next.scheduledStartsAt))
     } catch (loadError) {
+      if (loadError instanceof PlanAccessLostError) {
+        setSnapshot(null)
+        setReplacement(null)
+        setError(null)
+        onLeftPlan?.('ended')
+        return
+      }
       setError(loadError instanceof Error ? loadError.message : 'Unable to load Plan controls')
     } finally {
       setLoading(false)
     }
-  }, [planId])
+  }, [onLeftPlan, planId])
 
   useEffect(() => {
     let active = true
@@ -73,6 +94,15 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
       unsubscribe()
     }
   }, [planId, refresh])
+
+
+  useEffect(() => {
+    if (replacement?.state !== 'open') return
+    const timer = window.setInterval(() => {
+      setReplacementSeconds(Math.max(0, Math.ceil((new Date(replacement.deadlineAt).getTime() - Date.now()) / 1000)))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [replacement?.deadlineAt, replacement?.state])
 
 
   const runVote = async (
@@ -119,7 +149,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
     setError(null)
     try {
       await leaveMyPlan(planId)
-      onLeftPlan?.()
+      onLeftPlan?.('left')
     } catch (leaveError) {
       setError(leaveError instanceof Error ? leaveError.message : 'Unable to leave Plan')
       setBusy(false)
@@ -148,6 +178,17 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
         <span><Clock3 size={14} /> {formatTime(snapshot.scheduledStartsAt)}</span>
         <span><Users size={14} /> {snapshot.activeMemberCount} active members</span>
       </div>
+
+      {replacement?.state === 'open' && (
+        <section className="plan-governance-card">
+          <span className="plan-governance-kicker"><Zap size={13} fill="currentColor" /> FINDING A REPLACEMENT</span>
+          <strong>We’re keeping this Signal together.</strong>
+          <small>
+            {replacement.activeMemberCount}/{replacement.requiredActiveCount} ready · {replacementSeconds}s left
+          </small>
+          <small>A compatible person who goes down for this same Signal can take the open seat automatically.</small>
+        </section>
+      )}
 
       {join && (
         <section className="plan-governance-card">

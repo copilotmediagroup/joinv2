@@ -65,7 +65,11 @@ export async function getMyPlanMembers(
   })
 
   if (error) {
-    throw new Error(error.message || 'Unable to load Plan members.')
+    const message = error.message || ''
+    if (message.includes('plan_membership_required')) {
+      throw new Error('You’re no longer part of this Plan.')
+    }
+    throw new Error('We couldn’t refresh the people in this Plan right now.')
   }
 
   if (!Array.isArray(data)) {

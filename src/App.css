@@ -4605,3 +4605,31 @@ button:disabled,
   letter-spacing: .02em;
   box-shadow: 0 0 18px rgba(74, 181, 255, .16);
 }
+
+.signal-journey-notice {
+  width: min(824px, calc(100% - 32px));
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border: 1px solid rgba(68, 199, 255, 0.32);
+  border-radius: 16px;
+  background: rgba(8, 19, 33, 0.88);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.28);
+  color: rgba(236, 248, 255, 0.94);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.signal-journey-notice svg { color: #55d6ff; flex: 0 0 auto; }
+.signal-journey-notice span { flex: 1; }
+.signal-journey-notice button {
+  border: 0;
+  background: transparent;
+  color: #63dbff;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: .08em;
+  cursor: pointer;
+}

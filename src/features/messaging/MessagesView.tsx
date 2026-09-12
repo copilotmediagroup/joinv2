@@ -32,6 +32,7 @@ import './MessagesView.css'
 type MessagesViewProps = {
   currentUserId: string
   initialPlanId?: string | null
+  onPlanEnded?: (reason: 'left' | 'ended') => void
 }
 
 function formatMessageTime(
@@ -55,6 +56,7 @@ function formatMessageTime(
 export default function MessagesView({
   currentUserId,
   initialPlanId = null,
+  onPlanEnded,
 }: MessagesViewProps) {
   const [conversations, setConversations] =
     useState<PlanConversation[]>([])
@@ -359,8 +361,10 @@ export default function MessagesView({
         {selectedConversation && (
           <PlanGovernancePanel
             planId={selectedConversation.planId}
-            onLeftPlan={() => {
+            onLeftPlan={(reason) => {
               setMessages([])
+              setPlanMembers([])
+              setError(null)
               setConversations((current) =>
                 current.filter(
                   (conversation) =>
@@ -368,6 +372,7 @@ export default function MessagesView({
                 ),
               )
               setSelectedConversationId(null)
+              onPlanEnded?.(reason)
             }}
           />
         )}
