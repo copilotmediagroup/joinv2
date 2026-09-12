@@ -18,9 +18,11 @@ import {
   getMySignalMomentEligiblePlans,
   getSignalMoments,
   publishSignalMoment,
+  reportSignalMoment,
   subscribeToSignalMoments,
   type SignalMoment,
   type SignalMomentEligiblePlan,
+  type SignalMomentReportReason,
 } from './signalMomentsClient'
 import './ActivityView.css'
 
@@ -30,6 +32,7 @@ type ActivityViewProps = {
   error: string | null
   onRefresh: () => void | Promise<void>
   onOpenItem: (item: ActivityItem) => void
+  currentUserId: string
 }
 
 function formatState(value: string): string {
@@ -126,7 +129,41 @@ function CurrentActivityCard({
       </div>
     </motion.article>
   )
-}function MomentCard({ moment }: { moment: SignalMoment }) {
+}function MomentCard({
+  moment,
+  currentUserId,
+}: {
+  moment: SignalMoment
+  currentUserId: string
+}) {
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportReason, setReportReason] =
+    useState<SignalMomentReportReason>('spam')
+  const [reportDetails, setReportDetails] = useState('')
+  const [reporting, setReporting] = useState(false)
+  const [reportStatus, setReportStatus] = useState<string | null>(null)
+
+  const handleReport = async () => {
+    setReporting(true)
+    setReportStatus(null)
+    try {
+      await reportSignalMoment({
+        momentId: moment.momentId,
+        reason: reportReason,
+        details: reportDetails,
+      })
+      setReportStatus('Report received. Thank you.')
+      setReportOpen(false)
+      setReportDetails('')
+    } catch (error) {
+      setReportStatus(
+        error instanceof Error ? error.message : 'Unable to report this Moment.',
+      )
+    } finally {
+      setReporting(false)
+    }
+  }
+
   return (
     <motion.article
       className="signal-moment-card"
@@ -145,8 +182,45 @@ function CurrentActivityCard({
             <small>{moment.activityName} · {formatMomentTime(moment.publishedAt)}</small>
           </div>
         </div>
-        {moment.isLocal ? <span className="signal-moment-local">NEAR YOU</span> : null}
+        <div className="signal-moment-head-actions">
+          {moment.isLocal ? <span className="signal-moment-local">NEAR YOU</span> : null}
+          {moment.authorUserId !== currentUserId ? (
+            <button type="button" onClick={() => setReportOpen((value) => !value)}>REPORT</button>
+          ) : null}
+        </div>
       </div>
+
+      {reportOpen ? (
+        <div className="signal-moment-report-panel">
+          <strong>Report this Moment</strong>
+          <select
+            value={reportReason}
+            onChange={(event) => setReportReason(event.target.value as SignalMomentReportReason)}
+          >
+            <option value="spam">Spam</option>
+            <option value="harassment">Harassment</option>
+            <option value="hate">Hate or hateful conduct</option>
+            <option value="nudity">Nudity or sexual content</option>
+            <option value="violence">Violence or threats</option>
+            <option value="privacy">Privacy concern</option>
+            <option value="other">Other</option>
+          </select>
+          <textarea
+            maxLength={500}
+            value={reportDetails}
+            placeholder="Optional details"
+            onChange={(event) => setReportDetails(event.target.value)}
+          />
+          <div>
+            <button type="button" onClick={() => setReportOpen(false)}>CANCEL</button>
+            <button type="button" disabled={reporting} onClick={() => void handleReport()}>
+              {reporting ? 'SENDING…' : 'SEND REPORT'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {reportStatus ? <div className="signal-moment-report-status">{reportStatus}</div> : null}
 
       <div className={`signal-moment-media media-count-${Math.min(moment.media.length, 4)}`}>
         {moment.media.map((media) => (
@@ -156,7 +230,8 @@ function CurrentActivityCard({
             <img key={media.storagePath} src={media.url} alt="Signal outing moment" />
           )
         ))}
-      </div>      <div className="signal-moment-body">
+      </div>
+      <div className="signal-moment-body">
         {moment.caption ? <p>{moment.caption}</p> : null}
         <div className="signal-moment-proof">
           <span><MapPin size={13} /> {moment.cityName}, {moment.stateCode}</span>
@@ -283,6 +358,7 @@ export default function ActivityView({
   error,
   onRefresh,
   onOpenItem,
+  currentUserId,
 }: ActivityViewProps) {
   const currentItem = items[0] ?? null
   const [moments, setMoments] = useState<SignalMoment[]>([])
@@ -461,7 +537,13 @@ export default function ActivityView({
 
         {moments.length > 0 ? (
           <div className="signal-moments-feed">
-            {moments.map((moment) => <MomentCard key={moment.momentId} moment={moment} />)}
+            {moments.map((moment) => (
+              <MomentCard
+                key={moment.momentId}
+                moment={moment}
+                currentUserId={currentUserId}
+              />
+            ))}
           </div>
         ) : null}
       </section>

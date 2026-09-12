@@ -28,6 +28,15 @@ export type SignalMoment = {
   media: SignalMomentMedia[]
 }
 
+export type SignalMomentReportReason =
+  | 'spam'
+  | 'harassment'
+  | 'hate'
+  | 'nudity'
+  | 'violence'
+  | 'privacy'
+  | 'other'
+
 export type SignalMomentEligiblePlan = {
   planId: string
   activityName: string
@@ -292,4 +301,22 @@ export async function publishSignalMoment(input: {
     }
     throw error
   }
+}
+
+export async function reportSignalMoment(input: {
+  momentId: string
+  reason: SignalMomentReportReason
+  details?: string
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('report_signal_moment', {
+    p_moment_id: input.momentId,
+    p_reason: input.reason,
+    p_details: input.details?.trim() || null,
+  })
+
+  if (error) {
+    throw new Error(error.message || 'Unable to report this Signal Moment.')
+  }
+
+  return requireString(data, 'report_id')
 }

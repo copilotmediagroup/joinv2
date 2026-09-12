@@ -1111,6 +1111,7 @@ function App() {
           error={activityError}
           onRefresh={refreshActivity}
           onOpenItem={handleOpenActivityItem}
+          currentUserId={currentUser.userId}
         />
       ) : activeSurface === 'messages' ? (
         <MessagesView
