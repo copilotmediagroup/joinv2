@@ -12,12 +12,13 @@ import {
   Zap,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ActivityItem } from './activityClient'
 import {
   getMySignalMomentEligiblePlans,
   getSignalMoments,
   publishSignalMoment,
+  subscribeToSignalMoments,
   type SignalMoment,
   type SignalMomentEligiblePlan,
 } from './signalMomentsClient'
@@ -290,7 +291,7 @@ export default function ActivityView({
   const [momentsError, setMomentsError] = useState<string | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
 
-  const refreshMoments = async () => {
+  const refreshMoments = useCallback(async () => {
     setMomentsLoading(true)
     setMomentsError(null)
     try {
@@ -309,7 +310,7 @@ export default function ActivityView({
     } finally {
       setMomentsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -342,10 +343,15 @@ export default function ActivityView({
 
     void loadInitialMoments()
 
+    const unsubscribe = subscribeToSignalMoments(() => {
+      void refreshMoments()
+    })
+
     return () => {
       cancelled = true
+      unsubscribe()
     }
-  }, [])
+  }, [refreshMoments])
 
   return (
     <section className="activity-view">

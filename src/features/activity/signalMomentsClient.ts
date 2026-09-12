@@ -177,6 +177,55 @@ function makeObjectPath(userId: string, planId: string, file: File): string {
   return `${userId}/${planId}/${token}${extension}`
 }
 
+export function subscribeToSignalMoments(
+  onChange: () => void,
+): () => void {
+  const channel = supabase
+    .channel('signal-moments-feed')
+    .on(
+      'broadcast',
+      { event: 'changed' },
+      () => onChange(),
+    )
+    .subscribe()
+
+  return () => {
+    void supabase.removeChannel(channel)
+  }
+}
+
+async function broadcastSignalMomentsChanged(): Promise<void> {
+  const channel = supabase.channel(
+    `signal-moments-publish-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  )
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error('Signal Moments realtime publish timed out.'))
+    }, 5000)
+
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        window.clearTimeout(timeout)
+        resolve()
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        window.clearTimeout(timeout)
+        reject(new Error('Signal Moments realtime publish failed.'))
+      }
+    })
+  })
+
+  try {
+    await channel.send({
+      type: 'broadcast',
+      event: 'changed',
+      payload: {},
+    })
+  } finally {
+    await supabase.removeChannel(channel)
+  }
+}
+
 export async function publishSignalMoment(input: {
   planId: string
   caption: string
@@ -229,7 +278,11 @@ export async function publishSignalMoment(input: {
       })),
     })
     if (error) throw new Error(error.message || 'Unable to publish Signal Moment.')
-    return requireString(data, 'moment_id')
+    const momentId = requireString(data, 'moment_id')
+
+    void broadcastSignalMomentsChanged().catch(() => undefined)
+
+    return momentId
   } catch (error) {
     if (uploaded.length > 0) {
       await supabase.storage
