@@ -274,6 +274,48 @@ e6_preflight() {
   return 1
 }
 
+check_lint() {
+  header "LINT"
+  npm run lint
+  LINT_EXIT=$?
+  echo
+  echo "LINT_EXIT_CODE=$LINT_EXIT"
+  if [ "$LINT_EXIT" -eq 0 ]; then
+    pass "LINT_GREEN"
+    return 0
+  fi
+  fail "LINT_GREEN"
+  return 1
+}
+
+check_clean_worktree() {
+  if [ -z "$(git status --short)" ]; then
+    pass "CLEAN_WORKTREE"
+    return 0
+  fi
+  fail "CLEAN_WORKTREE"
+  return 1
+}
+
+current_gate() {
+  header "CURRENT PRODUCTION CHECKPOINT"
+  FAILURES=0
+  show_head
+  show_status
+  check_clean_worktree || FAILURES=$((FAILURES + 1))
+  check_lint || FAILURES=$((FAILURES + 1))
+  check_build || FAILURES=$((FAILURES + 1))
+
+  header "CURRENT CHECKPOINT CLASSIFIER"
+  if [ "$FAILURES" -eq 0 ]; then
+    echo "SIGNAL_CURRENT_GATE=PASS"
+    return 0
+  fi
+  echo "SIGNAL_CURRENT_GATE=FAIL"
+  echo "FAILURE_COUNT=$FAILURES"
+  return 1
+}
+
 usage() {
   cat <<'USAGE'
 SIGNAL Gate Runner
@@ -281,6 +323,7 @@ SIGNAL Gate Runner
 Usage:
   ./scripts/signal-gate.sh doctor
   ./scripts/signal-gate.sh e6-preflight
+  ./scripts/signal-gate.sh current
 
 Current safety level:
   READ-ONLY / VERIFICATION ONLY
@@ -303,6 +346,9 @@ case "$COMMAND" in
     ;;
   e6-preflight)
     e6_preflight
+    ;;
+  current)
+    current_gate
     ;;
   *)
     usage
