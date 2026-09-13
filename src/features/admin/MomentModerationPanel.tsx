@@ -61,7 +61,8 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
       ? { createdAt: current[current.length - 1].createdAt, reportId: current[current.length - 1].reportId }
       : null
 
-    append ? setLoadingMore(true) : setLoading(true)
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     setError(null)
     try {
       const page = await getModerationMomentQueue({ ...config, cursor, limit: PAGE_SIZE })
@@ -72,25 +73,29 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
     } catch (loadError) {
       setError(toUserFacingError(loadError, 'Unable to load the Moment moderation queue.'))
     } finally {
-      append ? setLoadingMore(false) : setLoading(false)
+      if (append) setLoadingMore(false)
+      else setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    setNote('')
-    void loadPage(tab)
+    void Promise.resolve().then(() => loadPage(tab))
   }, [loadPage, tab])
 
   useEffect(() => {
-    if (!selected) { setEvidence([]); return }
+    if (!selected) return
     let cancelled = false
-    setEvidenceLoading(true)
-    void getModerationMomentEvidence(selected.reportId)
-      .then((rows) => { if (!cancelled) setEvidence(rows) })
-      .catch((evidenceError) => {
+    void Promise.resolve().then(async () => {
+      if (!cancelled) setEvidenceLoading(true)
+      try {
+        const rows = await getModerationMomentEvidence(selected.reportId)
+        if (!cancelled) setEvidence(rows)
+      } catch (evidenceError) {
         if (!cancelled) setError(toUserFacingError(evidenceError, 'Unable to load Moment evidence.'))
-      })
-      .finally(() => { if (!cancelled) setEvidenceLoading(false) })
+      } finally {
+        if (!cancelled) setEvidenceLoading(false)
+      }
+    })
     return () => { cancelled = true }
   }, [selected])
 

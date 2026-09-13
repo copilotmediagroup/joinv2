@@ -65,7 +65,8 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
       ? { createdAt: current[current.length - 1].createdAt, reportId: current[current.length - 1].reportId }
       : null
 
-    append ? setLoadingMore(true) : setLoading(true)
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     setError(null)
     try {
       const page = await getModerationReportQueue({ ...config, cursor, limit: PAGE_SIZE })
@@ -76,22 +77,28 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
     } catch (loadError) {
       setError(toUserFacingError(loadError, 'Unable to load the moderation queue.'))
     } finally {
-      append ? setLoadingMore(false) : setLoading(false)
+      if (append) setLoadingMore(false)
+      else setLoading(false)
     }
   }, [])
   useEffect(() => {
-    setNote('')
-    void loadPage(tab)
+    void Promise.resolve().then(() => loadPage(tab))
   }, [loadPage, tab])
 
   useEffect(() => {
-    if (!selected || !canEnforce) { setEnforcement(null); return }
+    if (!selected || !canEnforce) return
     let cancelled = false
-    setEnforcementLoading(true)
-    void getUserAccountEnforcementSummary(selected.reportedUserId)
-      .then((summary) => { if (!cancelled) setEnforcement(summary) })
-      .catch(() => { if (!cancelled) setEnforcement(null) })
-      .finally(() => { if (!cancelled) setEnforcementLoading(false) })
+    void Promise.resolve().then(async () => {
+      if (!cancelled) setEnforcementLoading(true)
+      try {
+        const summary = await getUserAccountEnforcementSummary(selected.reportedUserId)
+        if (!cancelled) setEnforcement(summary)
+      } catch {
+        if (!cancelled) setEnforcement(null)
+      } finally {
+        if (!cancelled) setEnforcementLoading(false)
+      }
+    })
     return () => { cancelled = true }
   }, [canEnforce, selected])
 
