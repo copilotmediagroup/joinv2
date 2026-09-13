@@ -982,16 +982,16 @@ function App() {
       return
     }
 
-    const existingJourney = await getMyActiveSignalResume().catch(() => null)
-    if (existingJourney) {
-      await restoreActiveSignal(true)
-      return
-    }
-
     setFormationSubmitting(true)
     setFormationError(null)
 
     try {
+      const existingJourney = await getMyActiveSignalResume().catch(() => null)
+      if (existingJourney) {
+        await restoreActiveSignal(true)
+        return
+      }
+
       const homeCity =
         await getAuthoritativeHomeCity()
 
@@ -1733,8 +1733,15 @@ function App() {
                           </div>
                         )}
 
+                        {formationError ? (
+                          <p className="formation-error" role="alert">
+                            {formationError}
+                          </p>
+                        ) : null}
+
                         <div className="suggestion-actions">
                         <motion.button
+                          type="button"
                           className="down-button"
                           onClick={() => {
                             void handleImDown()
@@ -1743,7 +1750,7 @@ function App() {
                           whileTap={{ scale: 0.98 }}
                         >
                           <Zap size={18} fill="currentColor" />
-                          I'M DOWN
+                          {formationSubmitting ? 'JOINING…' : "I'M DOWN"}
                         </motion.button>
 
                         <button

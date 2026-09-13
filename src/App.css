@@ -4324,7 +4324,8 @@ button:disabled,
   opacity: 0.5;
 }
 
-.signal-withdrawal-error {
+.signal-withdrawal-error,
+.formation-error {
   margin: 0;
   max-width: 360px;
   color: #ffb4b4;
