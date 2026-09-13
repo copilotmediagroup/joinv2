@@ -104,3 +104,53 @@ export async function reviewUserReport(input: {
   })
   if (error) throw new Error(error.message || 'Unable to review this report')
 }
+
+export type AccountEnforcementSummary = {
+  restriction: 'suspended' | 'banned' | null
+  restrictedUntil: string | null
+  latestAction: 'warning' | 'suspension' | 'ban' | 'lift' | null
+  latestReason: string | null
+  latestActionAt: string | null
+}
+
+export async function getUserAccountEnforcementSummary(
+  userId: string,
+): Promise<AccountEnforcementSummary> {
+  const { data, error } = await supabase.rpc('get_user_account_enforcement_summary', {
+    p_target_user_id: userId,
+  })
+  if (error) throw new Error(error.message || 'Unable to load account enforcement')
+  const row = Array.isArray(data) && data[0] ? data[0] as Record<string, unknown> : {}
+  const restriction = row.restriction === 'suspended' || row.restriction === 'banned'
+    ? row.restriction : null
+  const action = ['warning', 'suspension', 'ban', 'lift'].includes(String(row.latest_action))
+    ? row.latest_action as AccountEnforcementSummary['latestAction'] : null
+  return { restriction, restrictedUntil: typeof row.restricted_until === 'string' ? row.restricted_until : null,
+    latestAction: action, latestReason: typeof row.latest_reason === 'string' ? row.latest_reason : null,
+    latestActionAt: typeof row.latest_action_at === 'string' ? row.latest_action_at : null }
+}
+
+export async function enforceUserAccount(input: {
+  userId: string
+  action: 'warning' | 'suspension' | 'ban'
+  durationMinutes?: number | null
+  reason: string
+  sourceReportId?: string | null
+}): Promise<void> {
+  const { error } = await supabase.rpc('enforce_user_account', {
+    p_target_user_id: input.userId,
+    p_action: input.action,
+    p_duration_minutes: input.durationMinutes ?? null,
+    p_reason: input.reason,
+    p_source_report_id: input.sourceReportId ?? null,
+  })
+  if (error) throw new Error(error.message || 'Unable to enforce account action')
+}
+
+export async function liftUserAccountRestriction(userId: string, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('lift_user_account_restriction', {
+    p_target_user_id: userId,
+    p_reason: reason,
+  })
+  if (error) throw new Error(error.message || 'Unable to lift account restriction')
+}
