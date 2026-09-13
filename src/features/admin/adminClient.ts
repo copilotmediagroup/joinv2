@@ -224,3 +224,43 @@ export async function reviewModerationMoment(input: {
   })
   if (error) throw new Error(error.message || 'Unable to finish Moment report')
 }
+
+export type ModerationMomentEvidenceMedia = {
+  storagePath: string
+  mediaKind: 'image' | 'video'
+  mimeType: string
+  url: string
+}
+
+export async function getModerationMomentEvidence(
+  reportId: string,
+): Promise<ModerationMomentEvidenceMedia[]> {
+  const { data, error } = await supabase.rpc('get_moderation_moment_evidence', {
+    p_report_id: reportId,
+  })
+  if (error) throw new Error(error.message || 'Unable to load Moment evidence')
+  const row = Array.isArray(data) && data[0] ? data[0] as Record<string, unknown> : null
+  if (!row || !Array.isArray(row.media)) return []
+
+  return Promise.all(row.media.map(async (raw) => {
+    const media = raw as Record<string, unknown>
+    const storagePath = required(media.storagePath, 'evidence storage path')
+    const mediaKind = required(media.mediaKind, 'evidence media kind')
+    const mimeType = required(media.mimeType, 'evidence mime type')
+    if (mediaKind !== 'image' && mediaKind !== 'video') {
+      throw new Error('Invalid Moment evidence media kind')
+    }
+    const { data: signed, error: signedError } = await supabase.storage
+      .from('signal-moments')
+      .createSignedUrl(storagePath, 60 * 15)
+    if (signedError || !signed?.signedUrl) {
+      throw new Error(signedError?.message || 'Unable to sign Moment evidence')
+    }
+    return {
+      storagePath,
+      mediaKind,
+      mimeType,
+      url: signed.signedUrl,
+    } as ModerationMomentEvidenceMedia
+  }))
+}

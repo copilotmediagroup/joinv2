@@ -3,10 +3,12 @@ import { EyeOff, Inbox, RefreshCw, Undo2, XCircle } from 'lucide-react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
   claimNextModerationMoment,
+  getModerationMomentEvidence,
   getModerationMomentQueue,
   releaseMyModerationMoment,
   reviewModerationMoment,
   type ModerationAssignmentScope,
+  type ModerationMomentEvidenceMedia,
   type ModerationMomentReport,
   type ModerationMomentState,
 } from './adminClient'
@@ -37,6 +39,8 @@ export default function MomentModerationPanel() {
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  const [evidence, setEvidence] = useState<ModerationMomentEvidenceMedia[]>([])
+  const [evidenceLoading, setEvidenceLoading] = useState(false)
 
   const selected = useMemo(
     () => items.find((item) => item.reportId === selectedId) ?? null,
@@ -73,6 +77,20 @@ export default function MomentModerationPanel() {
     setNote('')
     void loadPage(tab)
   }, [loadPage, tab])
+
+  useEffect(() => {
+    if (!selected) { setEvidence([]); return }
+    let cancelled = false
+    setEvidenceLoading(true)
+    void getModerationMomentEvidence(selected.reportId)
+      .then((rows) => { if (!cancelled) setEvidence(rows) })
+      .catch((evidenceError) => {
+        if (!cancelled) setError(toUserFacingError(evidenceError, 'Unable to load Moment evidence.'))
+      })
+      .finally(() => { if (!cancelled) setEvidenceLoading(false) })
+    return () => { cancelled = true }
+  }, [selected])
+
   const takeNext = async () => {
     setActionLoading(true)
     setError(null)
@@ -204,6 +222,17 @@ export default function MomentModerationPanel() {
                 <strong>{formatReason(selected.reason)}</strong>
                 <p>{selected.caption || 'This Moment has no caption.'}</p>
                 {selected.details && <p>{selected.details}</p>}
+                <div className="moderation-evidence-grid" aria-busy={evidenceLoading}>
+                  {evidenceLoading ? (
+                    <div className="moderation-evidence-empty">Loading media evidence…</div>
+                  ) : evidence.length === 0 ? (
+                    <div className="moderation-evidence-empty">No media is attached to this Moment.</div>
+                  ) : evidence.map((media) => media.mediaKind === 'image' ? (
+                    <img key={media.storagePath} src={media.url} alt="Reported Moment evidence" />
+                  ) : (
+                    <video key={media.storagePath} src={media.url} controls preload="metadata" />
+                  ))}
+                </div>
               </div>
               {selected.state === 'reviewed' && (
                 <>

@@ -342,3 +342,28 @@
   color: rgba(255, 255, 255, 0.48);
   font-size: 12px;
 }
+
+.moderation-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.moderation-evidence-grid img,
+.moderation-evidence-grid video {
+  width: 100%;
+  max-height: 260px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #050505;
+}
+
+.moderation-evidence-empty {
+  grid-column: 1 / -1;
+  padding: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 12px;
+}
