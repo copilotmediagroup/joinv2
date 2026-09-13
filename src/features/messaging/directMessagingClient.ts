@@ -11,6 +11,7 @@ export type DirectThread = {
   lastMessageBody: string | null
   lastMessageAt: string | null
   unreadCount: number
+  sortAt: string
 }
 
 export type DirectMessage = {
@@ -28,23 +29,46 @@ function req(value: unknown, field: string): string {
 }
 function nullable(value: unknown): string | null { return typeof value === 'string' && value.trim() ? value : null }
 
-export async function getMyDirectThreads(): Promise<DirectThread[]> {
-  const { data, error } = await supabase.rpc('get_my_direct_threads')
+export const DIRECT_THREAD_PAGE_SIZE = 30
+
+type DirectThreadCursor = {
+  sortAt: string
+  conversationId: string
+}
+
+async function parseDirectThread(row: Record<string, unknown>): Promise<DirectThread> {
+  const avatarPath = nullable(row.avatar_path)
+  return {
+    conversationId: req(row.conversation_id, 'conversation_id'),
+    connectionId: req(row.connection_id, 'connection_id'),
+    otherUserId: req(row.other_user_id, 'other_user_id'),
+    displayName: req(row.display_name, 'display_name'),
+    avatarUrl: avatarPath ? await createProfileAvatarSignedUrl(avatarPath).catch(() => null) : null,
+    lastMessageBody: nullable(row.last_message_body),
+    lastMessageAt: nullable(row.last_message_at),
+    unreadCount: typeof row.unread_count === 'number' ? row.unread_count : 0,
+    sortAt: req(row.sort_at, 'sort_at'),
+  }
+}
+
+export async function getMyDirectThreadsPage(
+  cursor: DirectThreadCursor | null = null,
+): Promise<DirectThread[]> {
+  const { data, error } = await supabase.rpc('get_my_direct_threads_page', {
+    p_after_sort_at: cursor?.sortAt ?? null,
+    p_after_conversation_id: cursor?.conversationId ?? null,
+    p_limit: DIRECT_THREAD_PAGE_SIZE,
+  })
   if (error) throw new Error(error.message || 'Unable to load direct messages')
   if (!Array.isArray(data)) throw new Error('Invalid direct threads response')
-  return Promise.all((data as Record<string, unknown>[]).map(async (row) => {
-    const avatarPath = nullable(row.avatar_path)
-    return {
-      conversationId: req(row.conversation_id, 'conversation_id'),
-      connectionId: req(row.connection_id, 'connection_id'),
-      otherUserId: req(row.other_user_id, 'other_user_id'),
-      displayName: req(row.display_name, 'display_name'),
-      avatarUrl: avatarPath ? await createProfileAvatarSignedUrl(avatarPath).catch(() => null) : null,
-      lastMessageBody: nullable(row.last_message_body),
-      lastMessageAt: nullable(row.last_message_at),
-      unreadCount: typeof row.unread_count === 'number' ? row.unread_count : 0,
-    }
-  }))
+  return Promise.all((data as Record<string, unknown>[]).map(parseDirectThread))
+}
+
+export async function getMyDirectThread(conversationId: string): Promise<DirectThread | null> {
+  const { data, error } = await supabase.rpc('get_my_direct_thread', { p_conversation_id: conversationId })
+  if (error) throw new Error(error.message || 'Unable to load direct conversation')
+  const row = Array.isArray(data) ? data[0] : null
+  return row ? parseDirectThread(row as Record<string, unknown>) : null
 }
 
 export async function getOrCreateDirectConversation(connectionId: string): Promise<string> {
