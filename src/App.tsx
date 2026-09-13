@@ -377,6 +377,8 @@ function App() {
     useState(false)
   const [messagePlanId, setMessagePlanId] =
     useState<string | null>(null)
+  const [messageDirectConversationId, setMessageDirectConversationId] =
+    useState<string | null>(null)
   const [activePlanId, setActivePlanId] =
     useState<string | null>(null)
   const [planExitNotice, setPlanExitNotice] =
@@ -541,6 +543,7 @@ function App() {
 
       if (resume.groupState === 'active_outing' && resume.planId) {
         setMessagePlanId(resume.planId)
+        setMessageDirectConversationId(null)
         setActivePlanId(resume.planId)
         setSignalPlanSetVisible(true)
         setSignalThreshold(false)
@@ -784,12 +787,14 @@ function App() {
 
   const handleMessagesNavigation = () => {
     setMessagePlanId(null)
+    setMessageDirectConversationId(null)
     setActiveSurface('messages')
   }
 
   const handleOpenPlanChat = (planId: string) => {
     setActivePlanId(planId)
     setMessagePlanId(planId)
+    setMessageDirectConversationId(null)
     setNotificationsOpen(false)
     setSignalThreshold(false)
     setActiveSurface('messages')
@@ -802,7 +807,7 @@ function App() {
     void restoreActiveSignal(true)
   }
 
-  const handleHistoricalNotification = (notificationType: string, relatedPlanId: string | null) => {
+  const handleHistoricalNotification = (notificationType: string, relatedPlanId: string | null, relatedEntityId: string | null) => {
     setNotificationsOpen(false)
     setFormationResult(null)
     setSignalRealtimeTarget(null)
@@ -815,17 +820,25 @@ function App() {
     setAccepted(false)
     setBored(false)
 
-    if (notificationType === 'plan_completed') {
+    if (notificationType === 'direct_message' && relatedEntityId) {
+      setMessageDirectConversationId(relatedEntityId)
+      setMessagePlanId(null)
+      setActiveSurface('messages')
+      setPlanExitNotice(null)
+    } else if (notificationType === 'plan_completed') {
+      setMessageDirectConversationId(null)
       setMomentComposerPlanId(relatedPlanId)
       setStayConnectedPlanId(relatedPlanId)
       setActiveSurface('activity')
       setPlanExitNotice('SIGNAL complete. Add a photo or video to Moments while it’s fresh.')
     } else if (notificationType === 'connection_request' || notificationType === 'connection_accepted') {
+      setMessageDirectConversationId(null)
       setMomentComposerPlanId(null)
       setStayConnectedPlanId(relatedPlanId)
       setActiveSurface('activity')
       setPlanExitNotice(notificationType === 'connection_request' ? 'Someone from your SIGNAL wants to stay connected.' : 'You’re connected with someone from SIGNAL.')
     } else {
+      setMessageDirectConversationId(null)
       setMomentComposerPlanId(null)
       setStayConnectedPlanId(null)
       setActiveSurface('discover')
@@ -1277,6 +1290,7 @@ function App() {
         <MessagesView
           currentUserId={currentUser.userId}
           initialPlanId={messagePlanId}
+          initialDirectConversationId={messageDirectConversationId}
           onPlanEnded={(reason) => {
             setMessagePlanId(null)
             setActivePlanId(null)
@@ -1293,7 +1307,7 @@ function App() {
           }}
         />
       ) : activeSurface === 'profile' ? (
-        <ProfileView />
+        <ProfileView onOpenDirectConversation={(conversationId) => { setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') }} />
       ) : (
         <>
       <section className="intro">

@@ -1,4 +1,4 @@
-import { Link2, Unlink, Users } from 'lucide-react'
+import { Link2, MessageCircle, Unlink, Users } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
@@ -6,6 +6,7 @@ import {
   getMySignalConnections,
   type MySignalConnection,
 } from '../activity/signalConnectionsClient'
+import { getOrCreateDirectConversation } from '../messaging/directMessagingClient'
 
 function formatConnectedAt(value: string): string {
   const date = new Date(value)
@@ -13,7 +14,7 @@ function formatConnectedAt(value: string): string {
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date)
 }
 
-export default function MyConnectionsPanel() {
+export default function MyConnectionsPanel({ onOpenDirectConversation }: { onOpenDirectConversation?: (conversationId: string) => void }) {
   const [connections, setConnections] = useState<MySignalConnection[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -35,6 +36,20 @@ export default function MyConnectionsPanel() {
     queueMicrotask(() => { if (active) void refresh() })
     return () => { active = false }
   }, [refresh])
+
+  const message = async (connection: MySignalConnection) => {
+    if (busyId) return
+    setBusyId(connection.connectionId)
+    setError(null)
+    try {
+      const conversationId = await getOrCreateDirectConversation(connection.connectionId)
+      onOpenDirectConversation?.(conversationId)
+    } catch (actionError) {
+      setError(toUserFacingError(actionError, 'Unable to open a message right now.'))
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   const disconnect = async (connection: MySignalConnection) => {
     if (busyId) return
@@ -64,7 +79,7 @@ export default function MyConnectionsPanel() {
             <div className="profile-connection-person" key={connection.connectionId}>
               {connection.avatarUrl ? <img src={connection.avatarUrl} alt="" /> : <div className="profile-connection-fallback">{connection.displayName.slice(0, 1).toUpperCase()}</div>}
               <div><strong>{connection.displayName}</strong><small>CONNECTED {formatConnectedAt(connection.connectedAt)}</small></div>
-              <button type="button" disabled={busyId === connection.connectionId} onClick={() => { void disconnect(connection) }}><Unlink size={13} /> DISCONNECT</button>
+              <div className="profile-connection-actions"><button type="button" disabled={busyId === connection.connectionId} onClick={() => { void message(connection) }}><MessageCircle size={13} /> MESSAGE</button><button type="button" disabled={busyId === connection.connectionId} onClick={() => { void disconnect(connection) }}><Unlink size={13} /> DISCONNECT</button></div>
             </div>
           ))}
         </div>

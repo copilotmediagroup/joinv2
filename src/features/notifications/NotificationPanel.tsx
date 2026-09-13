@@ -16,7 +16,7 @@ type NotificationPanelProps = {
   onUnreadCountChange?: (count: number) => void
   onOpenPlan?: (planId: string) => void
   onOpenSignal?: (target: Extract<NotificationTarget, { targetType: 'signal' }>, notificationType: string) => void
-  onHistorical?: (notificationType: string, relatedPlanId: string | null) => void
+  onHistorical?: (notificationType: string, relatedPlanId: string | null, relatedEntityId: string | null) => void
 }
 
 function relativeTime(iso: string): string {
@@ -98,7 +98,7 @@ export default function NotificationPanel({
       } else if (target.targetType === 'signal') {
         onOpenSignal?.(target, item.type)
       } else {
-        onHistorical?.(item.type, item.relatedPlanId)
+        onHistorical?.(item.type, item.relatedPlanId, item.relatedEntityId)
       }
     } catch (targetError) {
       setError(toUserFacingError(targetError, 'Unable to open this notification right now.'))

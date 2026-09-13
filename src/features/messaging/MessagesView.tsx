@@ -29,10 +29,12 @@ import {
 } from '../plan/planMembersClient'
 import './MessagesView.css'
 import { toUserFacingError } from '../../lib/userFacingError'
+import DirectMessagesPanel from './DirectMessagesPanel'
 
 type MessagesViewProps = {
   currentUserId: string
   initialPlanId?: string | null
+  initialDirectConversationId?: string | null
   onPlanEnded?: (reason: 'left' | 'ended') => void
 }
 
@@ -57,6 +59,7 @@ function formatMessageTime(
 export default function MessagesView({
   currentUserId,
   initialPlanId = null,
+  initialDirectConversationId = null,
   onPlanEnded,
 }: MessagesViewProps) {
   const [conversations, setConversations] =
@@ -485,6 +488,8 @@ export default function MessagesView({
           {error}
         </div>
       )}
+
+      <DirectMessagesPanel currentUserId={currentUserId} initialConversationId={initialDirectConversationId} />
 
       <div className="messages-conversation-list">
         {loadingConversations ? (
