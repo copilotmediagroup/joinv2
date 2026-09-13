@@ -1279,6 +1279,27 @@ function App() {
         </div>
       </header>
 
+      {canReviewModeration && (
+        <div className="admin-mode-switch" role="group" aria-label="App mode">
+          <button
+            type="button"
+            className={activeSurface !== 'admin' ? 'active' : ''}
+            onClick={() => { setActiveSurface('discover'); setNotificationsOpen(false) }}
+          >
+            <UserRound size={15} />
+            USER MODE
+          </button>
+          <button
+            type="button"
+            className={activeSurface === 'admin' ? 'active' : ''}
+            onClick={() => { setActiveSurface('admin'); setNotificationsOpen(false) }}
+          >
+            <ShieldCheck size={15} />
+            ADMIN MODE
+          </button>
+        </div>
+      )}
+
       {notificationsOpen && (
         <NotificationPanel
           userId={currentUser.userId}

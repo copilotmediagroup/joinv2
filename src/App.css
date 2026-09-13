@@ -109,6 +109,38 @@ button {
   filter: drop-shadow(0 0 9px rgba(75, 242, 175, 0.55));
 }
 
+.admin-mode-switch {
+  display: inline-flex;
+  justify-self: end;
+  gap: 4px;
+  margin: 6px 0 18px auto;
+  padding: 4px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.035);
+}
+
+.admin-mode-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 9px;
+  color: rgba(255,255,255,0.55);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.admin-mode-switch button.active {
+  color: #07110d;
+  background: var(--green);
+}
+
 .top-actions {
   display: flex;
   justify-self: end;
