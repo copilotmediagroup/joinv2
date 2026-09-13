@@ -1,0 +1,214 @@
+.moderation-view {
+  width: min(1480px, calc(100vw - 64px));
+  margin: 0 auto;
+  padding: 34px 0 120px;
+}
+
+.moderation-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.moderation-heading h1 {
+  margin: 7px 0 6px;
+  font-size: clamp(30px, 3vw, 46px);
+  letter-spacing: -0.04em;
+}
+
+.moderation-heading p {
+  margin: 0;
+  max-width: 720px;
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.moderation-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: rgba(255, 255, 255, 0.62);
+}
+.moderation-take-next,
+.moderation-load-more,
+.moderation-action {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-radius: 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.moderation-take-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 17px;
+  font-weight: 700;
+  background: #fff;
+  color: #101114;
+}
+
+.moderation-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  margin-bottom: 16px;
+}
+
+.moderation-tabs button {
+  border: 0;
+  border-radius: 11px;
+  padding: 10px 13px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.58);
+  cursor: pointer;
+}
+.moderation-tabs button.active {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.moderation-tabs .moderation-refresh {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+}
+
+.moderation-error {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 94, 94, 0.25);
+  background: rgba(255, 94, 94, 0.08);
+  color: #ffd0d0;
+}
+
+.moderation-workspace {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.9fr) minmax(460px, 1.35fr);
+  min-height: 620px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.moderation-list {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  max-height: 720px;
+  overflow: auto;
+}
+
+.moderation-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 16px 17px;
+  text-align: left;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  cursor: pointer;
+}
+
+.moderation-row:hover,
+.moderation-row.selected {
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.moderation-row-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+}
+
+.moderation-row-topline strong {
+  color: #fff;
+}
+
+.moderation-row-topline span {
+  color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+}
+
+.moderation-row-person {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.moderation-row-details {
+  color: rgba(255, 255, 255, 0.54);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moderation-load-more {
+  display: block;
+  margin: 16px auto;
+  padding: 10px 14px;
+}
+.moderation-detail {
+  padding: 24px;
+  overflow: auto;
+}
+
+.moderation-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+}
+
+.moderation-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.moderation-people-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 22px 0;
+}
+
+.moderation-people-grid > div,
+.moderation-case-body {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 16px;
+}
+
+.moderation-people-grid span,
+.moderation-case-body > span {
+  display: block;
+  margin-bottom: 7px;
+  color: rgba(255, 255, 255, 0.43);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}

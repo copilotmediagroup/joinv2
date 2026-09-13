@@ -10,10 +10,12 @@ import {
   SlidersHorizontal,
   Sparkles,
   UserRound,
+  ShieldCheck,
   Zap,
 } from 'lucide-react'
 import './App.css'
 import { toUserFacingError } from './lib/userFacingError'
+import { getMyAdminCapabilities } from './features/admin/adminClient'
 import { signOutCurrentUser } from './features/auth/authClient'
 import NotificationPanel from './features/notifications/NotificationPanel'
 import {
@@ -64,6 +66,9 @@ const MessagesView = React.lazy(
 )
 const ProfileView = React.lazy(
   () => import('./features/profile/ProfileView'),
+)
+const ModerationView = React.lazy(
+  () => import('./features/admin/ModerationView'),
 )
 const SignalPlaceStage = React.lazy(
   () => import('./features/signal/SignalPlaceStage'),
@@ -311,7 +316,7 @@ function App() {
     useState<string | null>(null)
 
   const [activeSurface, setActiveSurface] =
-    useState<'discover' | 'activity' | 'messages' | 'profile'>('discover')
+    useState<'discover' | 'activity' | 'messages' | 'profile' | 'admin'>('discover')
   const [activityItems, setActivityItems] =
     useState<ActivityItem[]>([])
   const [activityLoading, setActivityLoading] =
@@ -322,6 +327,17 @@ function App() {
     useState(false)
   const [notificationUnreadCount, setNotificationUnreadCount] =
     useState(0)
+  const [adminCapabilities, setAdminCapabilities] = useState<string[]>([])
+
+  const canReviewModeration = adminCapabilities.includes('moderation.review')
+
+  useEffect(() => {
+    let cancelled = false
+    void getMyAdminCapabilities()
+      .then((capabilities) => { if (!cancelled) setAdminCapabilities(capabilities) })
+      .catch(() => { if (!cancelled) setAdminCapabilities([]) })
+    return () => { cancelled = true }
+  }, [currentUser.userId])
 
   const [active, setActive] = useState('drinks')
   const [directActivitySlug, setDirectActivitySlug] =
@@ -1308,6 +1324,8 @@ function App() {
         />
       ) : activeSurface === 'profile' ? (
         <ProfileView onOpenDirectConversation={(conversationId) => { setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') }} />
+      ) : activeSurface === 'admin' && canReviewModeration ? (
+        <ModerationView />
       ) : (
         <>
       <section className="intro">
@@ -2331,6 +2349,16 @@ function App() {
           <UserRound size={20} />
           <span>Profile</span>
         </button>
+
+        {canReviewModeration && (
+          <button
+            className={activeSurface === 'admin' ? 'nav-item active' : 'nav-item'}
+            onClick={() => { setActiveSurface('admin'); setNotificationsOpen(false) }}
+          >
+            <ShieldCheck size={20} />
+            <span>Admin</span>
+          </button>
+        )}
 
         <button
           className="nav-item nav-logout"
