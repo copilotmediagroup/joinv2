@@ -798,7 +798,7 @@ function App() {
     void restoreActiveSignal(true)
   }
 
-  const handleHistoricalNotification = () => {
+  const handleHistoricalNotification = (notificationType: string) => {
     setNotificationsOpen(false)
     setFormationResult(null)
     setSignalRealtimeTarget(null)
@@ -810,8 +810,15 @@ function App() {
     setActivePlanId(null)
     setAccepted(false)
     setBored(false)
-    setActiveSurface('discover')
-    setPlanExitNotice('This Signal has ended. There is no live room to return to.')
+
+    if (notificationType === 'plan_completed') {
+      setActiveSurface('activity')
+      setPlanExitNotice('SIGNAL complete. Add a photo or video to Moments while it’s fresh.')
+    } else {
+      setActiveSurface('discover')
+      setPlanExitNotice('This Signal has ended. There is no live room to return to.')
+    }
+
     void Promise.all([refreshActivity(), refreshDiscovery()])
   }
 
