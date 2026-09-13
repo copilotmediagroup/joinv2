@@ -301,9 +301,7 @@ function ShareMomentPanel({
       onClose()
     } catch (publishError) {
       setError(
-        publishError instanceof Error
-          ? publishError.message
-          : 'Unable to publish this Signal Moment.',
+        toUserFacingError(publishError, 'Unable to publish this Signal Moment right now.'),
       )
     } finally {
       setPublishing(false)
@@ -404,9 +402,7 @@ export default function ActivityView({
       setEligiblePlans(nextEligiblePlans)
     } catch (loadError) {
       setMomentsError(
-        loadError instanceof Error
-          ? loadError.message
-          : 'Unable to load Signal Moments.',
+        toUserFacingError(loadError, 'Unable to load Signal Moments right now.'),
       )
     } finally {
       setMomentsLoading(false)
@@ -430,9 +426,7 @@ export default function ActivityView({
       } catch (loadError) {
         if (!cancelled) {
           setMomentsError(
-            loadError instanceof Error
-              ? loadError.message
-              : 'Unable to load Signal Moments.',
+            toUserFacingError(loadError, 'Unable to load Signal Moments right now.'),
           )
         }
       } finally {

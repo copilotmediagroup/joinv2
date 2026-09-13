@@ -28,6 +28,7 @@ import {
   type PlanMemberIdentity,
 } from '../plan/planMembersClient'
 import './MessagesView.css'
+import { toUserFacingError } from '../../lib/userFacingError'
 
 type MessagesViewProps = {
   currentUserId: string
@@ -115,9 +116,7 @@ export default function MessagesView({
         }
 
         setError(
-          loadError instanceof Error
-            ? loadError.message
-            : 'Unable to load conversations.',
+          toUserFacingError(loadError, 'Unable to load conversations right now.'),
         )
       } finally {
         if (!cancelled) {
@@ -156,9 +155,7 @@ export default function MessagesView({
       } catch (loadError) {
         if (!cancelled) {
           setError(
-            loadError instanceof Error
-              ? loadError.message
-              : 'Unable to load messages.',
+            toUserFacingError(loadError, 'Unable to load messages right now.'),
           )
         }
       } finally {
@@ -181,7 +178,7 @@ export default function MessagesView({
           },
           onError: (realtimeError) => {
             if (!cancelled) {
-              setError(realtimeError.message)
+              setError(toUserFacingError(realtimeError, 'Messages lost connection. Reconnecting…'))
             }
           },
         },
@@ -205,9 +202,7 @@ export default function MessagesView({
       } catch (memberError) {
         if (!cancelled) {
           setError(
-            memberError instanceof Error
-              ? memberError.message
-              : 'Unable to load Plan members.',
+            toUserFacingError(memberError, 'Unable to load Plan members right now.'),
           )
         }
       }
@@ -281,9 +276,7 @@ export default function MessagesView({
       setDraft('')
     } catch (sendError) {
       setError(
-        sendError instanceof Error
-          ? sendError.message
-          : 'Unable to send message.',
+        toUserFacingError(sendError, 'Unable to send your message right now.'),
       )
     } finally {
       setSending(false)

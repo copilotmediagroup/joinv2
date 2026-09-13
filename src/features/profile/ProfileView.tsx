@@ -39,6 +39,7 @@ import {
 } from './signalHistoryClient'
 import SignalPreferencesPanel from './SignalPreferencesPanel'
 import './ProfileView.css'
+import { toUserFacingError } from '../../lib/userFacingError'
 
 const BIO_MAX_LENGTH = 300
 const MAX_ADDITIONAL_PHOTOS = 5
@@ -236,9 +237,7 @@ export default function ProfileView() {
       } catch (loadError) {
         if (!cancelled) {
           setError(
-            loadError instanceof Error
-              ? loadError.message
-              : 'Unable to load your profile.',
+            toUserFacingError(loadError, 'Unable to load your profile right now.'),
           )
         }
       } finally {
@@ -829,9 +828,7 @@ export default function ProfileView() {
       }
 
       setError(
-        saveError instanceof Error
-          ? saveError.message
-          : 'Unable to update your profile.',
+        toUserFacingError(saveError, 'Unable to update your profile right now.'),
       )
     } finally {
       setSaving(false)

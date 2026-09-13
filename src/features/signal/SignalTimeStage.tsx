@@ -117,9 +117,7 @@ export default function SignalTimeStage({
       }
     } catch (loadError) {
       setError(
-        loadError instanceof Error
-          ? loadError.message
-          : 'Unable to coordinate a Signal time.',
+        toUserFacingError(loadError, 'Unable to coordinate a Signal time right now.'),
       )
     } finally {
       setLoading(false)
@@ -225,9 +223,7 @@ export default function SignalTimeStage({
       .catch((reconcileError) => {
         if (!cancelled) {
           setError(
-            reconcileError instanceof Error
-              ? reconcileError.message
-              : 'Unable to finish time coordination.',
+            toUserFacingError(reconcileError, 'Unable to finish time coordination right now.'),
           )
         }
       })
@@ -290,9 +286,7 @@ export default function SignalTimeStage({
     } catch (recoveryError) {
       recoveryStartedRef.current = false
       setError(
-        recoveryError instanceof Error
-          ? recoveryError.message
-          : 'Unable to find another Signal venue.',
+        toUserFacingError(recoveryError, 'Unable to find another Signal venue right now.'),
       )
     } finally {
       setRecovering(false)
@@ -344,9 +338,7 @@ export default function SignalTimeStage({
       await loadSnapshot()
     } catch (submitError) {
       setError(
-        submitError instanceof Error
-          ? submitError.message
-          : 'Unable to submit your available times.',
+        toUserFacingError(submitError, 'Unable to submit your available times right now.'),
       )
     } finally {
       setSubmitting(false)
@@ -375,9 +367,7 @@ export default function SignalTimeStage({
       await loadSnapshot()
     } catch (submitError) {
       setError(
-        submitError instanceof Error
-          ? submitError.message
-          : 'Unable to save your preferred time.',
+        toUserFacingError(submitError, 'Unable to save your preferred time right now.'),
       )
     } finally {
       setSubmitting(false)

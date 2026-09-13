@@ -3,6 +3,7 @@ import {
   signInWithPassword,
   signUpWithPassword,
 } from '../../auth/authClient'
+import { toUserFacingError } from '../../../lib/userFacingError'
 
 type AuthMode = 'sign-in' | 'sign-up'
 
@@ -56,9 +57,7 @@ export function AuthGateView({
       )
     } catch (error) {
       setMessage(
-        error instanceof Error
-          ? error.message
-          : 'SIGNAL could not complete that request.',
+        toUserFacingError(error, 'SIGNAL could not complete that request. Please try again.'),
       )
     } finally {
       setSubmitting(false)

@@ -8,6 +8,7 @@ import {
 import { AuthGateView } from './AuthGateView'
 import { OnboardingGateView } from './OnboardingGateView'
 import { SignalCurrentUserProvider } from './signalCurrentUserContext'
+import { toUserFacingError } from '../../../lib/userFacingError'
 
 type SignalAccessGateProps = {
   children: React.ReactNode
@@ -71,9 +72,7 @@ export function SignalAccessGate({
       setGateState({
         kind: 'error',
         message:
-          error instanceof Error
-            ? error.message
-            : 'SIGNAL could not load your account.',
+          toUserFacingError(error, 'SIGNAL could not load your account right now.'),
       })
     }
   }, [auth.loading, auth.user])

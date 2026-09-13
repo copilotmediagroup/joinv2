@@ -17,6 +17,7 @@ import {
   searchOnboardingCities,
   type OnboardingCityOption,
 } from '../cityClient'
+import { toUserFacingError } from '../../../lib/userFacingError'
 
 type Gender = 'male' | 'female'
 
@@ -124,9 +125,7 @@ export function OnboardingGateView({
         if (sequence === citySearchSequence.current) {
           setCityResults([])
           setMessage(
-            error instanceof Error
-              ? error.message
-              : 'City search is unavailable right now.',
+            toUserFacingError(error, 'City search is unavailable right now.'),
           )
         }
       } finally {
@@ -190,9 +189,7 @@ export function OnboardingGateView({
 
       setAvatarPreviewUrl(null)
       setMessage(
-        error instanceof Error
-          ? error.message
-          : 'Choose a valid profile photo.',
+        toUserFacingError(error, 'Choose a valid profile photo.'),
       )
     }
   }
@@ -250,9 +247,7 @@ export function OnboardingGateView({
       await onComplete(completed)
     } catch (error) {
       setMessage(
-        error instanceof Error
-          ? error.message
-          : 'SIGNAL could not finish your profile.',
+        toUserFacingError(error, 'SIGNAL could not finish your profile right now.'),
       )
     } finally {
       setSubmitting(false)

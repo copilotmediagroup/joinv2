@@ -6,6 +6,7 @@ import {
   type SignalPreferences,
 } from './signalPreferencesClient'
 import './SignalPreferencesPanel.css'
+import { toUserFacingError } from '../../lib/userFacingError'
 
 type PreferenceKey = keyof SignalPreferences
 
@@ -89,7 +90,7 @@ export default function SignalPreferencesPanel() {
         }
       })
       .catch((loadError) => {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Unable to load energy preferences.')
+        if (!cancelled) setError(toUserFacingError(loadError, 'Unable to load energy preferences right now.'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -114,7 +115,7 @@ export default function SignalPreferencesPanel() {
       setDraft(next)
       setEditing(false)
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Unable to save energy preferences.')
+      setError(toUserFacingError(saveError, 'Unable to save energy preferences right now.'))
     } finally {
       setSaving(false)
     }
