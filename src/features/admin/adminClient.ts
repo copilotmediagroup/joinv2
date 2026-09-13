@@ -154,3 +154,73 @@ export async function liftUserAccountRestriction(userId: string, reason: string)
   })
   if (error) throw new Error(error.message || 'Unable to lift account restriction')
 }
+
+export type ModerationMomentState = 'open' | 'reviewed' | 'dismissed' | 'actioned'
+export type ModerationMomentReport = {
+  reportId: string
+  momentId: string
+  reporterUserId: string
+  reporterDisplayName: string
+  authorUserId: string
+  authorDisplayName: string
+  caption: string | null
+  reason: string
+  details: string | null
+  state: ModerationMomentState
+  assignedAdminUserId: string | null
+  claimedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+function mapModerationMomentReport(row: Record<string, unknown>): ModerationMomentReport {
+  return {
+    reportId: required(row.report_id, 'moment report id'), momentId: required(row.moment_id, 'moment id'),
+    reporterUserId: required(row.reporter_user_id, 'reporter user id'), reporterDisplayName: required(row.reporter_display_name, 'reporter display name'),
+    authorUserId: required(row.author_user_id, 'author user id'), authorDisplayName: required(row.author_display_name, 'author display name'),
+    caption: typeof row.caption === 'string' ? row.caption : null, reason: required(row.reason, 'reason'), details: typeof row.details === 'string' ? row.details : null,
+    state: required(row.state, 'state') as ModerationMomentState, assignedAdminUserId: typeof row.assigned_admin_user_id === 'string' ? row.assigned_admin_user_id : null,
+    claimedAt: typeof row.claimed_at === 'string' ? row.claimed_at : null, createdAt: required(row.created_at, 'created at'), updatedAt: required(row.updated_at, 'updated at'),
+  }
+}
+
+export async function getModerationMomentQueue(input: {
+  state: ModerationMomentState | null
+  assignment: ModerationAssignmentScope
+  cursor?: ModerationCursor | null
+  limit?: number
+}): Promise<ModerationMomentReport[]> {
+  const { data, error } = await supabase.rpc('get_moderation_moment_queue', {
+    p_state: input.state, p_assignment: input.assignment,
+    p_after_created_at: input.cursor?.createdAt ?? null, p_after_id: input.cursor?.reportId ?? null,
+    p_limit: input.limit ?? 40,
+  })
+  if (error) throw new Error(error.message || 'Unable to load Moment moderation queue')
+  if (!Array.isArray(data)) throw new Error('Invalid Moment moderation queue response')
+  return data.map((raw) => mapModerationMomentReport(raw as Record<string, unknown>))
+}
+
+export async function claimNextModerationMoment(): Promise<string | null> {
+  const { data, error } = await supabase.rpc('claim_next_moderation_moment')
+  if (error) throw new Error(error.message || 'Unable to claim next Moment report')
+  return data === null ? null : required(data, 'claimed Moment report id')
+}
+
+export async function releaseMyModerationMoment(reportId: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('release_my_moderation_moment', { p_report_id: reportId })
+  if (error) throw new Error(error.message || 'Unable to release Moment report')
+  return data === true
+}
+
+export async function reviewModerationMoment(input: {
+  reportId: string
+  state: 'dismissed' | 'actioned'
+  note: string | null
+}): Promise<void> {
+  const { error } = await supabase.rpc('review_moderation_moment', {
+    p_report_id: input.reportId,
+    p_state: input.state,
+    p_note: input.note,
+  })
+  if (error) throw new Error(error.message || 'Unable to finish Moment report')
+}
