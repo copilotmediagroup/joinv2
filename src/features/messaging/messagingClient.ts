@@ -14,12 +14,6 @@ export type PlanMessage = {
   sentAt: string
 }
 
-type ConversationRow = {
-  id: unknown
-  plan_id: unknown
-  created_at: unknown
-}
-
 type MessageRow = {
   id: unknown
   conversation_id: unknown
@@ -50,25 +44,6 @@ function requireString(
   }
 
   return value
-}
-
-function parseConversationRow(
-  row: ConversationRow,
-): PlanConversation {
-  return {
-    conversationId: requireString(
-      row.id,
-      'conversation id',
-    ),
-    planId: requireString(
-      row.plan_id,
-      'plan id',
-    ),
-    createdAt: requireString(
-      row.created_at,
-      'conversation created at',
-    ),
-  }
 }
 
 function parseMessageRow(
@@ -125,38 +100,40 @@ function parseSendPlanMessageRow(
   }
 }
 
-export async function getMyPlanConversations():
-Promise<PlanConversation[]> {
-  const {
-    data,
-    error,
-  } = await supabase
-    .from('conversations')
-    .select(
-      'id, plan_id, created_at',
-    )
-    .order('created_at', {
-      ascending: false,
-    })
+export const PLAN_CONVERSATION_PAGE_SIZE = 30
 
-  if (error) {
-    throw new Error(
-      error.message ||
-        'Unable to load conversations.',
-    )
+type PlanConversationCursor = {
+  createdAt: string
+  conversationId: string
+}
+
+function parseConversationRpcRow(row: Record<string, unknown>): PlanConversation {
+  return {
+    conversationId: requireString(row.conversation_id, 'conversation id'),
+    planId: requireString(row.plan_id, 'plan id'),
+    createdAt: requireString(row.created_at, 'conversation created at'),
   }
+}
 
-  if (!Array.isArray(data)) {
-    throw new Error(
-      'Invalid conversations response.',
-    )
-  }
+export async function getMyPlanConversationsPage(
+  cursor: PlanConversationCursor | null = null,
+): Promise<PlanConversation[]> {
+  const { data, error } = await supabase.rpc('get_my_plan_conversations_page', {
+    p_after_created_at: cursor?.createdAt ?? null,
+    p_after_conversation_id: cursor?.conversationId ?? null,
+    p_limit: PLAN_CONVERSATION_PAGE_SIZE,
+  })
 
-  return data.map((row) =>
-    parseConversationRow(
-      row as ConversationRow,
-    ),
-  )
+  if (error) throw new Error(error.message || 'Unable to load conversations.')
+  if (!Array.isArray(data)) throw new Error('Invalid conversations response.')
+  return (data as Record<string, unknown>[]).map(parseConversationRpcRow)
+}
+
+export async function getMyPlanConversation(planId: string): Promise<PlanConversation | null> {
+  const { data, error } = await supabase.rpc('get_my_plan_conversation', { p_plan_id: planId })
+  if (error) throw new Error(error.message || 'Unable to load Plan conversation.')
+  const row = Array.isArray(data) ? data[0] : null
+  return row ? parseConversationRpcRow(row as Record<string, unknown>) : null
 }
 
 const PLAN_MESSAGE_WINDOW = 200

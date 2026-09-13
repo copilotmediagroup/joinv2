@@ -594,8 +594,10 @@
 .direct-thread-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .58; }
 .direct-thread-row > b { min-width: 20px; height: 20px; display: grid; place-items: center; border-radius: 999px; background: currentColor; font-size: 9px; }
 .direct-messages-empty { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 10px; opacity: .6; }
-.direct-load-more { width: 100%; min-height: 42px; margin-top: 2px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: rgba(255,255,255,.025); color: inherit; font-size: 10px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }
-.direct-load-more:disabled { opacity: .45; cursor: default; }
+.direct-load-more,
+.messages-load-more { width: 100%; min-height: 42px; margin-top: 2px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: rgba(255,255,255,.025); color: inherit; font-size: 10px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }
+.direct-load-more:disabled,
+.messages-load-more:disabled { opacity: .45; cursor: default; }
 .direct-thread { display: grid; gap: 10px; margin-bottom: 18px; }
 .direct-thread > header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .direct-thread > header button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: inherit; font: inherit; font-size: 10px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }

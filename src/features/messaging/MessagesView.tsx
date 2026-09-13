@@ -12,7 +12,9 @@ import {
   Zap,
 } from 'lucide-react'
 import {
-  getMyPlanConversations,
+  getMyPlanConversation,
+  getMyPlanConversationsPage,
+  PLAN_CONVERSATION_PAGE_SIZE,
   getPlanMessages,
   sendPlanMessage,
   type PlanConversation,
@@ -36,6 +38,18 @@ type MessagesViewProps = {
   initialPlanId?: string | null
   initialDirectConversationId?: string | null
   onPlanEnded?: (reason: 'left' | 'ended' | 'safety') => void
+}
+
+function mergePlanConversations(
+  current: PlanConversation[],
+  incoming: PlanConversation[],
+): PlanConversation[] {
+  const byId = new Map(current.map((item) => [item.conversationId, item]))
+  incoming.forEach((item) => byId.set(item.conversationId, item))
+  return [...byId.values()].sort((left, right) =>
+    right.createdAt.localeCompare(left.createdAt) ||
+    right.conversationId.localeCompare(left.conversationId),
+  )
 }
 
 function formatMessageTime(
@@ -75,6 +89,9 @@ export default function MessagesView({
     useState(true)
   const [loadingMessages, setLoadingMessages] =
     useState(false)
+  const [loadingMoreConversations, setLoadingMoreConversations] = useState(false)
+  const [hasMoreConversations, setHasMoreConversations] = useState(false)
+  const [conversationCursor, setConversationCursor] = useState<{ createdAt: string; conversationId: string } | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] =
     useState<string | null>(null)
@@ -93,46 +110,34 @@ export default function MessagesView({
       setError(null)
 
       try {
-        const result =
-          await getMyPlanConversations()
+        const page = await getMyPlanConversationsPage()
+        let visible = page
+        let deepLinked: PlanConversation | null = null
 
-        if (cancelled) {
-          return
+        if (initialPlanId && !page.some((item) => item.planId === initialPlanId)) {
+          deepLinked = await getMyPlanConversation(initialPlanId)
+          if (deepLinked) visible = mergePlanConversations(page, [deepLinked])
         }
 
-        setConversations(result)
+        if (cancelled) return
+        setConversations(visible)
+        setHasMoreConversations(page.length === PLAN_CONVERSATION_PAGE_SIZE)
+        const last = page[page.length - 1]
+        setConversationCursor(last ? { createdAt: last.createdAt, conversationId: last.conversationId } : null)
 
-        if (initialPlanId) {
-          const targetConversation = result.find(
-            (conversation) => conversation.planId === initialPlanId,
-          )
-
-          if (targetConversation) {
-            setSelectedConversationId(
-              targetConversation.conversationId,
-            )
-          }
-        }
+        const target = initialPlanId
+          ? visible.find((item) => item.planId === initialPlanId) ?? deepLinked
+          : null
+        if (target) setSelectedConversationId(target.conversationId)
       } catch (loadError) {
-        if (cancelled) {
-          return
-        }
-
-        setError(
-          toUserFacingError(loadError, 'Unable to load conversations right now.'),
-        )
+        if (!cancelled) setError(toUserFacingError(loadError, 'Unable to load conversations right now.'))
       } finally {
-        if (!cancelled) {
-          setLoadingConversations(false)
-        }
+        if (!cancelled) setLoadingConversations(false)
       }
     }
 
     void loadConversations()
-
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [initialPlanId])
 
   useEffect(() => {
@@ -222,6 +227,26 @@ export default function MessagesView({
       unsubscribe()
     }
   }, [selectedPlanId])
+
+  const loadMoreConversations = async () => {
+    if (!conversationCursor || loadingMoreConversations) return
+    setLoadingMoreConversations(true)
+    setError(null)
+
+    try {
+      const page = await getMyPlanConversationsPage(conversationCursor)
+      setConversations((current) => mergePlanConversations(current, page))
+      setHasMoreConversations(page.length === PLAN_CONVERSATION_PAGE_SIZE)
+      const last = page[page.length - 1]
+      setConversationCursor(last
+        ? { createdAt: last.createdAt, conversationId: last.conversationId }
+        : null)
+    } catch (loadError) {
+      setError(toUserFacingError(loadError, 'Unable to load older Plan conversations right now.'))
+    } finally {
+      setLoadingMoreConversations(false)
+    }
+  }
 
   const handleSend = async (
     event: FormEvent<HTMLFormElement>,
@@ -540,6 +565,16 @@ export default function MessagesView({
             ),
           )
         )}
+        {hasMoreConversations ? (
+          <button
+            type="button"
+            className="messages-load-more"
+            onClick={() => { void loadMoreConversations() }}
+            disabled={loadingMoreConversations}
+          >
+            {loadingMoreConversations ? 'LOADING…' : 'LOAD OLDER PLAN CHATS'}
+          </button>
+        ) : null}
       </div>
     </section>
   )
