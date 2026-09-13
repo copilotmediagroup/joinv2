@@ -381,6 +381,8 @@ function App() {
     useState<string | null>(null)
   const [planExitNotice, setPlanExitNotice] =
     useState<string | null>(null)
+  const [momentComposerPlanId, setMomentComposerPlanId] =
+    useState<string | null>(null)
   const [logoutSubmitting, setLogoutSubmitting] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
@@ -798,7 +800,7 @@ function App() {
     void restoreActiveSignal(true)
   }
 
-  const handleHistoricalNotification = (notificationType: string) => {
+  const handleHistoricalNotification = (notificationType: string, relatedPlanId: string | null) => {
     setNotificationsOpen(false)
     setFormationResult(null)
     setSignalRealtimeTarget(null)
@@ -812,9 +814,11 @@ function App() {
     setBored(false)
 
     if (notificationType === 'plan_completed') {
+      setMomentComposerPlanId(relatedPlanId)
       setActiveSurface('activity')
       setPlanExitNotice('SIGNAL complete. Add a photo or video to Moments while it’s fresh.')
     } else {
+      setMomentComposerPlanId(null)
       setActiveSurface('discover')
       setPlanExitNotice('This Signal has ended. There is no live room to return to.')
     }
@@ -1256,6 +1260,8 @@ function App() {
           onRefresh={refreshActivity}
           onOpenItem={handleOpenActivityItem}
           currentUserId={currentUser.userId}
+          momentComposerPlanId={momentComposerPlanId}
+          onMomentComposerHandled={() => setMomentComposerPlanId(null)}
         />
       ) : activeSurface === 'messages' ? (
         <MessagesView

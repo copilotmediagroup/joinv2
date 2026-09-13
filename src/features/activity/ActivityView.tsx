@@ -35,6 +35,8 @@ type ActivityViewProps = {
   onRefresh: () => void | Promise<void>
   onOpenItem: (item: ActivityItem) => void
   currentUserId: string
+  momentComposerPlanId?: string | null
+  onMomentComposerHandled?: () => void
 }
 
 function formatState(value: string): string {
@@ -269,14 +271,20 @@ function CurrentActivityCard({
 
 function ShareMomentPanel({
   eligiblePlans,
+  preferredPlanId,
   onPublished,
   onClose,
 }: {
   eligiblePlans: SignalMomentEligiblePlan[]
+  preferredPlanId?: string | null
   onPublished: () => Promise<void>
   onClose: () => void
 }) {
-  const [planId, setPlanId] = useState(eligiblePlans[0]?.planId ?? '')
+  const [planId, setPlanId] = useState(() =>
+    eligiblePlans.find((plan) => plan.planId === preferredPlanId)?.planId ??
+    eligiblePlans[0]?.planId ??
+    '',
+  )
   const [caption, setCaption] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [publishing, setPublishing] = useState(false)
@@ -382,6 +390,8 @@ export default function ActivityView({
   onRefresh,
   onOpenItem,
   currentUserId,
+  momentComposerPlanId = null,
+  onMomentComposerHandled,
 }: ActivityViewProps) {
   const currentItem = items[0] ?? null
   const [moments, setMoments] = useState<SignalMoment[]>([])
@@ -447,6 +457,11 @@ export default function ActivityView({
       unsubscribe()
     }
   }, [refreshMoments])
+
+  const completionPromptPlan = momentComposerPlanId
+    ? eligiblePlans.find((plan) => plan.planId === momentComposerPlanId) ?? null
+    : null
+  const composerVisible = composerOpen || completionPromptPlan !== null
 
   return (
     <section className="activity-view">
@@ -515,16 +530,20 @@ export default function ActivityView({
             <h2>People actually went.</h2>
             <p>Photos and videos from real groupings that happened through SIGNAL.</p>
           </div>
-          {eligiblePlans.length > 0 && !composerOpen ? (
+          {eligiblePlans.length > 0 && !composerVisible ? (
             <button type="button" className="share-moment-button" onClick={() => setComposerOpen(true)}>
               <Camera size={15} /> SHARE A MOMENT
             </button>
           ) : null}
-        </div>        {composerOpen ? (
+        </div>        {composerVisible ? (
           <ShareMomentPanel
             eligiblePlans={eligiblePlans}
+            preferredPlanId={completionPromptPlan?.planId ?? null}
             onPublished={refreshMoments}
-            onClose={() => setComposerOpen(false)}
+            onClose={() => {
+              setComposerOpen(false)
+              onMomentComposerHandled?.()
+            }}
           />
         ) : null}
 
