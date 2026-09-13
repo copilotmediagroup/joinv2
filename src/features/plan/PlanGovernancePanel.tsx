@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Clock3, LogOut, MapPin, Navigation, ShieldCheck, Users, Zap } from 'lucide-react'
+import { CheckCircle2, Clock3, LogOut, MapPin, Navigation, ShieldCheck, Users, Zap } from 'lucide-react'
 import {
   getMyPlanGovernance,
   getMyPlanReplacementStatus,
@@ -15,6 +15,11 @@ import {
 } from './planGovernanceClient'
 import './PlanGovernancePanel.css'
 import { toUserFacingError } from '../../lib/userFacingError'
+import {
+  checkInToMyPlan,
+  getMyPlanAttendanceStatus,
+  type PlanAttendanceStatus,
+} from './planAttendanceClient'
 
 type Props = {
   planId: string
@@ -50,15 +55,19 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
   const [changesFrozen, setChangesFrozen] = useState(true)
   const [replacement, setReplacement] = useState<PlanReplacementStatus | null>(null)
   const [replacementSeconds, setReplacementSeconds] = useState(0)
+  const [attendance, setAttendance] = useState<PlanAttendanceStatus | null>(null)
+  const [attendanceBusy, setAttendanceBusy] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
-      const [next, replacementStatus] = await Promise.all([
-        getMyPlanGovernance(planId),
+      const next = await getMyPlanGovernance(planId)
+      const [replacementStatus, attendanceStatus] = await Promise.all([
         getMyPlanReplacementStatus(planId),
+        getMyPlanAttendanceStatus(planId),
       ])
       setSnapshot(next)
       setReplacement(replacementStatus)
+      setAttendance(attendanceStatus)
       setReplacementSeconds(
         replacementStatus?.state === 'open'
           ? Math.max(0, Math.ceil((new Date(replacementStatus.deadlineAt).getTime() - Date.now()) / 1000))
@@ -74,6 +83,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
       if (loadError instanceof PlanAccessLostError) {
         setSnapshot(null)
         setReplacement(null)
+        setAttendance(null)
         setError(null)
         onLeftPlan?.('ended')
         return
@@ -105,6 +115,34 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
     return () => window.clearInterval(timer)
   }, [replacement?.deadlineAt, replacement?.state])
 
+
+  useEffect(() => {
+    if (!attendance?.windowOpensAt || !attendance.windowClosesAt) return
+    const opensAt = new Date(attendance.windowOpensAt).getTime()
+    const closesAt = new Date(attendance.windowClosesAt).getTime()
+    const now = Date.now()
+    if (now < opensAt || now > closesAt) return
+
+    const timer = window.setInterval(() => {
+      void getMyPlanAttendanceStatus(planId)
+        .then(setAttendance)
+        .catch(() => undefined)
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
+
+  const checkIn = async () => {
+    if (attendanceBusy || !attendance?.canCheckIn) return
+    setAttendanceBusy(true)
+    setError(null)
+    try {
+      setAttendance(await checkInToMyPlan(planId))
+    } catch (checkInError) {
+      setError(toUserFacingError(checkInError, 'Unable to check you in right now. Please try again.'))
+    } finally {
+      setAttendanceBusy(false)
+    }
+  }
 
   const runVote = async (
     operation: 'join' | 'change',
@@ -203,6 +241,34 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
             <Navigation size={14} /> DIRECTIONS
           </a>
         )}
+
+        {attendance?.checkedIn ? (
+          <div className="plan-attendance-status checked">
+            <CheckCircle2 size={16} />
+            <span>
+              <small>{attendance.verified ? 'SHOW-UP VERIFIED' : 'CHECKED IN'}</small>
+              <strong>{attendance.verified ? 'SIGNAL knows you showed up.' : "You're here."}</strong>
+              <em>{attendance.checkedInCount}/{attendance.activeMemberCount} checked in</em>
+            </span>
+          </div>
+        ) : attendance?.canCheckIn ? (
+          <button
+            type="button"
+            className="plan-check-in-button"
+            disabled={attendanceBusy}
+            onClick={() => { void checkIn() }}
+          >
+            <MapPin size={15} /> {attendanceBusy ? 'CHECKING YOU IN…' : "I'M HERE"}
+          </button>
+        ) : attendance?.windowOpensAt && new Date(attendance.windowOpensAt).getTime() > new Date(attendance.serverNow).getTime() ? (
+          <div className="plan-attendance-status">
+            <MapPin size={15} />
+            <span>
+              <small>MEETUP CHECK-IN</small>
+              <strong>Opens 30 minutes before.</strong>
+            </span>
+          </div>
+        ) : null}
       </section>
 
       <div className="plan-governance-facts">

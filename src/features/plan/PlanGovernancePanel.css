@@ -67,3 +67,35 @@
 .plan-meetup-detail strong { font-size: 12px; line-height: 1.3; }
 .plan-meetup-detail em { font-size: 10px; font-style: normal; line-height: 1.35; opacity: .55; }
 .plan-directions-link { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 7px; border: 1px solid rgba(108, 205, 255, .26); border-radius: 10px; color: inherit; text-decoration: none; font-size: 10px; font-weight: 900; letter-spacing: .08em; background: rgba(78, 174, 255, .07); }
+
+.plan-attendance-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 11px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 11px;
+  background: rgba(255,255,255,.025);
+}
+.plan-attendance-status.checked {
+  border-color: rgba(108,205,255,.24);
+  background: rgba(78,174,255,.07);
+}
+.plan-attendance-status > span { display: grid; gap: 2px; }
+.plan-attendance-status small { font-size: 8px; font-weight: 900; letter-spacing: .11em; opacity: .55; }
+.plan-attendance-status strong { font-size: 11px; }
+.plan-attendance-status em { font-size: 9px; font-style: normal; opacity: .55; }
+.plan-check-in-button {
+  min-height: 42px;
+  border: 1px solid rgba(108,205,255,.34);
+  border-radius: 11px;
+  background: rgba(78,174,255,.12);
+  color: inherit;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .09em;
+  cursor: pointer;
+}
+.plan-check-in-button:disabled { opacity: .55; cursor: wait; }
