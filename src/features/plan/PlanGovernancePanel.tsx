@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Clock3, LogOut, ShieldCheck, Users, Zap } from 'lucide-react'
+import { Clock3, LogOut, MapPin, Navigation, ShieldCheck, Users, Zap } from 'lucide-react'
 import {
   getMyPlanGovernance,
   getMyPlanReplacementStatus,
@@ -175,9 +175,39 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
         <strong>{snapshot.activeMemberCount}/{snapshot.capacity} IN</strong>
       </header>
 
+      <section className="plan-meetup-card">
+        <div className="plan-meetup-copy">
+          <span className="plan-governance-kicker"><Zap size={13} fill="currentColor" /> YOUR PLAN IS SET</span>
+          <strong>{snapshot.activityName ?? snapshot.title ?? 'SIGNAL PLAN'}</strong>
+          <small>{[snapshot.cityName, snapshot.stateCode].filter(Boolean).join(', ')}</small>
+        </div>
+        <div className="plan-meetup-detail">
+          <Clock3 size={15} />
+          <span><small>WHEN</small><strong>{formatTime(snapshot.scheduledStartsAt)}</strong></span>
+        </div>
+        <div className="plan-meetup-detail">
+          <MapPin size={15} />
+          <span>
+            <small>WHERE</small>
+            <strong>{snapshot.currentVenueName ?? 'Venue being finalized'}</strong>
+            {snapshot.currentVenueAddress && <em>{snapshot.currentVenueAddress}</em>}
+          </span>
+        </div>
+        {snapshot.currentVenueAddress && (
+          <a
+            className="plan-directions-link"
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(snapshot.currentVenueAddress)}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Navigation size={14} /> DIRECTIONS
+          </a>
+        )}
+      </section>
+
       <div className="plan-governance-facts">
-        <span><Clock3 size={14} /> {formatTime(snapshot.scheduledStartsAt)}</span>
-        <span><Users size={14} /> {snapshot.activeMemberCount} active members</span>
+        <span><Users size={14} /> {snapshot.activeMemberCount}/{snapshot.capacity} active</span>
+        <span>{snapshot.state.replaceAll('_', ' ').toUpperCase()}</span>
       </div>
 
       {replacement?.state === 'open' && (

@@ -59,12 +59,17 @@ export type PlanGovernanceSnapshot = {
   planId: string
   state: string
   title: string | null
+  activityName: string | null
+  cityName: string | null
+  stateCode: string | null
   capacity: number
   activeMemberCount: number
   admissionMode: string
   scheduledStartsAt: string | null
   scheduledEndsAt: string | null
   currentVenueId: string | null
+  currentVenueName: string | null
+  currentVenueAddress: string | null
   conversationId: string | null
   changeFreezeAt: string | null
   joinRequest: PlanJoinRequestSnapshot | null
