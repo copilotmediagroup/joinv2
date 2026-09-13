@@ -1325,7 +1325,7 @@ function App() {
       ) : activeSurface === 'profile' ? (
         <ProfileView onOpenDirectConversation={(conversationId) => { setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') }} />
       ) : activeSurface === 'admin' && canReviewModeration ? (
-        <ModerationView />
+        <ModerationView canEnforce={adminCapabilities.includes('moderation.enforce')} />
       ) : (
         <>
       <section className="intro">

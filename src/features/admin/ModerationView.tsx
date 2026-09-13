@@ -28,7 +28,7 @@ function queueConfig(tab: QueueTab): {
 function formatReason(reason: string): string {
   return reason.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
-export default function ModerationView() {
+export default function ModerationView({ canEnforce = false }: { canEnforce?: boolean }) {
   const [tab, setTab] = useState<QueueTab>('unassigned')
   const [items, setItems] = useState<ModerationReport[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -232,6 +232,7 @@ export default function ModerationView() {
               </div>
 
               <div className="moderation-case-body">
+                {canEnforce && <span>Enforcement authority enabled</span>}
                 <span>Reason</span>
                 <strong>{formatReason(selected.reason)}</strong>
                 <p>{selected.details || 'No additional details were provided.'}</p>
