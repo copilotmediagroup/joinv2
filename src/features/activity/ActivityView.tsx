@@ -27,6 +27,7 @@ import {
 } from './signalMomentsClient'
 import './ActivityView.css'
 import { toUserFacingError } from '../../lib/userFacingError'
+import StayConnectedPanel from './StayConnectedPanel'
 
 type ActivityViewProps = {
   items: ActivityItem[]
@@ -36,6 +37,7 @@ type ActivityViewProps = {
   onOpenItem: (item: ActivityItem) => void
   currentUserId: string
   momentComposerPlanId?: string | null
+  stayConnectedPlanId?: string | null
   onMomentComposerHandled?: () => void
 }
 
@@ -391,6 +393,7 @@ export default function ActivityView({
   onOpenItem,
   currentUserId,
   momentComposerPlanId = null,
+  stayConnectedPlanId = null,
   onMomentComposerHandled,
 }: ActivityViewProps) {
   const currentItem = items[0] ?? null
@@ -462,6 +465,9 @@ export default function ActivityView({
     ? eligiblePlans.find((plan) => plan.planId === momentComposerPlanId) ?? null
     : null
   const composerVisible = composerOpen || completionPromptPlan !== null
+  const connectionPlan = stayConnectedPlanId
+    ? eligiblePlans.find((plan) => plan.planId === stayConnectedPlanId) ?? null
+    : completionPromptPlan ?? eligiblePlans[0] ?? null
 
   return (
     <section className="activity-view">
@@ -545,6 +551,10 @@ export default function ActivityView({
               onMomentComposerHandled?.()
             }}
           />
+        ) : null}
+
+        {connectionPlan ? (
+          <StayConnectedPanel key={connectionPlan.planId} planId={connectionPlan.planId} />
         ) : null}
 
         {momentsError ? (

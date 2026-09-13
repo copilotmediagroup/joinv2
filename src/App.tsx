@@ -383,6 +383,8 @@ function App() {
     useState<string | null>(null)
   const [momentComposerPlanId, setMomentComposerPlanId] =
     useState<string | null>(null)
+  const [stayConnectedPlanId, setStayConnectedPlanId] =
+    useState<string | null>(null)
   const [logoutSubmitting, setLogoutSubmitting] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
@@ -815,10 +817,17 @@ function App() {
 
     if (notificationType === 'plan_completed') {
       setMomentComposerPlanId(relatedPlanId)
+      setStayConnectedPlanId(relatedPlanId)
       setActiveSurface('activity')
       setPlanExitNotice('SIGNAL complete. Add a photo or video to Moments while it’s fresh.')
+    } else if (notificationType === 'connection_request' || notificationType === 'connection_accepted') {
+      setMomentComposerPlanId(null)
+      setStayConnectedPlanId(relatedPlanId)
+      setActiveSurface('activity')
+      setPlanExitNotice(notificationType === 'connection_request' ? 'Someone from your SIGNAL wants to stay connected.' : 'You’re connected with someone from SIGNAL.')
     } else {
       setMomentComposerPlanId(null)
+      setStayConnectedPlanId(null)
       setActiveSurface('discover')
       setPlanExitNotice('This Signal has ended. There is no live room to return to.')
     }
@@ -1261,6 +1270,7 @@ function App() {
           onOpenItem={handleOpenActivityItem}
           currentUserId={currentUser.userId}
           momentComposerPlanId={momentComposerPlanId}
+          stayConnectedPlanId={stayConnectedPlanId}
           onMomentComposerHandled={() => setMomentComposerPlanId(null)}
         />
       ) : activeSurface === 'messages' ? (

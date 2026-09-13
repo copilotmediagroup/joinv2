@@ -841,3 +841,20 @@
   color: rgba(222, 230, 247, .66);
   font-size: 11px;
 }
+
+.stay-connected-panel { display: grid; gap: 12px; padding: 15px; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; background: rgba(255,255,255,.025); }
+.stay-connected-head { display: grid; gap: 3px; }
+.stay-connected-head > span { display: inline-flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 900; letter-spacing: .1em; }
+.stay-connected-head > small { opacity: .58; }
+.stay-connected-list { display: grid; gap: 8px; }
+.stay-connected-person { display: flex; align-items: center; gap: 10px; min-height: 54px; padding: 8px; border-radius: 13px; background: rgba(255,255,255,.035); }
+.stay-connected-person > img, .stay-connected-avatar-fallback { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; object-fit: cover; background: rgba(255,255,255,.08); display: grid; place-items: center; font-size: 12px; font-weight: 900; }
+.stay-connected-copy { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.stay-connected-copy strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stay-connected-copy small { font-size: 8px; font-weight: 900; letter-spacing: .08em; opacity: .5; }
+.stay-connected-person button, .stay-connected-badge { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid rgba(120,205,255,.22); border-radius: 9px; padding: 0 9px; background: rgba(70,170,255,.08); color: inherit; font-size: 8px; font-weight: 900; letter-spacing: .06em; }
+.stay-connected-person button { cursor: pointer; }
+.stay-connected-person button:disabled { opacity: .5; cursor: wait; }
+.stay-connected-actions { display: flex; gap: 5px; }
+.stay-connected-badge { opacity: .72; }
+.stay-connected-error { margin: 0; font-size: 10px; }
