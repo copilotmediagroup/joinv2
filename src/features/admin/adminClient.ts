@@ -264,3 +264,18 @@ export async function getModerationMomentEvidence(
     } as ModerationMomentEvidenceMedia
   }))
 }
+
+export async function enforceMomentAuthorAccount(input: {
+  reportId: string
+  action: 'warning' | 'suspension' | 'ban'
+  durationMinutes?: number | null
+  reason: string
+}): Promise<void> {
+  const { error } = await supabase.rpc('enforce_moment_author_account', {
+    p_report_id: input.reportId,
+    p_action: input.action,
+    p_duration_minutes: input.durationMinutes ?? null,
+    p_reason: input.reason,
+  })
+  if (error) throw new Error(error.message || 'Unable to enforce Moment author account')
+}

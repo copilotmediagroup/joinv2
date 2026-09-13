@@ -3,6 +3,7 @@ import { EyeOff, Inbox, RefreshCw, Undo2, XCircle } from 'lucide-react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
   claimNextModerationMoment,
+  enforceMomentAuthorAccount,
   getModerationMomentEvidence,
   getModerationMomentQueue,
   releaseMyModerationMoment,
@@ -29,7 +30,7 @@ function formatReason(reason: string): string {
   return reason.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
-export default function MomentModerationPanel() {
+export default function MomentModerationPanel({ canEnforce = false }: { canEnforce?: boolean }) {
   const [tab, setTab] = useState<QueueTab>('unassigned')
   const [items, setItems] = useState<ModerationMomentReport[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -41,6 +42,8 @@ export default function MomentModerationPanel() {
   const [note, setNote] = useState('')
   const [evidence, setEvidence] = useState<ModerationMomentEvidenceMedia[]>([])
   const [evidenceLoading, setEvidenceLoading] = useState(false)
+  const [enforcementReason, setEnforcementReason] = useState('')
+  const [suspensionMinutes, setSuspensionMinutes] = useState(1440)
 
   const selected = useMemo(
     () => items.find((item) => item.reportId === selectedId) ?? null,
@@ -128,6 +131,22 @@ export default function MomentModerationPanel() {
     } finally {
       setActionLoading(false)
     }
+  }
+
+  const runAuthorEnforcement = async (action: 'warning' | 'suspension' | 'ban') => {
+    if (!selected || !canEnforce) return
+    const reason = enforcementReason.trim()
+    if (reason.length < 3) { setError('Enter an enforcement reason before taking action.'); return }
+    setActionLoading(true); setError(null)
+    try {
+      await enforceMomentAuthorAccount({
+        reportId: selected.reportId, action,
+        durationMinutes: action === 'suspension' ? suspensionMinutes : null, reason,
+      })
+      setEnforcementReason('')
+    } catch (enforceError) {
+      setError(toUserFacingError(enforceError, 'Unable to enforce this Moment author account.'))
+    } finally { setActionLoading(false) }
   }
 
   const finishSelected = async (state: 'dismissed' | 'actioned') => {
@@ -234,6 +253,22 @@ export default function MomentModerationPanel() {
                   ))}
                 </div>
               </div>
+              {canEnforce && selected.state === 'reviewed' && (
+                <section className="moderation-enforcement">
+                  <div className="moderation-enforcement-head"><div><span>Author enforcement</span><strong>ACCOUNT ACTION</strong></div></div>
+                  <textarea value={enforcementReason} onChange={(event) => setEnforcementReason(event.target.value.slice(0, 2000))}
+                    placeholder="Required internal reason for author enforcement…" maxLength={2000} />
+                  <div className="moderation-enforcement-row">
+                    <select value={suspensionMinutes} onChange={(event) => setSuspensionMinutes(Number(event.target.value))}>
+                      <option value={60}>1 hour</option><option value={1440}>24 hours</option>
+                      <option value={10080}>7 days</option><option value={43200}>30 days</option>
+                    </select>
+                    <button onClick={() => { void runAuthorEnforcement('warning') }} disabled={actionLoading}>Warn</button>
+                    <button onClick={() => { void runAuthorEnforcement('suspension') }} disabled={actionLoading}>Suspend</button>
+                    <button className="danger" onClick={() => { void runAuthorEnforcement('ban') }} disabled={actionLoading}>Ban</button>
+                  </div>
+                </section>
+              )}
               {selected.state === 'reviewed' && (
                 <>
                   <label className="moderation-note-label">Internal review note

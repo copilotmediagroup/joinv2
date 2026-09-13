@@ -192,7 +192,7 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
       </div>
 
       {surface === 'moments' ? (
-        <MomentModerationPanel />
+        <MomentModerationPanel canEnforce={canEnforce} />
       ) : (
         <>
       <div className="moderation-tabs" role="tablist" aria-label="Moderation queue">
