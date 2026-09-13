@@ -100,3 +100,8 @@ export async function signOut(): Promise<void> {
     throw error
   }
 }
+
+export async function signOutCurrentUser(): Promise<void> {
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}

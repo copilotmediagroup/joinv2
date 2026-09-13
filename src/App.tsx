@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Compass,
   MessageCircle,
+  LogOut,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -12,6 +13,7 @@ import {
   Zap,
 } from 'lucide-react'
 import './App.css'
+import { signOutCurrentUser } from './features/auth/authClient'
 import NotificationPanel from './features/notifications/NotificationPanel'
 import type { NotificationTarget } from './features/notifications/notificationClient'
 import {
@@ -377,6 +379,8 @@ function App() {
     useState<string | null>(null)
   const [planExitNotice, setPlanExitNotice] =
     useState<string | null>(null)
+  const [logoutSubmitting, setLogoutSubmitting] = useState(false)
+  const [logoutError, setLogoutError] = useState<string | null>(null)
 
   const suggestion = boredSuggestions[suggestionIndex]
 
@@ -804,6 +808,18 @@ function App() {
 
   const handleProfileNavigation = () => {
     setActiveSurface('profile')
+  }
+
+  const handleLogout = async () => {
+    if (logoutSubmitting) return
+    setLogoutSubmitting(true)
+    setLogoutError(null)
+    try {
+      await signOutCurrentUser()
+    } catch {
+      setLogoutError('Unable to log out right now. Please try again.')
+      setLogoutSubmitting(false)
+    }
   }
 
   const handleSignalCenterNavigation = () => {
@@ -1249,6 +1265,13 @@ function App() {
         <h1>What are you feeling?</h1>
         <p>Don’t think about it. Pick a vibe.</p>
       </section>
+
+      {logoutError && (
+        <div className="signal-journey-notice signal-journey-notice-error" role="alert">
+          <span>{logoutError}</span>
+          <button type="button" onClick={() => setLogoutError(null)}>GOT IT</button>
+        </div>
+      )}
 
       {planExitNotice && (
         <div className="signal-journey-notice" role="status">
@@ -2253,6 +2276,16 @@ function App() {
         >
           <UserRound size={20} />
           <span>Profile</span>
+        </button>
+
+        <button
+          className="nav-item nav-logout"
+          onClick={() => { void handleLogout() }}
+          disabled={logoutSubmitting}
+          aria-label="Log out"
+        >
+          <LogOut size={20} />
+          <span>{logoutSubmitting ? 'Logging out…' : 'Log out'}</span>
         </button>
       </nav>
     </main>
