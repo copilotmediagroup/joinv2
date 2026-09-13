@@ -383,6 +383,7 @@ function App() {
     useState<string | null>(null)
   const [logoutSubmitting, setLogoutSubmitting] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine)
 
   const suggestion = boredSuggestions[suggestionIndex]
 
@@ -610,6 +611,20 @@ function App() {
     return () => {
       window.removeEventListener('focus', refreshJourney)
       document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [restoreActiveSignal])
+
+  useEffect(() => {
+    const handleOffline = () => setIsOnline(false)
+    const handleOnline = () => {
+      setIsOnline(true)
+      void restoreActiveSignal(false)
+    }
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('online', handleOnline)
+    return () => {
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('online', handleOnline)
     }
   }, [restoreActiveSignal])
 
@@ -1166,6 +1181,12 @@ function App() {
     <main className="app">
       <div className="ambient ambient-a" />
       <div className="ambient ambient-b" />
+
+      {!isOnline && (
+        <div className="connection-banner" role="status">
+          You’re offline. SIGNAL will sync back to the live state when your connection returns.
+        </div>
+      )}
 
       <header className="topbar">
         <div className="profile-wrap">

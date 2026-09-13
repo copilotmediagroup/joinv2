@@ -4633,3 +4633,22 @@ button:disabled,
   letter-spacing: .08em;
   cursor: pointer;
 }
+
+.connection-banner {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  z-index: 120;
+  max-width: min(620px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  border: 1px solid rgba(112, 183, 255, 0.34);
+  border-radius: 999px;
+  background: rgba(7, 12, 21, 0.94);
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.34);
+  padding: 10px 16px;
+  color: rgba(239, 247, 255, 0.9);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
