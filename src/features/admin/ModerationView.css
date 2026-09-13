@@ -212,3 +212,80 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
+
+.moderation-enforcement {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid rgba(255, 190, 92, 0.2);
+  border-radius: 16px;
+  background: rgba(255, 190, 92, 0.045);
+}
+
+.moderation-enforcement-head,
+.moderation-enforcement-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.moderation-enforcement-head span,
+.moderation-enforcement-history {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.moderation-enforcement-head strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.moderation-enforcement-history {
+  margin: 12px 0;
+}
+
+.moderation-enforcement-history span {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.72);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.moderation-enforcement textarea {
+  width: 100%;
+  min-height: 88px;
+  margin-top: 12px;
+  resize: vertical;
+}
+
+.moderation-enforcement-row {
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.moderation-enforcement-row select,
+.moderation-enforcement-row button {
+  min-height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  padding: 0 11px;
+}
+
+.moderation-enforcement-row button {
+  cursor: pointer;
+}
+
+.moderation-enforcement-row button.danger {
+  border-color: rgba(255, 82, 82, 0.32);
+}
+
+.moderation-enforcement-row button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

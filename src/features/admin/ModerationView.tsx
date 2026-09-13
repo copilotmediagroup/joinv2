@@ -3,9 +3,13 @@ import { CheckCircle2, Inbox, RefreshCw, ShieldCheck, Undo2, XCircle } from 'luc
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
   claimNextModerationReport,
+  enforceUserAccount,
   getModerationReportQueue,
+  getUserAccountEnforcementSummary,
+  liftUserAccountRestriction,
   releaseMyModerationReport,
   reviewUserReport,
+  type AccountEnforcementSummary,
   type ModerationReport,
   type ModerationReportState,
 } from './adminClient'
@@ -38,6 +42,10 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState('')
+  const [enforcement, setEnforcement] = useState<AccountEnforcementSummary | null>(null)
+  const [enforcementLoading, setEnforcementLoading] = useState(false)
+  const [enforcementReason, setEnforcementReason] = useState('')
+  const [suspensionMinutes, setSuspensionMinutes] = useState(1440)
 
   const selected = useMemo(
     () => items.find((item) => item.reportId === selectedId) ?? null,
@@ -73,6 +81,17 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
     setNote('')
     void loadPage(tab)
   }, [loadPage, tab])
+
+  useEffect(() => {
+    if (!selected || !canEnforce) { setEnforcement(null); return }
+    let cancelled = false
+    setEnforcementLoading(true)
+    void getUserAccountEnforcementSummary(selected.reportedUserId)
+      .then((summary) => { if (!cancelled) setEnforcement(summary) })
+      .catch(() => { if (!cancelled) setEnforcement(null) })
+      .finally(() => { if (!cancelled) setEnforcementLoading(false) })
+    return () => { cancelled = true }
+  }, [canEnforce, selected])
 
   const changeTab = (nextTab: QueueTab) => {
     setTab(nextTab)
@@ -116,6 +135,20 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
     } finally {
       setActionLoading(false)
     }
+  }
+
+  const runEnforcement = async (action: 'warning' | 'suspension' | 'ban' | 'lift') => {
+    if (!selected || !canEnforce) return
+    const reason = enforcementReason.trim()
+    if (reason.length < 3) { setError('Enter an enforcement reason before taking action.'); return }
+    setActionLoading(true); setError(null)
+    try {
+      if (action === 'lift') await liftUserAccountRestriction(selected.reportedUserId, reason)
+      else await enforceUserAccount({ userId: selected.reportedUserId, action, durationMinutes: action === 'suspension' ? suspensionMinutes : null, reason, sourceReportId: selected.reportId })
+      setEnforcement(await getUserAccountEnforcementSummary(selected.reportedUserId))
+      setEnforcementReason('')
+    } catch (enforceError) { setError(toUserFacingError(enforceError, 'Unable to apply this enforcement action.')) }
+    finally { setActionLoading(false) }
   }
 
   const finishSelected = async (state: 'resolved' | 'dismissed') => {
@@ -238,6 +271,41 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
                 <p>{selected.details || 'No additional details were provided.'}</p>
               </div>
 
+              {canEnforce && (
+                <section className="moderation-enforcement">
+                  <div className="moderation-enforcement-head">
+                    <div>
+                      <span>Account enforcement</span>
+                      <strong>{enforcementLoading ? 'Checking…' : enforcement?.restriction ? enforcement.restriction.toUpperCase() : 'ACTIVE'}</strong>
+                    </div>
+                    {enforcement?.restrictedUntil && <small>Until {new Date(enforcement.restrictedUntil).toLocaleString()}</small>}
+                  </div>
+                  {enforcement?.latestAction && (
+                    <div className="moderation-enforcement-history">
+                      Last action: {enforcement.latestAction} {enforcement.latestActionAt ? '· ' + new Date(enforcement.latestActionAt).toLocaleString() : ''}
+                      {enforcement.latestReason ? <span>{enforcement.latestReason}</span> : null}
+                    </div>
+                  )}
+                  <textarea
+                    value={enforcementReason}
+                    onChange={(event) => setEnforcementReason(event.target.value.slice(0, 2000))}
+                    placeholder="Required internal reason for enforcement…"
+                    maxLength={2000}
+                  />
+                  <div className="moderation-enforcement-row">
+                    <select value={suspensionMinutes} onChange={(event) => setSuspensionMinutes(Number(event.target.value))}>
+                      <option value={60}>1 hour</option>
+                      <option value={1440}>24 hours</option>
+                      <option value={10080}>7 days</option>
+                      <option value={43200}>30 days</option>
+                    </select>
+                    <button onClick={() => { void runEnforcement('warning') }} disabled={actionLoading}>Warn</button>
+                    <button onClick={() => { void runEnforcement('suspension') }} disabled={actionLoading}>Suspend</button>
+                    <button className="danger" onClick={() => { void runEnforcement('ban') }} disabled={actionLoading}>Ban</button>
+                    {enforcement?.restriction && <button onClick={() => { void runEnforcement('lift') }} disabled={actionLoading}>Lift restriction</button>}
+                  </div>
+                </section>
+              )}
               {selected.state === 'reviewing' && (
                 <>
                   <label className="moderation-note-label">
