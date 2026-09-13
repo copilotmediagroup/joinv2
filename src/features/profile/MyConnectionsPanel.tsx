@@ -7,6 +7,7 @@ import {
   type MySignalConnection,
 } from '../activity/signalConnectionsClient'
 import { getOrCreateDirectConversation } from '../messaging/directMessagingClient'
+import UserSafetyActions from '../safety/UserSafetyActions'
 
 function formatConnectedAt(value: string): string {
   const date = new Date(value)
@@ -80,6 +81,7 @@ export default function MyConnectionsPanel({ onOpenDirectConversation }: { onOpe
               {connection.avatarUrl ? <img src={connection.avatarUrl} alt="" /> : <div className="profile-connection-fallback">{connection.displayName.slice(0, 1).toUpperCase()}</div>}
               <div><strong>{connection.displayName}</strong><small>CONNECTED {formatConnectedAt(connection.connectedAt)}</small></div>
               <div className="profile-connection-actions"><button type="button" disabled={busyId === connection.connectionId} onClick={() => { void message(connection) }}><MessageCircle size={13} /> MESSAGE</button><button type="button" disabled={busyId === connection.connectionId} onClick={() => { void disconnect(connection) }}><Unlink size={13} /> DISCONNECT</button></div>
+              <UserSafetyActions userId={connection.userId} displayName={connection.displayName} onBlocked={() => { void refresh() }} />
             </div>
           ))}
         </div>

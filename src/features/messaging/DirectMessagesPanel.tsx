@@ -6,6 +6,7 @@ import {
   sendMyDirectMessage, subscribeToDirectMessages,
   type DirectMessage, type DirectThread,
 } from './directMessagingClient'
+import UserSafetyActions from '../safety/UserSafetyActions'
 
 function time(value: string): string {
   const d = new Date(value); if (Number.isNaN(d.getTime())) return ''
@@ -33,6 +34,7 @@ export default function DirectMessagesPanel({ currentUserId, initialConversation
   if(selectedId){ return <section className="direct-thread">
     <header><button type="button" onClick={()=>{setSelectedId(null);setMessages([])}}><ArrowLeft size={16}/> DIRECT</button><div>{selected?.avatarUrl?<img src={selected.avatarUrl} alt=""/>:null}<strong>{selected?.displayName??'CONNECTED MEMBER'}</strong></div></header>
     {error?<p className="messages-error" role="alert">{error}</p>:null}
+    {selected ? <UserSafetyActions userId={selected.otherUserId} displayName={selected.displayName} onBlocked={() => { setSelectedId(null); setMessages([]); void refreshThreads() }} /> : null}
     <div className="messages-thread-feed">{messages.length===0?<div className="messages-empty-thread"><MessageCircle size={26}/><strong>Start the conversation</strong><span>You connected through SIGNAL.</span></div>:messages.map(m=><article key={m.messageId} className={m.senderUserId===currentUserId?'messages-bubble messages-bubble-mine':'messages-bubble'}><small>{m.senderUserId===currentUserId?'YOU':selected?.displayName??'CONNECTION'}</small><p>{m.body}</p><time>{time(m.sentAt)}</time></article>)}</div>
     <form className="messages-compose" onSubmit={send}><input value={draft} maxLength={4000} placeholder={`Message ${selected?.displayName??'connection'}...`} onChange={e=>setDraft(e.target.value)} disabled={sending}/><button type="submit" disabled={sending||!draft.trim()}><Send size={17}/></button></form>
   </section> }

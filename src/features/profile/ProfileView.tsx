@@ -38,6 +38,7 @@ import {
   type SignalHistorySummary,
 } from './signalHistoryClient'
 import SignalPreferencesPanel from './SignalPreferencesPanel'
+import BlockedPeoplePanel from '../safety/BlockedPeoplePanel'
 import MyConnectionsPanel from './MyConnectionsPanel'
 import './ProfileView.css'
 import { toUserFacingError } from '../../lib/userFacingError'
@@ -1307,6 +1308,11 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
         <div className="profile-view-divider" />
         <div className="profile-view-section">
           <MyConnectionsPanel onOpenDirectConversation={onOpenDirectConversation} />
+        </div>
+
+        <div className="profile-view-divider" />
+        <div className="profile-view-section">
+          <BlockedPeoplePanel />
         </div>
 
         <div className="profile-view-facts">
