@@ -15,7 +15,6 @@ import {
 import './App.css'
 import { signOutCurrentUser } from './features/auth/authClient'
 import NotificationPanel from './features/notifications/NotificationPanel'
-import type { NotificationTarget } from './features/notifications/notificationClient'
 import {
   getMyActivity,
   type ActivityItem,
@@ -736,37 +735,10 @@ function App() {
     void refreshActivity()
   }
 
-  const handleOpenActivityItem = (item: ActivityItem) => {
-    if (item.itemType === 'plan' && item.planId) {
-      handleOpenPlanChat(item.planId)
-      return
-    }
-
-    if (
-      item.itemType !== 'signal' ||
-      !item.signalGroupId ||
-      !item.signalIntentId
-    ) {
-      return
-    }
-
+  const handleOpenActivityItem = () => {
     setNotificationsOpen(false)
-    setSignalRealtimeTarget({
-      signalIntentId: item.signalIntentId,
-      signalGroupId: item.signalGroupId,
-    })
-    setAccepted(true)
-    setBored(true)
-    setActiveSurface('discover')
-
-    const matchingPulse = pulses.find(
-      (pulse) => pulse.id === item.activitySlug,
-    )
-    if (matchingPulse) {
-      setDirectActivitySlug(matchingPulse.id)
-      setActive(matchingPulse.id)
-    }
-
+    // Activity is only a doorway to the caller's CURRENT server-owned journey.
+    // Never hydrate live UI from a row that may have become stale after render.
     void restoreActiveSignal(true)
   }
 
@@ -782,28 +754,27 @@ function App() {
     setActiveSurface('messages')
   }
 
-  const handleOpenSignalNotification = (
-    target: Extract<NotificationTarget, { targetType: 'signal' }>,
-  ) => {
+  const handleOpenSignalNotification = () => {
+    setNotificationsOpen(false)
+    // The resolver proves a live journey exists, but the browser still rehydrates
+    // from the canonical resume RPC instead of trusting notification-era IDs.
+    void restoreActiveSignal(true)
+  }
+
+  const handleHistoricalNotification = () => {
     setNotificationsOpen(false)
     setFormationResult(null)
-    setSignalRealtimeTarget({
-      signalIntentId: target.signalIntentId,
-      signalGroupId: target.signalGroupId,
-    })
-    setAccepted(true)
-    setBored(true)
+    setSignalRealtimeTarget(null)
+    setSignalThreshold(false)
+    setSignalRoomStage('arrival')
+    setLockedSignalVenue(null)
+    setSignalPlanSetVisible(false)
+    setMessagePlanId(null)
+    setAccepted(false)
+    setBored(false)
     setActiveSurface('discover')
-
-    const matchingPulse = pulses.find(
-      (pulse) => pulse.id === target.activitySlug,
-    )
-    if (matchingPulse) {
-      setDirectActivitySlug(matchingPulse.id)
-      setActive(matchingPulse.id)
-    }
-
-    void restoreActiveSignal(true)
+    setPlanExitNotice('This Signal has ended. There is no live room to return to.')
+    void Promise.all([refreshActivity(), refreshDiscovery()])
   }
 
   const handleProfileNavigation = () => {
@@ -1221,6 +1192,7 @@ function App() {
           onUnreadCountChange={setNotificationUnreadCount}
           onOpenPlan={handleOpenPlanChat}
           onOpenSignal={handleOpenSignalNotification}
+          onHistorical={handleHistoricalNotification}
         />
       )}
 

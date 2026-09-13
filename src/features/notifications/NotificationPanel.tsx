@@ -15,6 +15,7 @@ type NotificationPanelProps = {
   onUnreadCountChange?: (count: number) => void
   onOpenPlan?: (planId: string) => void
   onOpenSignal?: (target: Extract<NotificationTarget, { targetType: 'signal' }>, notificationType: string) => void
+  onHistorical?: () => void
 }
 
 function relativeTime(iso: string): string {
@@ -32,6 +33,7 @@ export default function NotificationPanel({
   onUnreadCountChange,
   onOpenPlan,
   onOpenSignal,
+  onHistorical,
 }: NotificationPanelProps) {
   const [items, setItems] = useState<SignalNotification[]>([])
   const [loading, setLoading] = useState(true)
@@ -94,6 +96,8 @@ export default function NotificationPanel({
         onOpenPlan?.(target.planId)
       } else if (target.targetType === 'signal') {
         onOpenSignal?.(target, item.type)
+      } else {
+        onHistorical?.()
       }
     } catch (targetError) {
       setError(
