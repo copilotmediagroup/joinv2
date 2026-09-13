@@ -13,6 +13,7 @@ import {
   type ModerationReport,
   type ModerationReportState,
 } from './adminClient'
+import MomentModerationPanel from './MomentModerationPanel'
 import './ModerationView.css'
 
 type QueueTab = 'unassigned' | 'mine' | 'resolved' | 'dismissed'
@@ -33,6 +34,7 @@ function formatReason(reason: string): string {
   return reason.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 export default function ModerationView({ canEnforce = false }: { canEnforce?: boolean }) {
+  const [surface, setSurface] = useState<'people' | 'moments'>('people')
   const [tab, setTab] = useState<QueueTab>('unassigned')
   const [items, setItems] = useState<ModerationReport[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -184,6 +186,15 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
         </button>
       </header>
 
+      <div className="moderation-surface-tabs" role="tablist" aria-label="Moderation surface">
+        <button className={surface === 'people' ? 'active' : ''} onClick={() => setSurface('people')} role="tab" aria-selected={surface === 'people'}>People reports</button>
+        <button className={surface === 'moments' ? 'active' : ''} onClick={() => setSurface('moments')} role="tab" aria-selected={surface === 'moments'}>Moment reports</button>
+      </div>
+
+      {surface === 'moments' ? (
+        <MomentModerationPanel />
+      ) : (
+        <>
       <div className="moderation-tabs" role="tablist" aria-label="Moderation queue">
         {([
           ['unassigned', 'Unassigned'],
@@ -336,6 +347,8 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
           )}
         </aside>
       </div>
+        </>
+      )}
     </section>
   )
 }
