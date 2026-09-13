@@ -23,7 +23,7 @@ import {
 
 type Props = {
   planId: string
-  onLeftPlan?: (reason: 'left' | 'ended') => void
+  onLeftPlan?: (reason: 'left' | 'ended' | 'safety') => void
 }
 
 function formatTime(iso: string | null): string {
@@ -182,13 +182,13 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
     }
   }
 
-  const leave = async () => {
+  const leave = async (reason: 'left' | 'safety' = 'left') => {
     if (busy) return
     setBusy(true)
     setError(null)
     try {
       await leaveMyPlan(planId)
-      onLeftPlan?.('left')
+      onLeftPlan?.(reason)
     } catch (leaveError) {
       setError(toUserFacingError(leaveError, 'Unable to leave the Plan right now.'))
       setBusy(false)
@@ -332,9 +332,14 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
 
       {error && <p className="plan-governance-error" role="alert">{error}</p>}
 
-      <button type="button" className="plan-governance-leave" disabled={busy} onClick={() => { void leave() }}>
-        <LogOut size={14} /> LEAVE PLAN
-      </button>
+      <div className="plan-governance-exit-actions">
+        <button type="button" className="plan-governance-safety-exit" disabled={busy} onClick={() => { void leave('safety') }}>
+          <ShieldCheck size={14} /> I DON’T FEEL SAFE — LEAVE NOW
+        </button>
+        <button type="button" className="plan-governance-leave" disabled={busy} onClick={() => { void leave('left') }}>
+          <LogOut size={14} /> LEAVE PLAN
+        </button>
+      </div>
     </aside>
   )
 }

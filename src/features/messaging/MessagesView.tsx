@@ -35,7 +35,7 @@ type MessagesViewProps = {
   currentUserId: string
   initialPlanId?: string | null
   initialDirectConversationId?: string | null
-  onPlanEnded?: (reason: 'left' | 'ended') => void
+  onPlanEnded?: (reason: 'left' | 'ended' | 'safety') => void
 }
 
 function formatMessageTime(

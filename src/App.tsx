@@ -1338,7 +1338,9 @@ function App() {
             setPlanExitNotice(
               reason === 'ended'
                 ? 'This Signal didn’t come together in time. You’re back in Discover.'
-                : 'You left the Plan. You’re back in Discover.',
+                : reason === 'safety'
+                  ? 'You left the Plan immediately. You’re back in Discover.'
+                  : 'You left the Plan. You’re back in Discover.',
             )
             void Promise.all([refreshActivity(), refreshDiscovery()])
           }}

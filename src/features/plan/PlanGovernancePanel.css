@@ -32,7 +32,8 @@
 .plan-governance-card > small { opacity: .62; line-height: 1.35; }
 .plan-governance-actions button,
 .plan-governance-propose button,
-.plan-governance-leave {
+.plan-governance-leave,
+.plan-governance-safety-exit {
   min-height: 36px;
   border: 1px solid rgba(255,255,255,.12);
   border-radius: 10px;
@@ -47,7 +48,11 @@
 .plan-governance-actions button { flex: 1; }
 .plan-governance-actions button.active { border-color: currentColor; background: rgba(255,255,255,.12); }
 .plan-governance-propose input { min-height: 38px; padding: 0 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: rgba(0,0,0,.22); color: inherit; }
-.plan-governance-leave { display: inline-flex; align-items: center; justify-content: center; gap: 7px; opacity: .72; }
+.plan-governance-exit-actions { display: grid; gap: 8px; }
+.plan-governance-leave,
+.plan-governance-safety-exit { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.plan-governance-leave { opacity: .72; }
+.plan-governance-safety-exit { border-color: rgba(255, 108, 108, .3); background: rgba(255, 82, 82, .07); }
 .plan-governance-error { margin: 0; font-size: 11px; }
 
 .plan-meetup-card {
