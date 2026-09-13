@@ -35,6 +35,7 @@ import type {
   SignalTimesResponse,
 } from './time/contract'
 import './SignalTimeStage.css'
+import { toUserFacingError } from '../../lib/userFacingError'
 
 export type LockedSignalVenue = {
   placeId: string
@@ -178,9 +179,7 @@ export default function SignalTimeStage({
       } catch (memberError) {
         if (!cancelled) {
           setPlanError(
-            memberError instanceof Error
-              ? memberError.message
-              : 'Unable to load Plan members.',
+            toUserFacingError(memberError, 'Unable to load the group right now.'),
           )
         }
       }
@@ -255,9 +254,7 @@ export default function SignalTimeStage({
     } catch (conversionError) {
       planConversionStartedRef.current = false
       setPlanError(
-        conversionError instanceof Error
-          ? conversionError.message
-          : 'Unable to create the Signal Plan.',
+        toUserFacingError(conversionError, 'Your Plan is not ready yet. Please try again.'),
       )
     } finally {
       setPlanCreating(false)

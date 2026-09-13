@@ -21,6 +21,7 @@ import type {
   SignalPlacesResponse,
 } from './places/contract'
 import './SignalPlaceStage.css'
+import { toUserFacingError } from '../../lib/userFacingError'
 
 type SignalPlaceStageProps = {
   signalGroupId: string
@@ -71,9 +72,7 @@ export default function SignalPlaceStage({
       setSecondsLeft(secondsUntil(next.round.closesAt))
     } catch (error) {
       setPlacesError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to load Signal venues',
+        toUserFacingError(error, 'Unable to load places right now.'),
       )
     } finally {
       setPlacesLoading(false)
@@ -126,9 +125,7 @@ export default function SignalPlaceStage({
       .catch((error) => {
         if (!cancelled) {
           setPlacesError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to finish venue voting',
+            toUserFacingError(error, 'Unable to finish the place vote right now.'),
           )
         }
       })
@@ -155,9 +152,7 @@ export default function SignalPlaceStage({
       .catch((error) => {
         deadlockRestartingRef.current = false
         setPlacesError(
-          error instanceof Error
-            ? error.message
-            : 'Unable to restart venue voting',
+          toUserFacingError(error, 'Unable to reopen place voting right now.'),
         )
       })
   }, [round, signalGroupId, loadRound])
@@ -200,9 +195,7 @@ export default function SignalPlaceStage({
       await loadRound()
     } catch (error) {
       setPlacesError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to cast your venue vote',
+        toUserFacingError(error, 'Your place vote did not go through. Try again.'),
       )
     } finally {
       setVoteSubmitting(false)

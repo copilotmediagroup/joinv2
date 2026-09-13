@@ -14,6 +14,7 @@ import {
   type PlanGovernanceVote,
 } from './planGovernanceClient'
 import './PlanGovernancePanel.css'
+import { toUserFacingError } from '../../lib/userFacingError'
 
 type Props = {
   planId: string
@@ -77,7 +78,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
         onLeftPlan?.('ended')
         return
       }
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load Plan controls')
+      setError(toUserFacingError(loadError, 'Unable to load group controls right now.'))
     } finally {
       setLoading(false)
     }
@@ -118,7 +119,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
       else await voteOnPlanChange(id, vote)
       await refresh()
     } catch (voteError) {
-      setError(voteError instanceof Error ? voteError.message : 'Unable to submit vote')
+      setError(toUserFacingError(voteError, 'Your vote did not go through. Try again.'))
     } finally {
       setBusy(false)
     }
@@ -137,7 +138,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
       await proposePlanTimeChange(planId, parsed.toISOString())
       await refresh()
     } catch (proposalError) {
-      setError(proposalError instanceof Error ? proposalError.message : 'Unable to propose time')
+      setError(toUserFacingError(proposalError, 'Unable to propose that time right now.'))
     } finally {
       setBusy(false)
     }
@@ -151,7 +152,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
       await leaveMyPlan(planId)
       onLeftPlan?.('left')
     } catch (leaveError) {
-      setError(leaveError instanceof Error ? leaveError.message : 'Unable to leave Plan')
+      setError(toUserFacingError(leaveError, 'Unable to leave the Plan right now.'))
       setBusy(false)
     }
   }

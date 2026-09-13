@@ -13,6 +13,7 @@ import {
   Zap,
 } from 'lucide-react'
 import './App.css'
+import { toUserFacingError } from './lib/userFacingError'
 import { signOutCurrentUser } from './features/auth/authClient'
 import NotificationPanel from './features/notifications/NotificationPanel'
 import {
@@ -376,6 +377,8 @@ function App() {
     useState(false)
   const [messagePlanId, setMessagePlanId] =
     useState<string | null>(null)
+  const [activePlanId, setActivePlanId] =
+    useState<string | null>(null)
   const [planExitNotice, setPlanExitNotice] =
     useState<string | null>(null)
   const [logoutSubmitting, setLogoutSubmitting] = useState(false)
@@ -455,9 +458,7 @@ function App() {
       setDiscovery(result)
     } catch (error) {
       setDiscoveryError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to load live Signal activity.',
+        toUserFacingError(error, 'Unable to load live Signal activity.'),
       )
     } finally {
       setDiscoveryLoading(false)
@@ -482,9 +483,7 @@ function App() {
         if (!cancelled) {
           setDiscovery([])
           setDiscoveryError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to load live Signal activity.',
+            toUserFacingError(error, 'Unable to load live Signal activity.'),
           )
         }
       } finally {
@@ -504,7 +503,28 @@ function App() {
   const restoreActiveSignal = useCallback(async (openJourney = false) => {
     try {
       const resume = await getMyActiveSignalResume()
-      if (!resume) return
+      if (!resume) {
+        // Server truth says there is no live journey. Purge any stale browser-only
+        // Signal/Plan state instead of leaving an old room alive in memory.
+        setFormationResult(null)
+        setSignalRealtimeTarget(null)
+        setSignalParticipants([])
+        setSignalThreshold(false)
+        setSignalRoomStage('arrival')
+        setLockedSignalVenue(null)
+        setSignalPlanSetVisible(false)
+        setActivePlanId(null)
+        setMessagePlanId(null)
+        setAccepted(false)
+        setDirectActivitySlug(null)
+        setFormationError(null)
+        setWithdrawalError(null)
+        if (openJourney) {
+          setBored(false)
+          setActiveSurface('discover')
+        }
+        return
+      }
 
       const matchingPulse = pulses.find(
         (pulse) => pulse.id === resume.activitySlug,
@@ -516,6 +536,7 @@ function App() {
 
       if (resume.groupState === 'active_outing' && resume.planId) {
         setMessagePlanId(resume.planId)
+        setActivePlanId(resume.planId)
         setSignalPlanSetVisible(true)
         setSignalThreshold(false)
         setLockedSignalVenue(null)
@@ -542,6 +563,8 @@ function App() {
             ? '30_plus'
             : 'open',
       )
+      setActivePlanId(null)
+      setMessagePlanId(null)
       setFormationResult({
         signalIntentId: resume.signalIntentId,
         signalGroupId: resume.signalGroupId,
@@ -721,9 +744,7 @@ function App() {
       setActivityItems(result)
     } catch (error) {
       setActivityError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to load Activity.',
+        toUserFacingError(error, 'Unable to load Activity.'),
       )
     } finally {
       setActivityLoading(false)
@@ -748,6 +769,7 @@ function App() {
   }
 
   const handleOpenPlanChat = (planId: string) => {
+    setActivePlanId(planId)
     setMessagePlanId(planId)
     setNotificationsOpen(false)
     setSignalThreshold(false)
@@ -770,6 +792,7 @@ function App() {
     setLockedSignalVenue(null)
     setSignalPlanSetVisible(false)
     setMessagePlanId(null)
+    setActivePlanId(null)
     setAccepted(false)
     setBored(false)
     setActiveSurface('discover')
@@ -883,9 +906,7 @@ function App() {
       ])
     } catch (error) {
       setWithdrawalError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to leave this Signal.',
+        toUserFacingError(error, 'Unable to leave this Signal right now.'),
       )
     } finally {
       setWithdrawalSubmitting(false)
@@ -951,6 +972,7 @@ function App() {
         setAccepted(false)
         setBored(false)
         setMessagePlanId(replacement.planId)
+        setActivePlanId(replacement.planId)
         setActiveSurface('messages')
         await Promise.all([refreshActivity(), refreshDiscovery()])
         return
@@ -986,9 +1008,7 @@ function App() {
       setSignalRealtimeTarget(null)
 
       setFormationError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to join this Signal.',
+        toUserFacingError(error, 'Unable to join this Signal right now.'),
       )
     } finally {
       setFormationSubmitting(false)
@@ -1028,10 +1048,13 @@ function App() {
   }
 
   const hasActiveSignalJourney =
-    accepted &&
-    Boolean(
-      signalRealtimeTarget ||
-      formationResult,
+    Boolean(activePlanId) ||
+    (
+      accepted &&
+      Boolean(
+        signalRealtimeTarget ||
+        formationResult,
+      )
     )
 
   useEffect(() => {
@@ -1212,6 +1235,7 @@ function App() {
           initialPlanId={messagePlanId}
           onPlanEnded={(reason) => {
             setMessagePlanId(null)
+            setActivePlanId(null)
             setSignalPlanSetVisible(false)
             setActiveSurface('discover')
             setBored(false)

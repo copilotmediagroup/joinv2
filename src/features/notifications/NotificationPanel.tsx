@@ -9,6 +9,7 @@ import {
   type SignalNotification,
 } from './notificationClient'
 import './NotificationPanel.css'
+import { toUserFacingError } from '../../lib/userFacingError'
 
 type NotificationPanelProps = {
   userId: string
@@ -54,7 +55,7 @@ export default function NotificationPanel({
       setItems(next)
       setError(null)
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load notifications')
+      setError(toUserFacingError(loadError, 'Unable to load notifications right now.'))
     } finally {
       setLoading(false)
     }
@@ -86,7 +87,7 @@ export default function NotificationPanel({
           entry.id === item.id ? { ...entry, state: 'read', readAt: new Date().toISOString() } : entry,
         ))
       } catch (markError) {
-        setError(markError instanceof Error ? markError.message : 'Unable to update notification')
+        setError(toUserFacingError(markError, 'Unable to update this notification right now.'))
       }
     }
 
@@ -100,11 +101,7 @@ export default function NotificationPanel({
         onHistorical?.()
       }
     } catch (targetError) {
-      setError(
-        targetError instanceof Error
-          ? targetError.message
-          : 'Unable to open notification',
-      )
+      setError(toUserFacingError(targetError, 'Unable to open this notification right now.'))
     }
   }
 

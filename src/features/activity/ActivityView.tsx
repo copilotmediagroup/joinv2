@@ -26,6 +26,7 @@ import {
   type SignalMomentReportReason,
 } from './signalMomentsClient'
 import './ActivityView.css'
+import { toUserFacingError } from '../../lib/userFacingError'
 
 type ActivityViewProps = {
   items: ActivityItem[]
@@ -156,7 +157,7 @@ function CurrentActivityCard({
       await onDeleted()
     } catch (error) {
       setReportStatus(
-        error instanceof Error ? error.message : 'Unable to delete this Moment.',
+        toUserFacingError(error, 'Unable to delete this Moment right now.'),
       )
     } finally {
       setDeleting(false)
@@ -177,7 +178,7 @@ function CurrentActivityCard({
       setReportDetails('')
     } catch (error) {
       setReportStatus(
-        error instanceof Error ? error.message : 'Unable to report this Moment.',
+        toUserFacingError(error, 'Unable to report this Moment right now.'),
       )
     } finally {
       setReporting(false)
