@@ -38,6 +38,7 @@ import {
   type SignalHistorySummary,
 } from './signalHistoryClient'
 import SignalPreferencesPanel from './SignalPreferencesPanel'
+import MyConnectionsPanel from './MyConnectionsPanel'
 import './ProfileView.css'
 import { toUserFacingError } from '../../lib/userFacingError'
 
@@ -1302,6 +1303,11 @@ export default function ProfileView() {
             </div>
           </>
         ) : null}
+
+        <div className="profile-view-divider" />
+        <div className="profile-view-section">
+          <MyConnectionsPanel />
+        </div>
 
         <div className="profile-view-facts">
           <div>

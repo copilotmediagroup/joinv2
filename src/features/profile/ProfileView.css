@@ -785,3 +785,15 @@
     grid-template-columns: 1fr;
   }
 }
+
+.profile-connections-panel { display: grid; gap: 12px; }
+.profile-connections-list { display: grid; gap: 8px; }
+.profile-connection-person { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 9px; border: 1px solid rgba(255,255,255,.06); border-radius: 14px; background: rgba(255,255,255,.025); }
+.profile-connection-person > img, .profile-connection-fallback { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; background: rgba(255,255,255,.08); font-size: 12px; font-weight: 900; }
+.profile-connection-person > div:nth-child(2) { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.profile-connection-person strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-connection-person small { font-size: 8px; font-weight: 900; letter-spacing: .08em; opacity: .5; }
+.profile-connection-person button { min-height: 32px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; padding: 0 9px; background: rgba(255,255,255,.04); color: inherit; font: inherit; font-size: 8px; font-weight: 900; letter-spacing: .06em; cursor: pointer; }
+.profile-connection-person button:disabled { opacity: .5; cursor: wait; }
+.profile-connections-empty { min-height: 54px; display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.025); font-size: 10px; opacity: .64; }
+.profile-connections-error { margin: 0; font-size: 10px; }

@@ -59,3 +59,37 @@ export async function respondToSignalConnection(connectionId: string, accept: bo
   })
   if (error) throw new Error(error.message || 'Unable to update connection')
 }
+
+export type MySignalConnection = {
+  connectionId: string
+  userId: string
+  displayName: string
+  avatarUrl: string | null
+  connectedAt: string
+  originPlanId: string
+}
+
+export async function getMySignalConnections(): Promise<MySignalConnection[]> {
+  const { data, error } = await supabase.rpc('get_my_signal_connections')
+  if (error) throw new Error(error.message || 'Unable to load connections')
+  if (!Array.isArray(data)) throw new Error('Invalid connections response')
+
+  return Promise.all((data as Record<string, unknown>[]).map(async (row) => {
+    const avatarPath = typeof row.avatar_path === 'string' && row.avatar_path.trim() ? row.avatar_path : null
+    return {
+      connectionId: requireString(row.connection_id, 'connection_id'),
+      userId: requireString(row.other_user_id, 'other_user_id'),
+      displayName: requireString(row.display_name, 'display_name'),
+      avatarUrl: avatarPath ? await createProfileAvatarSignedUrl(avatarPath).catch(() => null) : null,
+      connectedAt: requireString(row.connected_at, 'connected_at'),
+      originPlanId: requireString(row.origin_plan_id, 'origin_plan_id'),
+    }
+  }))
+}
+
+export async function disconnectMySignalConnection(connectionId: string): Promise<void> {
+  const { error } = await supabase.rpc('disconnect_my_signal_connection', {
+    p_connection_id: connectionId,
+  })
+  if (error) throw new Error(error.message || 'Unable to disconnect')
+}

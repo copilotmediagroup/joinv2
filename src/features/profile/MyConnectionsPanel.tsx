@@ -1,0 +1,75 @@
+import { Link2, Unlink, Users } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { toUserFacingError } from '../../lib/userFacingError'
+import {
+  disconnectMySignalConnection,
+  getMySignalConnections,
+  type MySignalConnection,
+} from '../activity/signalConnectionsClient'
+
+function formatConnectedAt(value: string): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(date)
+}
+
+export default function MyConnectionsPanel() {
+  const [connections, setConnections] = useState<MySignalConnection[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const refresh = useCallback(async () => {
+    try {
+      setConnections(await getMySignalConnections())
+      setError(null)
+    } catch (loadError) {
+      setError(toUserFacingError(loadError, 'Unable to load your connections right now.'))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => { if (active) void refresh() })
+    return () => { active = false }
+  }, [refresh])
+
+  const disconnect = async (connection: MySignalConnection) => {
+    if (busyId) return
+    setBusyId(connection.connectionId)
+    setError(null)
+    try {
+      await disconnectMySignalConnection(connection.connectionId)
+      await refresh()
+    } catch (actionError) {
+      setError(toUserFacingError(actionError, 'Unable to disconnect right now.'))
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <section className="profile-connections-panel">
+      <div className="profile-view-section-heading">
+        <div><span>MY CONNECTIONS</span><h3>People SIGNAL introduced you to</h3></div>
+        <Link2 size={17} />
+      </div>
+      {loading ? <p className="profile-connections-empty">Loading connections…</p> : connections.length === 0 ? (
+        <div className="profile-connections-empty"><Users size={19} /><span>Connections you make after real SIGNAL meetups will live here.</span></div>
+      ) : (
+        <div className="profile-connections-list">
+          {connections.map((connection) => (
+            <div className="profile-connection-person" key={connection.connectionId}>
+              {connection.avatarUrl ? <img src={connection.avatarUrl} alt="" /> : <div className="profile-connection-fallback">{connection.displayName.slice(0, 1).toUpperCase()}</div>}
+              <div><strong>{connection.displayName}</strong><small>CONNECTED {formatConnectedAt(connection.connectedAt)}</small></div>
+              <button type="button" disabled={busyId === connection.connectionId} onClick={() => { void disconnect(connection) }}><Unlink size={13} /> DISCONNECT</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {error ? <p className="profile-connections-error" role="alert">{error}</p> : null}
+    </section>
+  )
+}
