@@ -159,6 +159,8 @@ Promise<PlanConversation[]> {
   )
 }
 
+const PLAN_MESSAGE_WINDOW = 200
+
 export async function getPlanMessages(
   conversationId: string,
 ): Promise<PlanMessage[]> {
@@ -184,11 +186,12 @@ export async function getPlanMessages(
       conversationId,
     )
     .order('sent_at', {
-      ascending: true,
+      ascending: false,
     })
     .order('id', {
-      ascending: true,
+      ascending: false,
     })
+    .limit(PLAN_MESSAGE_WINDOW)
 
   if (error) {
     throw new Error(
@@ -203,11 +206,13 @@ export async function getPlanMessages(
     )
   }
 
-  return data.map((row) =>
-    parseMessageRow(
-      row as MessageRow,
-    ),
-  )
+  return data
+    .map((row) =>
+      parseMessageRow(
+        row as MessageRow,
+      ),
+    )
+    .reverse()
 }
 
 export async function sendPlanMessage(
