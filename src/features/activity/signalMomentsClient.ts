@@ -125,8 +125,23 @@ function parseMedia(value: unknown): MomentMediaRow[] {
   }))
 }
 
-export async function getSignalMoments(limit = 20): Promise<SignalMoment[]> {
-  const { data, error } = await supabase.rpc('get_signal_moments', { p_limit: limit })
+export const SIGNAL_MOMENT_PAGE_SIZE = 20
+
+export type SignalMomentCursor = {
+  isLocal: boolean
+  publishedAt: string
+  momentId: string
+}
+
+export async function getSignalMomentsPage(
+  cursor: SignalMomentCursor | null = null,
+): Promise<SignalMoment[]> {
+  const { data, error } = await supabase.rpc('get_signal_moments_page', {
+    p_after_is_local: cursor?.isLocal ?? null,
+    p_after_published_at: cursor?.publishedAt ?? null,
+    p_after_id: cursor?.momentId ?? null,
+    p_limit: SIGNAL_MOMENT_PAGE_SIZE,
+  })
   if (error) throw new Error(error.message || 'Unable to load Signal Moments.')
   if (!Array.isArray(data)) throw new Error('Invalid Signal Moments response.')
 

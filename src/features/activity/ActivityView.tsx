@@ -17,7 +17,8 @@ import type { ActivityItem } from './activityClient'
 import {
   deleteMySignalMoment,
   getMySignalMomentEligiblePlans,
-  getSignalMoments,
+  getSignalMomentsPage,
+  SIGNAL_MOMENT_PAGE_SIZE,
   publishSignalMoment,
   reportSignalMoment,
   subscribeToSignalMoments,
@@ -400,14 +401,17 @@ export default function ActivityView({
   const [moments, setMoments] = useState<SignalMoment[]>([])
   const [eligiblePlans, setEligiblePlans] = useState<SignalMomentEligiblePlan[]>([])
   const [momentsLoading, setMomentsLoading] = useState(true)
+  const [momentsLoadingMore, setMomentsLoadingMore] = useState(false)
+  const [hasMoreMoments, setHasMoreMoments] = useState(false)
   const [momentsError, setMomentsError] = useState<string | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
   const momentRealtimeTimerRef = useRef<number | null>(null)
 
   const refreshMomentFeed = useCallback(async () => {
     try {
-      const nextMoments = await getSignalMoments(20)
+      const nextMoments = await getSignalMomentsPage()
       setMoments(nextMoments)
+      setHasMoreMoments(nextMoments.length === SIGNAL_MOMENT_PAGE_SIZE)
     } catch (loadError) {
       setMomentsError(
         toUserFacingError(loadError, 'Unable to refresh Signal Moments right now.'),
@@ -420,10 +424,11 @@ export default function ActivityView({
     setMomentsError(null)
     try {
       const [nextMoments, nextEligiblePlans] = await Promise.all([
-        getSignalMoments(20),
+        getSignalMomentsPage(),
         getMySignalMomentEligiblePlans(),
       ])
       setMoments(nextMoments)
+      setHasMoreMoments(nextMoments.length === SIGNAL_MOMENT_PAGE_SIZE)
       setEligiblePlans(nextEligiblePlans)
     } catch (loadError) {
       setMomentsError(
@@ -440,12 +445,13 @@ export default function ActivityView({
     const loadInitialMoments = async () => {
       try {
         const [nextMoments, nextEligiblePlans] = await Promise.all([
-          getSignalMoments(20),
+          getSignalMomentsPage(),
           getMySignalMomentEligiblePlans(),
         ])
 
         if (!cancelled) {
           setMoments(nextMoments)
+          setHasMoreMoments(nextMoments.length === SIGNAL_MOMENT_PAGE_SIZE)
           setEligiblePlans(nextEligiblePlans)
         }
       } catch (loadError) {
@@ -483,6 +489,30 @@ export default function ActivityView({
       unsubscribe()
     }
   }, [refreshMomentFeed])
+
+  const loadMoreMoments = async () => {
+    const last = moments[moments.length - 1]
+    if (!last || momentsLoadingMore) return
+
+    setMomentsLoadingMore(true)
+    setMomentsError(null)
+    try {
+      const page = await getSignalMomentsPage({
+        isLocal: last.isLocal,
+        publishedAt: last.publishedAt,
+        momentId: last.momentId,
+      })
+      setMoments((current) => {
+        const existing = new Set(current.map((moment) => moment.momentId))
+        return [...current, ...page.filter((moment) => !existing.has(moment.momentId))]
+      })
+      setHasMoreMoments(page.length === SIGNAL_MOMENT_PAGE_SIZE)
+    } catch (loadError) {
+      setMomentsError(toUserFacingError(loadError, 'Unable to load older Signal Moments right now.'))
+    } finally {
+      setMomentsLoadingMore(false)
+    }
+  }
 
   const completionPromptPlan = momentComposerPlanId
     ? eligiblePlans.find((plan) => plan.planId === momentComposerPlanId) ?? null
@@ -607,16 +637,28 @@ export default function ActivityView({
         ) : null}
 
         {moments.length > 0 ? (
-          <div className="signal-moments-feed">
-            {moments.map((moment) => (
-              <MomentCard
-                key={moment.momentId}
-                moment={moment}
-                currentUserId={currentUserId}
-                onDeleted={refreshMoments}
-              />
-            ))}
-          </div>
+          <>
+            <div className="signal-moments-feed">
+              {moments.map((moment) => (
+                <MomentCard
+                  key={moment.momentId}
+                  moment={moment}
+                  currentUserId={currentUserId}
+                  onDeleted={refreshMoments}
+                />
+              ))}
+            </div>
+            {hasMoreMoments ? (
+              <button
+                type="button"
+                className="signal-moments-load-more"
+                onClick={() => { void loadMoreMoments() }}
+                disabled={momentsLoadingMore}
+              >
+                {momentsLoadingMore ? 'LOADING…' : 'LOAD OLDER MOMENTS'}
+              </button>
+            ) : null}
+          </>
         ) : null}
       </section>
     </section>

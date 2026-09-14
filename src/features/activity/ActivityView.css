@@ -858,3 +858,18 @@
 .stay-connected-actions { display: flex; gap: 5px; }
 .stay-connected-badge { opacity: .72; }
 .stay-connected-error { margin: 0; font-size: 10px; }
+
+.signal-moments-load-more {
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.025);
+  color: inherit;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+.signal-moments-load-more:disabled { opacity: .45; cursor: default; }

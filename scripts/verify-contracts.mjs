@@ -22,6 +22,10 @@ const forbidden = [
     pattern: /\.rpc\(\s*['"]get_my_active_signal_resume['"]/, 
     message: 'Use get_my_active_signal_journey_resume instead of the legacy resume RPC.',
   },
+  {
+    pattern: /\.rpc\(\s*['"]get_signal_moments['"]/, 
+    message: 'Use get_signal_moments_page instead of the retired hard-cap Moments RPC.',
+  },
 ]
 
 async function walk(directory) {
