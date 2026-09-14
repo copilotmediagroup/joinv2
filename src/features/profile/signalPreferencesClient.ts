@@ -1,5 +1,9 @@
 import { supabase } from '../../lib/supabaseClient'
 
+const PREFERENCE_MUTATION_TIMEOUT_MS = 12_000
+const PREFERENCE_MUTATION_RETRY_DELAY_MS = 250
+const PREFERENCE_MUTATION_MAX_ATTEMPTS = 2
+
 export type SignalPreferences = {
   socialEnergy: string | null
   goingOutStyle: string | null
@@ -53,16 +57,36 @@ export async function getMySignalPreferences(): Promise<SignalPreferences> {
 export async function updateMySignalPreferences(
   preferences: SignalPreferences,
 ): Promise<SignalPreferences> {
-  const { data, error } = await supabase.rpc('update_my_signal_preferences', {
-    p_social_energy: preferences.socialEnergy,
-    p_going_out_style: preferences.goingOutStyle,
-    p_night_timing: preferences.nightTiming,
-    p_venue_energy: preferences.venueEnergy,
-    p_bar_style: preferences.barStyle,
-    p_restaurant_style: preferences.restaurantStyle,
-    p_planning_style: preferences.planningStyle,
-    p_group_size: preferences.groupSize,
-  })
-  if (error) throw new Error(error.message || 'Unable to save your Signal energy.')
-  return parsePreferences(data)
+  let lastMessage = 'Unable to save your Signal energy.'
+
+  for (let attempt = 0; attempt < PREFERENCE_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), PREFERENCE_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('update_my_signal_preferences', {
+          p_social_energy: preferences.socialEnergy,
+          p_going_out_style: preferences.goingOutStyle,
+          p_night_timing: preferences.nightTiming,
+          p_venue_energy: preferences.venueEnergy,
+          p_bar_style: preferences.barStyle,
+          p_restaurant_style: preferences.restaurantStyle,
+          p_planning_style: preferences.planningStyle,
+          p_group_size: preferences.groupSize,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) return parsePreferences(data)
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= PREFERENCE_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, PREFERENCE_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }

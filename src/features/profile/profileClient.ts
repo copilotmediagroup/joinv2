@@ -1,5 +1,13 @@
 import { supabase } from '../../lib/supabaseClient'
 
+const PROFILE_MUTATION_TIMEOUT_MS = 12_000
+const PROFILE_MUTATION_RETRY_DELAY_MS = 250
+const PROFILE_MUTATION_MAX_ATTEMPTS = 2
+
+function profileRetryDelay() {
+  return new Promise((resolve) => window.setTimeout(resolve, PROFILE_MUTATION_RETRY_DELAY_MS))
+}
+
 export type ProfileGender = 'male' | 'female'
 export type ProfileCompletionState = 'incomplete' | 'complete'
 
@@ -107,22 +115,41 @@ export async function updateMyProfile(
     throw new Error('Bio must be 300 characters or fewer.')
   }
 
-  const { data, error } = await supabase.rpc('update_my_profile', {
-    p_display_name: displayName,
-    p_avatar_path: avatarPath,
-    p_bio: bio,
-  })
+  let lastError: unknown = null
 
-  if (error) {
-    throw error
+  for (let attempt = 0; attempt < PROFILE_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), PROFILE_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('update_my_profile', {
+          p_display_name: displayName,
+          p_avatar_path: avatarPath,
+          p_bio: bio,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) {
+        return mapProfileRow(
+          requireSingleProfileRow(
+            data as ProfileRpcRow | ProfileRpcRow[] | null,
+            'Profile update',
+          ),
+        )
+      }
+
+      lastError = error
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= PROFILE_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await profileRetryDelay()
   }
 
-  return mapProfileRow(
-    requireSingleProfileRow(
-      data as ProfileRpcRow | ProfileRpcRow[] | null,
-      'Profile update',
-    ),
-  )
+  throw lastError instanceof Error ? lastError : new Error('Unable to update profile.')
 }
 
 export type MyIdentityPhoto = {
