@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-type RequestBody = { signalGroupId: string; limit?: number }
+type RequestBody = { signalGroupId: string; limit?: number; allowCityFallback?: boolean }
 type DomainClient = ReturnType<typeof createClient>
 type Json = Record<string, unknown>
 
@@ -80,6 +80,11 @@ function confidenceScore(count: number) {
   if (count >= 5) return 4
   return 1
 }
+function fairTravelScore(averageMiles: number, maxMiles: number) {
+  const averageScore = distanceScore(averageMiles)
+  const farthestPenalty = maxMiles > 15 ? 24 : maxMiles > 12 ? 18 : maxMiles > 10 ? 12 : maxMiles > 8 ? 7 : maxMiles > 6 ? 3 : 0
+  return averageScore - farthestPenalty
+}
 function cityLocalHour(timeZone: string): number {
   const hour = new Intl.DateTimeFormat('en-US', {
     timeZone,
@@ -89,17 +94,34 @@ function cityLocalHour(timeZone: string): number {
   return Number(hour)
 }
 
+type VenueTimeBand = 'morning' | 'daytime' | 'evening' | 'late_night'
+
+function timeBandFor(localHour: number): VenueTimeBand {
+  if (localHour >= 6 && localHour < 10) return 'morning'
+  if (localHour >= 10 && localHour < 17) return 'daytime'
+  if (localHour >= 17 && localHour < 22) return 'evening'
+  return 'late_night'
+}
+
 function searchIntentFor(slug: string, activityName: string, localHour: number): string {
-  if (slug === 'chill' && localHour >= 6 && localHour < 10) {
-    return 'Starbucks coffee shops cafes breakfast cafes relaxed morning hangout spots'
+  const band = timeBandFor(localHour)
+  if (slug === 'chill') {
+    if (band === 'morning') return 'Starbucks coffee shops cafes breakfast cafes relaxed morning hangout spots'
+    if (band === 'daytime') return 'coffee shops cafes dessert shops casual social hangout spots parks'
+    if (band === 'evening') return 'lounges rooftop lounges cafes dessert shops casual social restaurants'
+    return 'late night lounges hotel bars cocktail lounges bars pubs late night restaurants'
   }
+  if (slug === 'sports' && band === 'late_night') return '24 hour gyms indoor sports centers late night recreation centers'
+  if (slug === 'outdoors' && band === 'late_night') return 'well lit public outdoor recreation open late'
+  if (slug === 'creative' && band === 'late_night') return 'late night creative studios paint and sip art experiences'
   return SEARCH_QUERIES[slug] ?? `${activityName} venues and activities`
 }
 
 function facilityFit(slug: string, name: string, category: string, localHour: number) {
   const text = `${name} ${category}`.toLowerCase()
   if (slug === 'chill') {
-    const morning = localHour >= 6 && localHour < 10
+    const band = timeBandFor(localHour)
+    const morning = band === 'morning'
     const starbucks = text.includes('starbucks')
     const coffee = ['coffee', 'cafe', 'bakery'].some((term) => text.includes(term))
     const lateNightSocial = ['bar', 'lounge', 'cocktail', 'hotel', 'pub', 'brewery', 'nightclub']
@@ -111,8 +133,10 @@ function facilityFit(slug: string, name: string, category: string, localHour: nu
       return 0
     }
 
-    if (lateNightSocial.some((term) => text.includes(term))) return 16
-    if (coffee) return -4
+    if (band === 'late_night' && lateNightSocial.some((term) => text.includes(term))) return 22
+    if (band === 'evening' && lateNightSocial.some((term) => text.includes(term))) return 14
+    if (band === 'daytime' && coffee) return 12
+    if (band === 'late_night' && coffee) return -4
     return 0
   }
   if (slug !== 'sports') return 0
@@ -213,7 +237,7 @@ Deno.serve(async (request: Request) => {
     const { data: { user }, error: userError } = await authClient.auth.getUser()
     if (userError || !user) return json({ error: 'Invalid or expired authentication' }, 401)
 
-    const { signalGroupId, limit = 3 } = await request.json() as RequestBody
+    const { signalGroupId, limit = 3, allowCityFallback = false } = await request.json() as RequestBody
     if (!isUuid(signalGroupId)) return json({ error: 'signalGroupId must be a UUID' }, 400)
 
     const domain = createClient(supabaseUrl, serverKey, {
@@ -264,11 +288,61 @@ Deno.serve(async (request: Request) => {
       (exclusionRows ?? []).map((row) => row.place_id),
     )
 
-    const latitude = Number(city.latitude)
-    const longitude = Number(city.longitude)
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    const cityLatitude = Number(city.latitude)
+    const cityLongitude = Number(city.longitude)
+    if (!Number.isFinite(cityLatitude) || !Number.isFinite(cityLongitude)) {
       throw new Error('Signal city coordinates are unavailable')
     }
+
+    const { data: activeMembers, error: activeMembersError } = await domain
+      .from('signal_group_memberships')
+      .select('user_id')
+      .eq('signal_group_id', signalGroupId)
+      .eq('state', 'confirmed')
+      .eq('is_active_core', true)
+    if (activeMembersError) throw activeMembersError
+
+    const activeUserIds = (activeMembers ?? []).map((row) => row.user_id)
+    const nowIso = new Date().toISOString()
+    const recentCutoffIso = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+    let validMemberLocations: Array<{ latitude: number; longitude: number }> = []
+    if (activeUserIds.length > 0) {
+      const { data: memberLocations, error: memberLocationsError } = await domain
+        .from('signal_member_locations')
+        .select('user_id,latitude,longitude,accuracy_meters,captured_at,expires_at')
+        .eq('signal_group_id', signalGroupId)
+        .in('user_id', activeUserIds)
+        .gt('expires_at', nowIso)
+        .gte('captured_at', recentCutoffIso)
+      if (memberLocationsError) throw memberLocationsError
+
+      validMemberLocations = (memberLocations ?? [])
+        .map((row) => ({
+          latitude: Number(row.latitude),
+          longitude: Number(row.longitude),
+          accuracy: row.accuracy_meters === null ? null : Number(row.accuracy_meters),
+        }))
+        .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
+        .filter((point) => point.accuracy === null || point.accuracy <= 5000)
+        .filter((point) => milesBetween(cityLatitude, cityLongitude, point.latitude, point.longitude) <= 40)
+        .map(({ latitude, longitude }) => ({ latitude, longitude }))
+    }
+
+    const requiredLocationCount = activeUserIds.length <= 1
+      ? activeUserIds.length
+      : Math.max(2, Math.ceil(activeUserIds.length / 2))
+    const hasGroupMeetingPoint = requiredLocationCount > 0 && validMemberLocations.length >= requiredLocationCount
+    if (!hasGroupMeetingPoint && !allowCityFallback) {
+      return json({ error: 'group_location_pending' }, 409)
+    }
+
+    const searchLatitude = hasGroupMeetingPoint
+      ? validMemberLocations.reduce((sum, point) => sum + point.latitude, 0) / validMemberLocations.length
+      : cityLatitude
+    const searchLongitude = hasGroupMeetingPoint
+      ? validMemberLocations.reduce((sum, point) => sum + point.longitude, 0) / validMemberLocations.length
+      : cityLongitude
+    const travelLocations = hasGroupMeetingPoint ? validMemberLocations : []
 
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
     if (!apiKey) throw new Error('GOOGLE_MAPS_API_KEY is not configured')
@@ -298,7 +372,7 @@ Deno.serve(async (request: Request) => {
       body: JSON.stringify({
         textQuery: query,
         maxResultCount: 15,
-        locationBias: { circle: { center: { latitude, longitude }, radius: 16093.4 } },
+        locationBias: { circle: { center: { latitude: searchLatitude, longitude: searchLongitude }, radius: 16093.4 } },
       }),
     })
     if (!googleResponse.ok) {
@@ -315,7 +389,15 @@ Deno.serve(async (request: Request) => {
     const places = await Promise.all(rawPlaces.map(async (place: any, index: number) => {
       const lat = Number(place.location?.latitude ?? 0)
       const lng = Number(place.location?.longitude ?? 0)
-      const miles = Number(milesBetween(latitude, longitude, lat, lng).toFixed(2))
+      const centerMiles = Number(milesBetween(searchLatitude, searchLongitude, lat, lng).toFixed(2))
+      const memberDistances = travelLocations.map((point) => milesBetween(point.latitude, point.longitude, lat, lng))
+      const groupTravelAverageMiles = memberDistances.length > 0
+        ? Number((memberDistances.reduce((sum, value) => sum + value, 0) / memberDistances.length).toFixed(2))
+        : null
+      const groupTravelMaxMiles = memberDistances.length > 0
+        ? Number(Math.max(...memberDistances).toFixed(2))
+        : null
+      const miles = groupTravelAverageMiles ?? centerMiles
       const rating = typeof place.rating === 'number' ? place.rating : null
       const ratingCount = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0
       const openNow = typeof place.currentOpeningHours?.openNow === 'boolean'
@@ -325,13 +407,18 @@ Deno.serve(async (request: Request) => {
       const photoName = typeof photo?.name === 'string' ? photo.name : null
       const relevance = rawPlaces.length <= 1 ? 10 : Number((10 * (1 - index / (rawPlaces.length - 1))).toFixed(2))
       const fit = facilityFit(activity.slug, place.displayName?.text ?? '', category, localHour)
-      const score = distanceScore(miles) + ratingScore(rating) + confidenceScore(ratingCount) +
+      const travelScore = groupTravelAverageMiles !== null && groupTravelMaxMiles !== null
+        ? fairTravelScore(groupTravelAverageMiles, groupTravelMaxMiles)
+        : distanceScore(centerMiles)
+      const score = travelScore + ratingScore(rating) + confidenceScore(ratingCount) +
         (openNow === true ? 10 : openNow === null ? 5 : 0) + relevance + fit
 
       return {
         placeId: place.id ?? '',
         name: place.displayName?.text ?? 'Unknown place',
         address: place.formattedAddress ?? '', lat, lng, distanceMiles: miles,
+        groupTravelAverageMiles: groupTravelAverageMiles ?? undefined,
+        groupTravelMaxMiles: groupTravelMaxMiles ?? undefined,
         rating, ratingCount, category, openNow,
         utcOffsetMinutes: typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null,
         openingHours: place.currentOpeningHours ? {
@@ -365,7 +452,7 @@ Deno.serve(async (request: Request) => {
         signalRank: 0,
         signalScore: Number(score.toFixed(2)),
         scoreBreakdown: {
-          distance: distanceScore(miles), rating: ratingScore(rating),
+          distance: travelScore, rating: ratingScore(rating),
           confidence: confidenceScore(ratingCount),
           availability: openNow === true ? 10 : openNow === null ? 5 : 0,
           relevance, facilityFit: fit, localHour,
@@ -373,18 +460,21 @@ Deno.serve(async (request: Request) => {
       }
     }))
 
-    const ranked = places
-      .filter((place) => place.placeId.length > 0)
-      .sort((a, b) => {
-        const availabilityOrder = (value: boolean | null) => value === true ? 0 : value === null ? 1 : 2
-        return availabilityOrder(a.openNow) - availabilityOrder(b.openNow) ||
-          b.signalScore - a.signalScore || b.ratingCount - a.ratingCount || a.distanceMiles - b.distanceMiles
-      })
+    const confirmedOpenPlaces = places.filter((place) => place.placeId.length > 0 && place.openNow === true)
+    const unknownHoursPlaces = places.filter((place) => place.placeId.length > 0 && place.openNow === null)
+    const eligiblePlaces = confirmedOpenPlaces.length >= 2
+      ? confirmedOpenPlaces
+      : [...confirmedOpenPlaces, ...unknownHoursPlaces]
+
+    const ranked = eligiblePlaces
+      .sort((a, b) =>
+        b.signalScore - a.signalScore || b.ratingCount - a.ratingCount || a.distanceMiles - b.distanceMiles,
+      )
       .slice(0, Math.min(Math.max(limit, 2), 3))
       .map((place, index) => ({ ...place, signalRank: index + 1 }))
 
     if (ranked.length < 2) {
-      return json({ error: 'Not enough eligible venues remain for this Signal' }, 409)
+      return json({ error: 'Not enough open venues fit this Signal right now' }, 409)
     }
 
     const { error: ensureError } = await domain.rpc('ensure_signal_venue_round', {

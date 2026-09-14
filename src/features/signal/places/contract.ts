@@ -16,6 +16,8 @@ export type SignalPlace = {
   lat: number
   lng: number
   distanceMiles: number
+  groupTravelAverageMiles?: number
+  groupTravelMaxMiles?: number
   rating: number | null
   ratingCount: number
   category: string
@@ -66,6 +68,7 @@ export type SignalVenueRound = {
 export type SignalPlacesRequest = {
   signalGroupId: string
   limit?: number
+  allowCityFallback?: boolean
 }
 
 export type SignalPlacesResponse = {

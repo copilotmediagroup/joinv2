@@ -11,6 +11,8 @@ import { Check, MapPin, Star, Zap } from 'lucide-react'
 import {
   castSignalVenueVote,
   fetchSignalPlaces,
+  SignalGroupLocationPendingError,
+  submitMySignalLocation,
   reconcileSignalVenueRound,
   restartDeadlockedSignalVenueVote,
   subscribeToSignalVenueRound,
@@ -63,10 +65,25 @@ export default function SignalPlaceStage({
   const notifiedWinnerId = useRef<string | null>(null)
   const deadlockRestartingRef = useRef(false)
   const deadlockRetryCountRef = useRef(0)
+  const locationPreparedRef = useRef(false)
 
   const loadRound = useCallback(async () => {
     try {
-      const next = await fetchSignalPlaces({ signalGroupId, limit: 3 })
+      let allowCityFallback = true
+      if (!locationPreparedRef.current) {
+        locationPreparedRef.current = true
+        await submitMySignalLocation(signalGroupId).catch(() => false)
+        allowCityFallback = false
+      }
+
+      let next: SignalPlacesResponse
+      try {
+        next = await fetchSignalPlaces({ signalGroupId, limit: 3, allowCityFallback })
+      } catch (error) {
+        if (!(error instanceof SignalGroupLocationPendingError)) throw error
+        await new Promise((resolve) => window.setTimeout(resolve, 4500))
+        next = await fetchSignalPlaces({ signalGroupId, limit: 3, allowCityFallback: true })
+      }
       setSnapshot(next)
       setPlacesError(null)
       setSecondsLeft(secondsUntil(next.round.closesAt))
@@ -135,6 +152,7 @@ export default function SignalPlaceStage({
 
   useEffect(() => {
     deadlockRetryCountRef.current = 0
+    locationPreparedRef.current = false
   }, [signalGroupId])
 
   useEffect(() => {
@@ -206,7 +224,7 @@ export default function SignalPlaceStage({
     return (
       <section className="signal-place-stage">
         <p className="signal-place-ranking-copy">
-          Finding live venues for this Signal...
+          Finding the best open meeting point for your group...
         </p>
       </section>
     )
@@ -300,7 +318,7 @@ export default function SignalPlaceStage({
                   </div>
                   <div className="signal-venue-facts">
                     <span>{place.signalScore.toFixed(0)} SIGNAL</span><i />
-                    <span>{place.distanceMiles.toFixed(1)} mi avg</span><i />
+                    <span>{place.groupTravelAverageMiles !== undefined ? `${place.groupTravelAverageMiles.toFixed(1)} mi avg` : `${place.distanceMiles.toFixed(1)} mi from center`}</span><i />
                     <span>{place.category}</span><i />
                     <strong>{place.openNow === true ? 'Open now' : place.openNow === false ? 'Closed' : 'Hours unavailable'}</strong>
                   </div>
@@ -350,7 +368,7 @@ export default function SignalPlaceStage({
               <div className="signal-venue-meta">
                 <span><Star size={13} fill="currentColor" />{(winner.rating ?? 0).toFixed(1)}</span>
                 <i />
-                <span>{winner.distanceMiles.toFixed(1)} mi</span>
+                <span>{winner.groupTravelAverageMiles !== undefined ? `${winner.groupTravelAverageMiles.toFixed(1)} mi avg travel` : `${winner.distanceMiles.toFixed(1)} mi from center`}</span>
                 <i />
                 <span>{round.voteCounts[winner.optionId] ?? 0} votes</span>
               </div>

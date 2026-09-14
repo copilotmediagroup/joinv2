@@ -40,6 +40,36 @@ async function getFunctionErrorMessage(error: unknown): Promise<string> {
   return fallback
 }
 
+export class SignalGroupLocationPendingError extends Error {
+  constructor() {
+    super('group_location_pending')
+    this.name = 'SignalGroupLocationPendingError'
+  }
+}
+
+export async function submitMySignalLocation(signalGroupId: string): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) return false
+
+  const position = await new Promise<GeolocationPosition | null>((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      resolve,
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 120000 },
+    )
+  })
+  if (!position) return false
+
+  const { error } = await supabase.rpc('set_my_signal_location', {
+    p_signal_group_id: signalGroupId,
+    p_latitude: position.coords.latitude,
+    p_longitude: position.coords.longitude,
+    p_accuracy_meters: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
+    p_captured_at: new Date(position.timestamp).toISOString(),
+  })
+  if (error) return false
+  return true
+}
+
 export async function fetchSignalPlaces(
   request: SignalPlacesRequest,
 ): Promise<SignalPlacesResponse> {
@@ -48,7 +78,11 @@ export async function fetchSignalPlaces(
   if (!session) throw new Error('You must be signed in to choose a Signal venue')
 
   const { data, error } = await supabase.functions.invoke('signal-places', { body: request })
-  if (error) throw new Error(await getFunctionErrorMessage(error))
+  if (error) {
+    const message = await getFunctionErrorMessage(error)
+    if (message.includes('group_location_pending')) throw new SignalGroupLocationPendingError()
+    throw new Error(message)
+  }
   if (!data || typeof data !== 'object') throw new Error('Signal Places returned an invalid response')
   return data as SignalPlacesResponse
 }
