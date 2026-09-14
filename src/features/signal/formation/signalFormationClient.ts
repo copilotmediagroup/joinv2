@@ -6,6 +6,10 @@ import {
 
 import { supabase } from '../../../lib/supabaseClient'
 
+const FORMATION_TIMEOUT_MS = 12_000
+const FORMATION_RETRY_DELAY_MS = 250
+const FORMATION_MAX_ATTEMPTS = 2
+
 export type SignalTimeWindow =
   | 'NOW'
   | 'TONIGHT'
@@ -191,45 +195,47 @@ async function getFunctionErrorMessage(
   return 'Signal formation request failed'
 }
 
+function isRetryableFormationError(error: unknown): boolean {
+  if (error instanceof FunctionsFetchError || error instanceof FunctionsRelayError) {
+    return true
+  }
+
+  return error instanceof FunctionsHttpError && error.context.status >= 500
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
+}
+
 export async function formSignal(
   request: SignalFormationRequest,
 ): Promise<SignalFormationResult> {
-  const {
-    data: {
-      session,
-    },
-    error: sessionError,
-  } =
-    await supabase.auth.getSession()
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
   if (sessionError) {
-    throw new Error(
-      'Unable to verify your Signal session',
-    )
+    throw new Error('Unable to verify your Signal session')
   }
-
   if (!session) {
-    throw new Error(
-      'You must be signed in to join a Signal',
-    )
+    throw new Error('You must be signed in to join a Signal')
   }
 
-  const {
-    data,
-    error,
-  } =
-    await supabase.functions.invoke(
-      'signal-form',
-      {
-        body: request,
-      },
-    )
+  let lastError: unknown = null
 
-  if (error) {
-    throw new Error(
-      await getFunctionErrorMessage(error),
-    )
+  for (let attempt = 0; attempt < FORMATION_MAX_ATTEMPTS; attempt += 1) {
+    const { data, error } = await supabase.functions.invoke('signal-form', {
+      body: request,
+      timeout: FORMATION_TIMEOUT_MS,
+    })
+
+    if (!error) return parseFormationResult(data)
+    lastError = error
+
+    if (attempt + 1 >= FORMATION_MAX_ATTEMPTS || !isRetryableFormationError(error)) {
+      break
+    }
+
+    await delay(FORMATION_RETRY_DELAY_MS)
   }
 
-  return parseFormationResult(data)
+  throw new Error(await getFunctionErrorMessage(lastError))
 }
