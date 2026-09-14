@@ -10,6 +10,9 @@ const MOMENT_REPORT_MAX_ATTEMPTS = 2
 const MOMENT_DELETE_TIMEOUT_MS = 12_000
 const MOMENT_DELETE_RETRY_DELAY_MS = 250
 const MOMENT_DELETE_MAX_ATTEMPTS = 2
+const MOMENT_PUBLISH_TIMEOUT_MS = 12_000
+const MOMENT_PUBLISH_RETRY_DELAY_MS = 250
+const MOMENT_PUBLISH_MAX_ATTEMPTS = 2
 
 export type SignalMomentMedia = {
   storagePath: string
@@ -279,6 +282,7 @@ export async function publishSignalMoment(input: {
     mediaKind: 'image' | 'video'
     mimeType: string
   }> = []
+  let preserveUploads = false
 
   try {
     for (const file of input.files) {
@@ -298,23 +302,50 @@ export async function publishSignalMoment(input: {
       })
     }
 
-    const { data, error } = await supabase.rpc('publish_my_signal_moment', {
-      p_plan_id: input.planId,
-      p_caption: input.caption,
-      p_media: uploaded.map((item) => ({
-        storagePath: item.storagePath,
-        mediaKind: item.mediaKind,
-        mimeType: item.mimeType,
-      })),
-    })
-    if (error) throw new Error(error.message || 'Unable to publish Signal Moment.')
-    const momentId = requireString(data, 'moment_id')
+    const mediaPayload = uploaded.map((item) => ({
+      storagePath: item.storagePath,
+      mediaKind: item.mediaKind,
+      mimeType: item.mimeType,
+    }))
+    let lastMessage = 'Unable to publish Signal Moment.'
 
-    void broadcastSignalMomentsChanged().catch(() => undefined)
+    for (let attempt = 0; attempt < MOMENT_PUBLISH_MAX_ATTEMPTS; attempt += 1) {
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => controller.abort(), MOMENT_PUBLISH_TIMEOUT_MS)
 
-    return momentId
+      try {
+        const { data, error, status } = await supabase
+          .rpc('publish_my_signal_moment', {
+            p_plan_id: input.planId,
+            p_caption: input.caption,
+            p_media: mediaPayload,
+          })
+          .abortSignal(controller.signal)
+
+        if (!error) {
+          const momentId = requireString(data, 'moment_id')
+          void broadcastSignalMomentsChanged().catch(() => undefined)
+          return momentId
+        }
+
+        lastMessage = error.message || lastMessage
+        const retryable = status === 0 || status >= 500
+        if (retryable) preserveUploads = true
+        if (!retryable || attempt + 1 >= MOMENT_PUBLISH_MAX_ATTEMPTS) {
+          throw new Error(lastMessage)
+        }
+      } finally {
+        window.clearTimeout(timeoutId)
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, MOMENT_PUBLISH_RETRY_DELAY_MS))
+    }
+
+    throw new Error(lastMessage)
   } catch (error) {
-    if (uploaded.length > 0) {
+    const uncertainPublish = error instanceof Error &&
+      (error.message === 'Unable to publish Signal Moment.' || /fetch|network|timeout|aborted/i.test(error.message))
+    if (uploaded.length > 0 && !preserveUploads && !uncertainPublish) {
       await supabase.storage
         .from(MOMENT_BUCKET)
         .remove(uploaded.map((item) => item.storagePath))
