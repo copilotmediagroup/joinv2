@@ -44,20 +44,64 @@ export async function getCompletedPlanConnections(planId: string): Promise<Signa
   }))
 }
 
+const CONNECTION_MUTATION_TIMEOUT_MS = 12_000
+const CONNECTION_MUTATION_RETRY_DELAY_MS = 250
+const CONNECTION_MUTATION_MAX_ATTEMPTS = 2
+
+async function connectionRetryDelay(): Promise<void> {
+  await new Promise((resolve) => window.setTimeout(resolve, CONNECTION_MUTATION_RETRY_DELAY_MS))
+}
+
 export async function requestSignalConnection(planId: string, targetUserId: string): Promise<void> {
-  const { error } = await supabase.rpc('request_signal_connection', {
-    p_plan_id: planId,
-    p_target_user_id: targetUserId,
-  })
-  if (error) throw new Error(error.message || 'Unable to send connection request')
+  let lastMessage = 'Unable to send connection request'
+
+  for (let attempt = 0; attempt < CONNECTION_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), CONNECTION_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('request_signal_connection', { p_plan_id: planId, p_target_user_id: targetUserId })
+        .abortSignal(controller.signal)
+
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= CONNECTION_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await connectionRetryDelay()
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function respondToSignalConnection(connectionId: string, accept: boolean): Promise<void> {
-  const { error } = await supabase.rpc('respond_to_signal_connection', {
-    p_connection_id: connectionId,
-    p_accept: accept,
-  })
-  if (error) throw new Error(error.message || 'Unable to update connection')
+  let lastMessage = 'Unable to update connection'
+
+  for (let attempt = 0; attempt < CONNECTION_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), CONNECTION_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('respond_to_signal_connection', { p_connection_id: connectionId, p_accept: accept })
+        .abortSignal(controller.signal)
+
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= CONNECTION_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await connectionRetryDelay()
+  }
+
+  throw new Error(lastMessage)
 }
 
 export type MySignalConnection = {
