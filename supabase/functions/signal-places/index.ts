@@ -85,7 +85,33 @@ function fairTravelScore(averageMiles: number, maxMiles: number) {
   const farthestPenalty = maxMiles > 15 ? 24 : maxMiles > 12 ? 18 : maxMiles > 10 ? 12 : maxMiles > 8 ? 7 : maxMiles > 6 ? 3 : 0
   return averageScore - farthestPenalty
 }
-function cityLocalHour(timeZone: string): number {
+const MIN_USABLE_OPEN_MINUTES = 150
+const WEEK_MINUTES = 7 * 24 * 60
+
+function venueWeekMinute(epochMs: number, offsetMinutes: number): number {
+  const local = new Date(epochMs + offsetMinutes * 60_000)
+  return local.getUTCDay() * 1440 + local.getUTCHours() * 60 + local.getUTCMinutes()
+}
+
+function minutesUntilCurrentClose(place: { currentOpeningHours?: { periods?: Array<{ open?: { day?: number; hour?: number; minute?: number } | null; close?: { day?: number; hour?: number; minute?: number } | null }> } | null; utcOffsetMinutes?: number | null }): number | null {
+  const offset = typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null
+  const periods = place.currentOpeningHours?.periods
+  if (offset === null || !Array.isArray(periods) || periods.length === 0) return null
+  const nowMinute = venueWeekMinute(Date.now(), offset)
+  for (const period of periods) {
+    if (!period.open) continue
+    const open = (period.open.day ?? 0) * 1440 + (period.open.hour ?? 0) * 60 + (period.open.minute ?? 0)
+    let close = period.close
+      ? (period.close.day ?? 0) * 1440 + (period.close.hour ?? 0) * 60 + (period.close.minute ?? 0)
+      : open + WEEK_MINUTES
+    if (close <= open) close += WEEK_MINUTES
+    const candidates = [nowMinute, nowMinute + WEEK_MINUTES]
+    for (const candidate of candidates) {
+      if (candidate >= open && candidate < close) return close - candidate
+    }
+  }
+  return null
+}function cityLocalHour(timeZone: string): number {
   const hour = new Intl.DateTimeFormat('en-US', {
     timeZone,
     hour: '2-digit',
@@ -402,6 +428,8 @@ Deno.serve(async (request: Request) => {
       const ratingCount = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0
       const openNow = typeof place.currentOpeningHours?.openNow === 'boolean'
         ? place.currentOpeningHours.openNow : null
+      const openMinutesRemaining = openNow === true ? minutesUntilCurrentClose(place) : null
+      const supportsSignalWindow = openNow !== true || openMinutesRemaining === null || openMinutesRemaining >= MIN_USABLE_OPEN_MINUTES
       const category = place.primaryType ?? activity.slug
       const photo = place.photos?.[0] ?? null
       const photoName = typeof photo?.name === 'string' ? photo.name : null
@@ -419,7 +447,7 @@ Deno.serve(async (request: Request) => {
         address: place.formattedAddress ?? '', lat, lng, distanceMiles: miles,
         groupTravelAverageMiles: groupTravelAverageMiles ?? undefined,
         groupTravelMaxMiles: groupTravelMaxMiles ?? undefined,
-        rating, ratingCount, category, openNow,
+        rating, ratingCount, category, openNow, openMinutesRemaining, supportsSignalWindow,
         utcOffsetMinutes: typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null,
         openingHours: place.currentOpeningHours ? {
           periods: Array.isArray(place.currentOpeningHours.periods) ? place.currentOpeningHours.periods : [],
@@ -460,7 +488,7 @@ Deno.serve(async (request: Request) => {
       }
     }))
 
-    const confirmedOpenPlaces = places.filter((place) => place.placeId.length > 0 && place.openNow === true)
+    const confirmedOpenPlaces = places.filter((place) => place.placeId.length > 0 && place.openNow === true && place.supportsSignalWindow)
     const unknownHoursPlaces = places.filter((place) => place.placeId.length > 0 && place.openNow === null)
     const eligiblePlaces = confirmedOpenPlaces.length >= 2
       ? confirmedOpenPlaces
