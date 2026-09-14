@@ -43,6 +43,10 @@ const forbidden = [
     message: 'Use propose_plan_change_v2 so one Plan-change submission is idempotent and retry-safe.',
   },
   {
+    pattern: /\.rpc\(\s*['"]withdraw_my_signal['"]/,
+    message: 'Use withdraw_my_signal_v2 so Signal departure recovers safely after transport failure.',
+  },
+  {
     pattern: /\.rpc\(\s*['"]enforce_user_account['"]/,
     message: 'Use enforce_user_account_v2 so one admin enforcement click is idempotent and retry-safe.',
   },

@@ -1,5 +1,9 @@
 import { supabase } from '../../../lib/supabaseClient'
 
+const WITHDRAWAL_TIMEOUT_MS = 12_000
+const WITHDRAWAL_RETRY_DELAY_MS = 250
+const WITHDRAWAL_MAX_ATTEMPTS = 2
+
 export type SignalWithdrawalResult = {
   signalIntentId: string
   signalGroupId: string
@@ -82,22 +86,36 @@ export async function withdrawMySignal(
     )
   }
 
-  const {
-    data,
-    error,
-  } = await supabase.rpc(
-    'withdraw_my_signal',
-    {
-      p_signal_intent_id: signalIntentId,
-    },
-  )
+  let lastMessage = 'Unable to leave this Signal'
+  let responseData: unknown = null
 
-  if (error) {
-    throw new Error(
-      error.message ||
-        'Unable to leave this Signal',
-    )
+  for (let attempt = 0; attempt < WITHDRAWAL_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), WITHDRAWAL_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('withdraw_my_signal_v2', { p_signal_intent_id: signalIntentId })
+        .abortSignal(controller.signal)
+
+      if (!error) {
+        responseData = data
+        break
+      }
+
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= WITHDRAWAL_MAX_ATTEMPTS) {
+        throw new Error(lastMessage)
+      }
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, WITHDRAWAL_RETRY_DELAY_MS))
   }
+
+  const data = responseData
 
   if (
     !Array.isArray(data) ||
