@@ -20,14 +20,45 @@ function required(value: unknown, field: string): string {
   return value
 }
 
-export async function blockUser(userId: string): Promise<void> {
-  const { error } = await supabase.rpc('block_user', { p_target_user_id: userId })
-  if (error) throw new Error(error.message || 'Unable to block this person')
+const SAFETY_MUTATION_TIMEOUT_MS = 12_000
+const SAFETY_MUTATION_RETRY_DELAY_MS = 250
+const SAFETY_MUTATION_MAX_ATTEMPTS = 2
+
+async function runRetrySafeSafetyMutation(
+  rpcName: 'block_user' | 'unblock_user',
+  userId: string,
+  fallbackMessage: string,
+): Promise<void> {
+  let lastMessage = fallbackMessage
+
+  for (let attempt = 0; attempt < SAFETY_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), SAFETY_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc(rpcName, { p_target_user_id: userId })
+        .abortSignal(controller.signal)
+
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= SAFETY_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, SAFETY_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
-export async function unblockUser(userId: string): Promise<void> {
-  const { error } = await supabase.rpc('unblock_user', { p_target_user_id: userId })
-  if (error) throw new Error(error.message || 'Unable to unblock this person')
+export function blockUser(userId: string): Promise<void> {
+  return runRetrySafeSafetyMutation('block_user', userId, 'Unable to block this person')
+}
+
+export function unblockUser(userId: string): Promise<void> {
+  return runRetrySafeSafetyMutation('unblock_user', userId, 'Unable to unblock this person')
 }
 export async function reportUser(
   userId: string,
