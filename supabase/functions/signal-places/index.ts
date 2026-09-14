@@ -112,12 +112,12 @@ function minutesUntilCurrentClose(place: { currentOpeningHours?: { periods?: Arr
     }
   }
   return null
-}function cityLocalHour(timeZone: string): number {
+}function cityLocalHour(timeZone: string, epochMs = Date.now()): number {
   const hour = new Intl.DateTimeFormat('en-US', {
     timeZone,
     hour: '2-digit',
     hourCycle: 'h23',
-  }).format(new Date())
+  }).format(new Date(epochMs))
   return Number(hour)
 }
 
@@ -193,6 +193,70 @@ function searchIntentFor(slug: string, activityName: string, localHour: number):
 
 function includesAny(text: string, terms: string[]) {
   return terms.some((term) => text.includes(term))
+}
+
+type CoordinationPolicy = {
+  leadMinutes: number
+  durationMinutes: number
+  closingBufferMinutes: number
+  alignmentMinutes: number
+}
+
+function coordinationPolicy(slug: string, band: VenueTimeBand): CoordinationPolicy {
+  if (band === 'late_night') {
+    return { leadMinutes: 15, durationMinutes: 60, closingBufferMinutes: 5, alignmentMinutes: 15 }
+  }
+  if (slug === 'sports' || slug === 'creative') {
+    return { leadMinutes: 20, durationMinutes: 90, closingBufferMinutes: 15, alignmentMinutes: 30 }
+  }
+  return { leadMinutes: 20, durationMinutes: 75, closingBufferMinutes: 15, alignmentMinutes: 15 }
+}
+
+function alignVenueTime(epochMs: number, offsetMinutes: number, alignmentMinutes: number): number {
+  const localMs = epochMs + offsetMinutes * 60_000
+  const step = alignmentMinutes * 60_000
+  return Math.ceil(localMs / step) * step - offsetMinutes * 60_000
+}
+
+function hasUsableSignalSlot(
+  signalStartsAt: number,
+  signalEndsAt: number,
+  place: {
+    currentOpeningHours?: { periods?: Array<{ open?: { day?: number; hour?: number; minute?: number } | null; close?: { day?: number; hour?: number; minute?: number } | null }> } | null
+    utcOffsetMinutes?: number | null
+  },
+  policy: CoordinationPolicy,
+): boolean {
+  const offset = typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null
+  const periods = place.currentOpeningHours?.periods
+  if (offset === null || !Array.isArray(periods) || periods.length === 0) return false
+
+  const earliest = alignVenueTime(
+    Math.max(signalStartsAt, Date.now() + policy.leadMinutes * 60_000),
+    offset,
+    policy.alignmentMinutes,
+  )
+  const latest = signalEndsAt - policy.durationMinutes * 60_000
+  if (earliest > latest) return false
+
+  for (let candidate = earliest; candidate <= latest; candidate += policy.alignmentMinutes * 60_000) {
+    const candidateWeekMinute = venueWeekMinute(candidate, offset)
+    const requiredEnd = candidateWeekMinute + policy.durationMinutes + policy.closingBufferMinutes
+    const fits = periods.some((period) => {
+      if (!period.open) return false
+      const open = (period.open.day ?? 0) * 1440 + (period.open.hour ?? 0) * 60 + (period.open.minute ?? 0)
+      let close = period.close
+        ? (period.close.day ?? 0) * 1440 + (period.close.hour ?? 0) * 60 + (period.close.minute ?? 0)
+        : open + WEEK_MINUTES
+      if (close <= open) close += WEEK_MINUTES
+      return (
+        (candidateWeekMinute >= open && requiredEnd <= close) ||
+        (candidateWeekMinute + WEEK_MINUTES >= open && requiredEnd + WEEK_MINUTES <= close)
+      )
+    })
+    if (fits) return true
+  }
+  return false
 }
 
 function minimumUsableOpenMinutes(slug: string, localHour: number) {
@@ -378,7 +442,7 @@ Deno.serve(async (request: Request) => {
 
     const { data: group, error: groupError } = await domain
       .from('signal_groups')
-      .select('city_id,activity_id,state')
+      .select('city_id,activity_id,state,starts_at,ends_at')
       .eq('id', signalGroupId)
       .single()
     if (groupError || !group) throw groupError ?? new Error('Signal group not found')
@@ -472,7 +536,13 @@ Deno.serve(async (request: Request) => {
     if (typeof city.timezone_name !== 'string' || !city.timezone_name.trim()) {
       throw new Error('Signal city timezone is unavailable')
     }
-    const localHour = cityLocalHour(city.timezone_name)
+    const signalStartsAt = new Date(group.starts_at).getTime()
+    const signalEndsAt = new Date(group.ends_at).getTime()
+    if (!Number.isFinite(signalStartsAt) || !Number.isFinite(signalEndsAt) || signalEndsAt <= signalStartsAt) {
+      throw new Error('Signal time window is unavailable')
+    }
+    const venueTargetEpoch = Math.max(Date.now(), signalStartsAt)
+    const localHour = cityLocalHour(city.timezone_name, venueTargetEpoch)
     if (!Number.isInteger(localHour) || localHour < 0 || localHour > 23) {
       throw new Error('Signal city local time is unavailable')
     }
@@ -480,6 +550,8 @@ Deno.serve(async (request: Request) => {
     const query = searchIntent
     const venueTimeBand = timeBandFor(localHour)
     const minimumOpenMinutes = minimumUsableOpenMinutes(activity.slug, localHour)
+    const venuePolicy = coordinationPolicy(activity.slug, venueTimeBand)
+    const requireOpenNow = signalStartsAt <= Date.now() + 15 * 60_000
     const fetchRawPlaces = async (radiusMeters: number) => {
       const googleResponse = await fetch(GOOGLE_PLACES_URL, {
         method: 'POST',
@@ -496,7 +568,7 @@ Deno.serve(async (request: Request) => {
         },
         body: JSON.stringify({
           textQuery: query,
-          openNow: true,
+          ...(requireOpenNow ? { openNow: true } : {}),
           pageSize: 20,
           rankPreference: 'DISTANCE',
           regionCode: 'US',
@@ -535,8 +607,9 @@ Deno.serve(async (request: Request) => {
         const openNow = typeof place.currentOpeningHours?.openNow === 'boolean'
           ? place.currentOpeningHours.openNow : null
         const openMinutesRemaining = openNow === true ? minutesUntilCurrentClose(place) : null
-        const supportsSignalWindow = openNow === true &&
-          (openMinutesRemaining === null || openMinutesRemaining >= minimumOpenMinutes)
+        const supportsSignalWindow = hasUsableSignalSlot(
+          signalStartsAt, signalEndsAt, place, venuePolicy,
+        )
         const category = place.primaryType ?? activity.slug
         const photo = place.photos?.[0] ?? null
         const photoName = typeof photo?.name === 'string' ? photo.name : null
@@ -565,6 +638,7 @@ Deno.serve(async (request: Request) => {
           activeMemberCount: activeUserIds.length,
           venueTimeBand,
           minimumOpenMinutes,
+          requireOpenNow,
           searchRadiusMiles,
           rating,
           ratingCount,
@@ -631,7 +705,7 @@ Deno.serve(async (request: Request) => {
     let rawPlaces = await fetchRawPlaces(19312.1)
     let places = await scorePlaces(rawPlaces, searchRadiusMiles)
     let eligiblePlaces = places.filter((place) =>
-      place.placeId.length > 0 && place.openNow === true && place.supportsSignalWindow,
+      place.placeId.length > 0 && place.supportsSignalWindow && (!requireOpenNow || place.openNow === true),
     )
 
     if (eligiblePlaces.length < 2) {
@@ -639,7 +713,7 @@ Deno.serve(async (request: Request) => {
       rawPlaces = await fetchRawPlaces(27358.8)
       places = await scorePlaces(rawPlaces, searchRadiusMiles)
       eligiblePlaces = places.filter((place) =>
-        place.placeId.length > 0 && place.openNow === true && place.supportsSignalWindow,
+        place.placeId.length > 0 && place.supportsSignalWindow && (!requireOpenNow || place.openNow === true),
       )
     }
 
@@ -651,7 +725,7 @@ Deno.serve(async (request: Request) => {
       .map((place, index) => ({ ...place, signalRank: index + 1 }))
 
     if (ranked.length < 2) {
-      return json({ error: 'Not enough open venues fit this Signal right now' }, 409)
+      return json({ error: 'Not enough venues with usable hours fit this Signal window' }, 409)
     }
 
     const { error: ensureError } = await domain.rpc('ensure_signal_venue_round', {

@@ -287,7 +287,7 @@ export default function SignalPlaceStage({
       {venueIntelligence && (
         <div className="signal-venue-intelligence" aria-label="Venue intelligence">
           {modeLabel && <span>{modeLabel}</span>}
-          <span>OPEN NOW ONLY</span>
+          <span>{venueIntelligence.requireOpenNow ? 'OPEN NOW ONLY' : 'OPEN FOR SIGNAL'}</span>
           <span>{venueIntelligence.searchRadiusMiles && venueIntelligence.searchRadiusMiles > 12
             ? `EXPANDED ${venueIntelligence.searchRadiusMiles} MI`
             : 'NEARBY FIRST'}</span>
