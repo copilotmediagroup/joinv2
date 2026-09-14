@@ -13,8 +13,11 @@ export default function OperationsSnapshot() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const mounted = useRef(false)
+  const refreshInFlight = useRef(false)
 
   const refresh = useCallback(async () => {
+    if (refreshInFlight.current) return
+    refreshInFlight.current = true
     if (mounted.current) setLoading(true)
     try {
       const next = await getAdminOperationsSnapshot()
@@ -25,6 +28,7 @@ export default function OperationsSnapshot() {
       if (!mounted.current) return
       setError(toUserFacingError(loadError, 'Unable to load operations pressure right now.'))
     } finally {
+      refreshInFlight.current = false
       if (mounted.current) setLoading(false)
     }
   }, [])
@@ -32,10 +36,17 @@ export default function OperationsSnapshot() {
   useEffect(() => {
     mounted.current = true
     queueMicrotask(() => { void refresh() })
-    const timer = window.setInterval(() => { void refresh() }, REFRESH_MS)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refresh()
+    }, REFRESH_MS)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refresh()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
       mounted.current = false
       window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
     }
   }, [refresh])
 
