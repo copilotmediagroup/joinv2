@@ -152,10 +152,29 @@ export async function castSignalVenueVote(
 export async function reconcileSignalVenueRound(
   roundId: string,
 ): Promise<void> {
-  const { error } = await supabase.rpc('reconcile_my_signal_venue_round', {
-    p_round_id: roundId,
-  })
-  if (error) throw new Error(error.message || 'Unable to reconcile venue voting')
+  let lastMessage = 'Unable to reconcile venue voting'
+
+  for (let attempt = 0; attempt < COORDINATION_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), COORDINATION_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('reconcile_my_signal_venue_round', { p_round_id: roundId })
+        .abortSignal(controller.signal)
+
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= COORDINATION_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await coordinationDelay(COORDINATION_MUTATION_RETRY_DELAY_MS)
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function restartDeadlockedSignalVenueVote(
