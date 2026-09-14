@@ -279,3 +279,42 @@ export async function enforceMomentAuthorAccount(input: {
   })
   if (error) throw new Error(error.message || 'Unable to enforce Moment author account')
 }
+
+export type AdminOperationsSnapshot = {
+  capturedAt: string
+  activeSignalGroups: number
+  formingSignalGroups: number
+  coordinatingSignalGroups: number
+  signalsExpiringSoon: number
+  livePlans: number
+  openUserReports: number
+  openMomentReports: number
+  staleModerationClaims: number
+  restrictedAccounts: number
+}
+
+function numeric(value: unknown, field: string): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value)
+  throw new Error(`Invalid admin response: ${field}`)
+}
+
+export async function getAdminOperationsSnapshot(): Promise<AdminOperationsSnapshot> {
+  const { data, error } = await supabase.rpc('get_admin_operations_snapshot')
+  if (error) throw new Error(error.message || 'Unable to load operations snapshot')
+  const row = Array.isArray(data) && data[0] ? data[0] as Record<string, unknown> : null
+  if (!row) throw new Error('Invalid operations snapshot response')
+
+  return {
+    capturedAt: required(row.captured_at, 'snapshot captured at'),
+    activeSignalGroups: numeric(row.active_signal_groups, 'active Signal groups'),
+    formingSignalGroups: numeric(row.forming_signal_groups, 'forming Signal groups'),
+    coordinatingSignalGroups: numeric(row.coordinating_signal_groups, 'coordinating Signal groups'),
+    signalsExpiringSoon: numeric(row.signals_expiring_soon, 'Signals expiring soon'),
+    livePlans: numeric(row.live_plans, 'live Plans'),
+    openUserReports: numeric(row.open_user_reports, 'open user reports'),
+    openMomentReports: numeric(row.open_moment_reports, 'open Moment reports'),
+    staleModerationClaims: numeric(row.stale_moderation_claims, 'stale moderation claims'),
+    restrictedAccounts: numeric(row.restricted_accounts, 'restricted accounts'),
+  }
+}

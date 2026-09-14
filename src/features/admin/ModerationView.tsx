@@ -14,6 +14,7 @@ import {
   type ModerationReportState,
 } from './adminClient'
 import MomentModerationPanel from './MomentModerationPanel'
+import OperationsSnapshot from './OperationsSnapshot'
 import './ModerationView.css'
 
 type QueueTab = 'unassigned' | 'mine' | 'resolved' | 'dismissed'
@@ -192,6 +193,8 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
           {actionLoading ? 'Working…' : 'Take next report'}
         </button>
       </header>
+
+      <OperationsSnapshot />
 
       <div className="moderation-surface-tabs" role="tablist" aria-label="Moderation surface">
         <button className={surface === 'people' ? 'active' : ''} onClick={() => setSurface('people')} role="tab" aria-selected={surface === 'people'}>People reports</button>
