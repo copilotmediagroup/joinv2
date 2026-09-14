@@ -227,21 +227,43 @@ export async function claimMatchingPlanReplacement(input: {
   minAge: number | null
   maxAge: number | null
 }): Promise<PlanReplacementClaim> {
-  const { data, error } = await supabase.rpc('claim_matching_plan_replacement', {
-    p_city_slug: input.citySlug,
-    p_activity_slug: input.activitySlug,
-    p_time_window: input.timeWindow,
-    p_crowd_mode: input.crowdMode,
-    p_min_age: input.minAge,
-    p_max_age: input.maxAge,
-  })
-  if (error) throw new Error('Unable to check for an open Signal seat.')
-  const row = Array.isArray(data) ? data[0] : null
-  if (!row) return { planId: null, claimed: false }
-  return {
-    planId: typeof row.plan_id === 'string' ? row.plan_id : null,
-    claimed: row.claimed === true,
+  let lastMessage = 'Unable to check for an open Signal seat.'
+
+  for (let attempt = 0; attempt < GOVERNANCE_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), GOVERNANCE_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('claim_matching_plan_replacement', {
+          p_city_slug: input.citySlug,
+          p_activity_slug: input.activitySlug,
+          p_time_window: input.timeWindow,
+          p_crowd_mode: input.crowdMode,
+          p_min_age: input.minAge,
+          p_max_age: input.maxAge,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) {
+        const row = Array.isArray(data) ? data[0] : null
+        if (!row) return { planId: null, claimed: false }
+        return {
+          planId: typeof row.plan_id === 'string' ? row.plan_id : null,
+          claimed: row.claimed === true,
+        }
+      }
+
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= GOVERNANCE_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, GOVERNANCE_RETRY_DELAY_MS))
   }
+
+  throw new Error(lastMessage)
 }
 
 export function subscribeToPlanGovernance(
