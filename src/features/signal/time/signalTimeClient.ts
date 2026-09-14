@@ -70,12 +70,6 @@ export function subscribeToSignalTimeRound(
       event: '*', schema: 'public', table: 'signal_time_rounds',
       filter: `signal_group_id=eq.${signalGroupId}`,
     }, onInvalidate)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'signal_time_options',
-    }, onInvalidate)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'signal_time_availability',
-    }, onInvalidate)
     .subscribe()
 
   return () => { void supabase.removeChannel(channel) }

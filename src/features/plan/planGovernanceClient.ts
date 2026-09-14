@@ -178,14 +178,8 @@ export function subscribeToPlanGovernance(
       filter: `plan_id=eq.${planId}`,
     }, onInvalidate)
     .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'plan_join_request_votes',
-    }, onInvalidate)
-    .on('postgres_changes', {
       event: '*', schema: 'public', table: 'plan_change_proposals',
       filter: `plan_id=eq.${planId}`,
-    }, onInvalidate)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'plan_change_votes',
     }, onInvalidate)
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'plan_memberships',
