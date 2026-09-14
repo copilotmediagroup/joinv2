@@ -99,22 +99,54 @@ export async function voteOnPlanJoinRequest(
   requestId: string,
   vote: PlanGovernanceVote,
 ): Promise<void> {
-  const { error } = await supabase.rpc('vote_on_plan_join_request', {
-    p_request_id: requestId,
-    p_vote: vote,
-  })
-  if (error) throw new Error(error.message || 'Unable to vote on join request')
+  let lastMessage = 'Unable to vote on join request'
+
+  for (let attempt = 0; attempt < GOVERNANCE_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), GOVERNANCE_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('vote_on_plan_join_request', { p_request_id: requestId, p_vote: vote })
+        .abortSignal(controller.signal)
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= GOVERNANCE_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, GOVERNANCE_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function voteOnPlanChange(
   proposalId: string,
   vote: PlanGovernanceVote,
 ): Promise<void> {
-  const { error } = await supabase.rpc('vote_on_plan_change', {
-    p_proposal_id: proposalId,
-    p_vote: vote,
-  })
-  if (error) throw new Error(error.message || 'Unable to vote on Plan change')
+  let lastMessage = 'Unable to vote on Plan change'
+
+  for (let attempt = 0; attempt < GOVERNANCE_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), GOVERNANCE_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('vote_on_plan_change', { p_proposal_id: proposalId, p_vote: vote })
+        .abortSignal(controller.signal)
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= GOVERNANCE_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, GOVERNANCE_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function proposePlanTimeChange(
