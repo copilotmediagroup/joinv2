@@ -1,5 +1,9 @@
 import { supabase } from '../../lib/supabaseClient'
 
+const ONBOARDING_MUTATION_TIMEOUT_MS = 12_000
+const ONBOARDING_MUTATION_RETRY_DELAY_MS = 250
+const ONBOARDING_MUTATION_MAX_ATTEMPTS = 2
+
 export type ProfileGender = 'male' | 'female'
 
 export type ProfileCompletionState = 'incomplete' | 'complete'
@@ -106,22 +110,41 @@ export async function completeMyOnboarding(
     throw new Error('Home city is required.')
   }
 
-  const { data, error } = await supabase.rpc('complete_my_onboarding', {
-    p_display_name: displayName,
-    p_avatar_path: avatarPath,
-    p_birth_date: input.birthDate,
-    p_gender: input.gender,
-    p_home_city_id: input.homeCityId,
-  })
+  let lastError: unknown = null
 
-  if (error) {
-    throw error
+  for (let attempt = 0; attempt < ONBOARDING_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), ONBOARDING_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('complete_my_onboarding', {
+          p_display_name: displayName,
+          p_avatar_path: avatarPath,
+          p_birth_date: input.birthDate,
+          p_gender: input.gender,
+          p_home_city_id: input.homeCityId,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) {
+        return mapOnboardingRow(
+          requireSingleRow(
+            data as OnboardingRpcRow | OnboardingRpcRow[] | null,
+            'Complete onboarding',
+          ),
+        )
+      }
+
+      lastError = error
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= ONBOARDING_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, ONBOARDING_MUTATION_RETRY_DELAY_MS))
   }
 
-  return mapOnboardingRow(
-    requireSingleRow(
-      data as OnboardingRpcRow | OnboardingRpcRow[] | null,
-      'Complete onboarding',
-    ),
-  )
+  throw lastError instanceof Error ? lastError : new Error('Unable to complete onboarding.')
 }
