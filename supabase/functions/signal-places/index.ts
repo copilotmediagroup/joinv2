@@ -80,13 +80,39 @@ function confidenceScore(count: number) {
   if (count >= 5) return 4
   return 1
 }
-function facilityFit(slug: string, name: string, category: string) {
+function cityLocalHour(timeZone: string): number {
+  const hour = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date())
+  return Number(hour)
+}
+
+function searchIntentFor(slug: string, activityName: string, localHour: number): string {
+  if (slug === 'chill' && localHour >= 6 && localHour < 10) {
+    return 'Starbucks coffee shops cafes breakfast cafes relaxed morning hangout spots'
+  }
+  return SEARCH_QUERIES[slug] ?? `${activityName} venues and activities`
+}
+
+function facilityFit(slug: string, name: string, category: string, localHour: number) {
   const text = `${name} ${category}`.toLowerCase()
   if (slug === 'chill') {
+    const morning = localHour >= 6 && localHour < 10
+    const starbucks = text.includes('starbucks')
+    const coffee = ['coffee', 'cafe', 'bakery'].some((term) => text.includes(term))
     const lateNightSocial = ['bar', 'lounge', 'cocktail', 'hotel', 'pub', 'brewery', 'nightclub']
-    const daytimeLeaning = ['coffee', 'cafe', 'bakery']
+
+    if (morning) {
+      if (starbucks) return 40
+      if (coffee) return 18
+      if (lateNightSocial.some((term) => text.includes(term))) return -12
+      return 0
+    }
+
     if (lateNightSocial.some((term) => text.includes(term))) return 16
-    if (daytimeLeaning.some((term) => text.includes(term))) return -4
+    if (coffee) return -4
     return 0
   }
   if (slug !== 'sports') return 0
@@ -215,7 +241,7 @@ Deno.serve(async (request: Request) => {
     }
 
     const [{ data: city, error: cityError }, { data: activity, error: activityError }] = await Promise.all([
-      domain.from('cities').select('name,slug,latitude,longitude,is_active').eq('id', group.city_id).single(),
+      domain.from('cities').select('name,slug,latitude,longitude,timezone_name,is_active').eq('id', group.city_id).single(),
       domain.from('activities').select('name,slug,is_active').eq('id', group.activity_id).single(),
     ])
     if (cityError || !city?.is_active) throw cityError ?? new Error('Signal city is unavailable')
@@ -247,7 +273,14 @@ Deno.serve(async (request: Request) => {
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY')
     if (!apiKey) throw new Error('GOOGLE_MAPS_API_KEY is not configured')
 
-    const searchIntent = SEARCH_QUERIES[activity.slug] ?? `${activity.name} venues and activities`
+    if (typeof city.timezone_name !== 'string' || !city.timezone_name.trim()) {
+      throw new Error('Signal city timezone is unavailable')
+    }
+    const localHour = cityLocalHour(city.timezone_name)
+    if (!Number.isInteger(localHour) || localHour < 0 || localHour > 23) {
+      throw new Error('Signal city local time is unavailable')
+    }
+    const searchIntent = searchIntentFor(activity.slug, activity.name, localHour)
     const query = `${searchIntent} in ${city.name}`
     const googleResponse = await fetch(GOOGLE_PLACES_URL, {
       method: 'POST',
@@ -291,7 +324,7 @@ Deno.serve(async (request: Request) => {
       const photo = place.photos?.[0] ?? null
       const photoName = typeof photo?.name === 'string' ? photo.name : null
       const relevance = rawPlaces.length <= 1 ? 10 : Number((10 * (1 - index / (rawPlaces.length - 1))).toFixed(2))
-      const fit = facilityFit(activity.slug, place.displayName?.text ?? '', category)
+      const fit = facilityFit(activity.slug, place.displayName?.text ?? '', category, localHour)
       const score = distanceScore(miles) + ratingScore(rating) + confidenceScore(ratingCount) +
         (openNow === true ? 10 : openNow === null ? 5 : 0) + relevance + fit
 
@@ -335,7 +368,7 @@ Deno.serve(async (request: Request) => {
           distance: distanceScore(miles), rating: ratingScore(rating),
           confidence: confidenceScore(ratingCount),
           availability: openNow === true ? 10 : openNow === null ? 5 : 0,
-          relevance, facilityFit: fit,
+          relevance, facilityFit: fit, localHour,
         },
       }
     }))
