@@ -25,6 +25,9 @@ import type {
 import './SignalPlaceStage.css'
 import { toUserFacingError } from '../../lib/userFacingError'
 
+const GROUP_LOCATION_WAIT_ATTEMPTS = 4
+const GROUP_LOCATION_WAIT_MS = 2500
+
 type SignalPlaceStageProps = {
   signalGroupId: string
   signalLabel: string
@@ -87,8 +90,23 @@ export default function SignalPlaceStage({
         next = await fetchSignalPlaces({ signalGroupId, limit: 3, allowCityFallback })
       } catch (error) {
         if (!(error instanceof SignalGroupLocationPendingError)) throw error
-        await new Promise((resolve) => window.setTimeout(resolve, 4500))
-        next = await fetchSignalPlaces({ signalGroupId, limit: 3, allowCityFallback: true })
+
+        let resolved: SignalPlacesResponse | null = null
+        for (let attempt = 0; attempt < GROUP_LOCATION_WAIT_ATTEMPTS; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, GROUP_LOCATION_WAIT_MS))
+          try {
+            resolved = await fetchSignalPlaces({ signalGroupId, limit: 3, allowCityFallback: false })
+            break
+          } catch (retryError) {
+            if (!(retryError instanceof SignalGroupLocationPendingError)) throw retryError
+          }
+        }
+
+        next = resolved ?? await fetchSignalPlaces({
+          signalGroupId,
+          limit: 3,
+          allowCityFallback: true,
+        })
       }
       setSnapshot(next)
       setPlacesError(null)
