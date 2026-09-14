@@ -4,6 +4,9 @@ import { createProfileAvatarSignedUrl } from '../onboarding/avatarClient'
 const MOMENT_BUCKET = 'signal-moments'
 const MAX_MEDIA = 6
 const MAX_FILE_BYTES = 100 * 1024 * 1024
+const MOMENT_REPORT_TIMEOUT_MS = 12_000
+const MOMENT_REPORT_RETRY_DELAY_MS = 250
+const MOMENT_REPORT_MAX_ATTEMPTS = 2
 
 export type SignalMomentMedia = {
   storagePath: string
@@ -323,17 +326,32 @@ export async function reportSignalMoment(input: {
   reason: SignalMomentReportReason
   details?: string
 }): Promise<string> {
-  const { data, error } = await supabase.rpc('report_signal_moment', {
-    p_moment_id: input.momentId,
-    p_reason: input.reason,
-    p_details: input.details?.trim() || null,
-  })
+  let lastMessage = 'Unable to report this Signal Moment.'
 
-  if (error) {
-    throw new Error(error.message || 'Unable to report this Signal Moment.')
+  for (let attempt = 0; attempt < MOMENT_REPORT_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), MOMENT_REPORT_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('report_signal_moment', {
+          p_moment_id: input.momentId,
+          p_reason: input.reason,
+          p_details: input.details?.trim() || null,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) return requireString(data, 'report_id')
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= MOMENT_REPORT_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, MOMENT_REPORT_RETRY_DELAY_MS))
   }
 
-  return requireString(data, 'report_id')
+  throw new Error(lastMessage)
 }
 
 export async function deleteMySignalMoment(momentId: string): Promise<void> {
