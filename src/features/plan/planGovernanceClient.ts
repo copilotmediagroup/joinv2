@@ -2,6 +2,10 @@ import { supabase } from '../../lib/supabaseClient'
 
 export type PlanGovernanceVote = 'yes' | 'no'
 
+const GOVERNANCE_TIMEOUT_MS = 12_000
+const GOVERNANCE_RETRY_DELAY_MS = 250
+const GOVERNANCE_MAX_ATTEMPTS = 2
+
 export class PlanAccessLostError extends Error {
   constructor(message = 'This Plan is no longer available to you.') {
     super(message)
@@ -127,11 +131,31 @@ export async function proposePlanTimeChange(
 }
 
 export async function leaveMyPlan(planId: string): Promise<void> {
-  const { data, error } = await supabase.rpc('leave_my_plan', {
-    p_plan_id: planId,
-  })
-  if (error) throw new Error(error.message || 'Unable to leave this Plan')
-  if (data !== true) throw new Error('Plan departure returned an invalid response')
+  let lastMessage = 'Unable to leave this Plan'
+
+  for (let attempt = 0; attempt < GOVERNANCE_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), GOVERNANCE_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('leave_my_plan', { p_plan_id: planId })
+        .abortSignal(controller.signal)
+
+      if (!error) {
+        if (data !== true) throw new Error('Plan departure returned an invalid response')
+        return
+      }
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= GOVERNANCE_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, GOVERNANCE_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function getMyPlanReplacementStatus(planId: string): Promise<PlanReplacementStatus | null> {
