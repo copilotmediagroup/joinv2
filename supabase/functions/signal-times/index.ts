@@ -3,6 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 type RequestBody = { signalGroupId: string }
 type DomainClient = ReturnType<typeof createClient>
 type VenuePayload = {
+  activitySlug?: string
+  venueTimeBand?: 'morning' | 'daytime' | 'evening' | 'late_night'
   openingHours?: {
     periods?: Array<{
       open?: { day?: number; hour?: number; minute?: number } | null
@@ -16,11 +18,24 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
-const LEAD_MINUTES = 30
-const DURATION_MINUTES = 90
-const CLOSING_BUFFER_MINUTES = 30
-const ALIGNMENT_MINUTES = 30
 const WEEK_MINUTES = 7 * 24 * 60
+
+type CoordinationPolicy = {
+  leadMinutes: number
+  durationMinutes: number
+  closingBufferMinutes: number
+  alignmentMinutes: number
+}
+
+function coordinationPolicy(venue: VenuePayload): CoordinationPolicy {
+  if (venue.venueTimeBand === 'late_night') {
+    return { leadMinutes: 15, durationMinutes: 60, closingBufferMinutes: 5, alignmentMinutes: 15 }
+  }
+  if (venue.activitySlug === 'sports' || venue.activitySlug === 'creative') {
+    return { leadMinutes: 20, durationMinutes: 90, closingBufferMinutes: 15, alignmentMinutes: 30 }
+  }
+  return { leadMinutes: 20, durationMinutes: 75, closingBufferMinutes: 15, alignmentMinutes: 15 }
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -40,9 +55,9 @@ function hostedKey(name: string): string | null {
     return parsed && typeof parsed.default === 'string' ? parsed.default : null
   } catch { return null }
 }
-function alignVenueTime(epochMs: number, offsetMinutes: number): number {
+function alignVenueTime(epochMs: number, offsetMinutes: number, alignmentMinutes: number): number {
   const localMs = epochMs + offsetMinutes * 60_000
-  const step = ALIGNMENT_MINUTES * 60_000
+  const step = alignmentMinutes * 60_000
   return Math.ceil(localMs / step) * step - offsetMinutes * 60_000
 }
 function venueWeekMinute(epochMs: number, offsetMinutes: number): number {
@@ -53,9 +68,11 @@ function fitsOpeningHours(
   epochMs: number,
   offsetMinutes: number,
   periods: NonNullable<NonNullable<VenuePayload['openingHours']>['periods']>,
+  durationMinutes: number,
+  closingBufferMinutes: number,
 ) {
   const candidate = venueWeekMinute(epochMs, offsetMinutes)
-  const requiredEnd = candidate + DURATION_MINUTES + CLOSING_BUFFER_MINUTES
+  const requiredEnd = candidate + durationMinutes + closingBufferMinutes
 
   return periods.some((period) => {
     if (!period.open) return false
@@ -93,15 +110,19 @@ function buildOptions(
   const signalEnd = new Date(endsAt).getTime()
   if (!Number.isFinite(signalStart) || !Number.isFinite(signalEnd)) return []
 
+  const policy = coordinationPolicy(venue)
   const earliest = alignVenueTime(
-    Math.max(signalStart, Date.now() + LEAD_MINUTES * 60_000),
+    Math.max(signalStart, Date.now() + policy.leadMinutes * 60_000),
     offset,
+    policy.alignmentMinutes,
   )
-  const latest = signalEnd - DURATION_MINUTES * 60_000
+  const latest = signalEnd - policy.durationMinutes * 60_000
   const candidates: number[] = []
 
-  for (let candidate = earliest; candidate <= latest; candidate += ALIGNMENT_MINUTES * 60_000) {
-    if (fitsOpeningHours(candidate, offset, periods)) candidates.push(candidate)
+  for (let candidate = earliest; candidate <= latest; candidate += policy.alignmentMinutes * 60_000) {
+    if (fitsOpeningHours(
+      candidate, offset, periods, policy.durationMinutes, policy.closingBufferMinutes,
+    )) candidates.push(candidate)
   }
 
   let chosen = candidates

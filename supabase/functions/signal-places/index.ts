@@ -197,9 +197,9 @@ function includesAny(text: string, terms: string[]) {
 
 function minimumUsableOpenMinutes(slug: string, localHour: number) {
   const band = timeBandFor(localHour)
-  if (band === 'late_night') return 60
-  if (slug === 'creative' || slug === 'sports') return 90
-  return 75
+  if (band === 'late_night') return 95
+  if (slug === 'creative' || slug === 'sports') return 150
+  return 125
 }
 
 function facilityFit(slug: string, name: string, category: string, localHour: number) {
@@ -548,6 +548,7 @@ Deno.serve(async (request: Request) => {
         address: place.formattedAddress ?? '', lat, lng, distanceMiles: miles,
         groupTravelAverageMiles: groupTravelAverageMiles ?? undefined,
         groupTravelMaxMiles: groupTravelMaxMiles ?? undefined,
+        activitySlug: activity.slug,
         meetingPointMode: hasGroupMeetingPoint ? 'group_midpoint' : 'city_center',
         locationMemberCount: validMemberLocations.length,
         activeMemberCount: activeUserIds.length,
