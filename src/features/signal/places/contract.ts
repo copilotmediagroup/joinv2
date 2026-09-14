@@ -23,6 +23,7 @@ export type SignalPlace = {
   activeMemberCount?: number
   venueTimeBand?: 'morning' | 'daytime' | 'evening' | 'late_night'
   minimumOpenMinutes?: number
+  searchRadiusMiles?: number
   openMinutesRemaining?: number | null
   supportsSignalWindow?: boolean
   rating: number | null

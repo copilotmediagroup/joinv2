@@ -288,6 +288,9 @@ export default function SignalPlaceStage({
         <div className="signal-venue-intelligence" aria-label="Venue intelligence">
           {modeLabel && <span>{modeLabel}</span>}
           <span>OPEN NOW ONLY</span>
+          <span>{venueIntelligence.searchRadiusMiles && venueIntelligence.searchRadiusMiles > 12
+            ? `EXPANDED ${venueIntelligence.searchRadiusMiles} MI`
+            : 'NEARBY FIRST'}</span>
           <span>
             {venueIntelligence.meetingPointMode === 'group_midpoint'
               ? `GROUP MIDPOINT${venueIntelligence.locationMemberCount && venueIntelligence.activeMemberCount ? ` · ${venueIntelligence.locationMemberCount}/${venueIntelligence.activeMemberCount} LOCATIONS` : ''}`

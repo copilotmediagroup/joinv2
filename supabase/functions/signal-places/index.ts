@@ -480,124 +480,168 @@ Deno.serve(async (request: Request) => {
     const query = searchIntent
     const venueTimeBand = timeBandFor(localHour)
     const minimumOpenMinutes = minimumUsableOpenMinutes(activity.slug, localHour)
-    const googleResponse = await fetch(GOOGLE_PLACES_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Goog-Api-Key': apiKey,
-        'X-Goog-FieldMask': [
-          'places.id','places.displayName','places.formattedAddress','places.location',
-          'places.rating','places.userRatingCount','places.primaryType',
-          'places.currentOpeningHours.openNow','places.currentOpeningHours.periods',
-          'places.currentOpeningHours.weekdayDescriptions','places.utcOffsetMinutes',
-          'places.photos','places.googleMapsUri','places.reviews',
-        ].join(','),
-      },
-      body: JSON.stringify({
-        textQuery: query,
-        openNow: true,
-        pageSize: 20,
-        rankPreference: 'DISTANCE',
-        regionCode: 'US',
-        locationBias: { circle: { center: { latitude: searchLatitude, longitude: searchLongitude }, radius: 19312.1 } },
-      }),
-    })
-    if (!googleResponse.ok) {
-      throw new Error(`Google Places failed (${googleResponse.status}): ${await googleResponse.text()}`)
+    const fetchRawPlaces = async (radiusMeters: number) => {
+      const googleResponse = await fetch(GOOGLE_PLACES_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': [
+            'places.id','places.displayName','places.formattedAddress','places.location',
+            'places.rating','places.userRatingCount','places.primaryType',
+            'places.currentOpeningHours.openNow','places.currentOpeningHours.periods',
+            'places.currentOpeningHours.weekdayDescriptions','places.utcOffsetMinutes',
+            'places.photos','places.googleMapsUri','places.reviews',
+          ].join(','),
+        },
+        body: JSON.stringify({
+          textQuery: query,
+          openNow: true,
+          pageSize: 20,
+          rankPreference: 'DISTANCE',
+          regionCode: 'US',
+          locationBias: { circle: { center: { latitude: searchLatitude, longitude: searchLongitude }, radius: radiusMeters } },
+        }),
+      })
+      if (!googleResponse.ok) {
+        throw new Error(`Google Places failed (${googleResponse.status}): ${await googleResponse.text()}`)
+      }
+      const googleData = await googleResponse.json()
+      return (Array.isArray(googleData.places) ? googleData.places : [])
+        .filter((place: { id?: unknown }) =>
+          typeof place.id !== 'string' || !excludedPlaceIds.has(place.id),
+        )
     }
 
-    const googleData = await googleResponse.json()
-    const rawPlaces = (Array.isArray(googleData.places) ? googleData.places : [])
-      .filter((place: { id?: unknown }) =>
-        typeof place.id !== 'string' || !excludedPlaceIds.has(place.id),
-      )
-    // Google Places response is runtime-validated field-by-field below.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const places = await Promise.all(rawPlaces.map(async (place: any, index: number) => {
-      const lat = Number(place.location?.latitude ?? 0)
-      const lng = Number(place.location?.longitude ?? 0)
-      const centerMiles = Number(milesBetween(searchLatitude, searchLongitude, lat, lng).toFixed(2))
-      const memberDistances = travelLocations.map((point) => milesBetween(point.latitude, point.longitude, lat, lng))
-      const groupTravelAverageMiles = memberDistances.length > 0
-        ? Number((memberDistances.reduce((sum, value) => sum + value, 0) / memberDistances.length).toFixed(2))
-        : null
-      const groupTravelMaxMiles = memberDistances.length > 0
-        ? Number(Math.max(...memberDistances).toFixed(2))
-        : null
-      const miles = groupTravelAverageMiles ?? centerMiles
-      const rating = typeof place.rating === 'number' ? place.rating : null
-      const ratingCount = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0
-      const openNow = typeof place.currentOpeningHours?.openNow === 'boolean'
-        ? place.currentOpeningHours.openNow : null
-      const openMinutesRemaining = openNow === true ? minutesUntilCurrentClose(place) : null
-      const supportsSignalWindow = openNow === true && (openMinutesRemaining === null || openMinutesRemaining >= minimumOpenMinutes)
-      const category = place.primaryType ?? activity.slug
-      const photo = place.photos?.[0] ?? null
-      const photoName = typeof photo?.name === 'string' ? photo.name : null
-      const relevance = rawPlaces.length <= 1 ? 10 : Number((10 * (1 - index / (rawPlaces.length - 1))).toFixed(2))
-      const fit = facilityFit(activity.slug, place.displayName?.text ?? '', category, localHour)
-      const travelScore = groupTravelAverageMiles !== null && groupTravelMaxMiles !== null
-        ? fairTravelScore(groupTravelAverageMiles, groupTravelMaxMiles)
-        : distanceScore(centerMiles)
-      const score = travelScore + ratingScore(rating) + confidenceScore(ratingCount) +
-        (openNow === true ? 10 : openNow === null ? 5 : 0) + relevance + fit
+    const scorePlaces = async (rawPlaces: unknown[], searchRadiusMiles: number) => {
+      // Google Places response is runtime-validated field-by-field below.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return Promise.all(rawPlaces.map(async (place: any, index: number) => {
+        const lat = Number(place.location?.latitude ?? 0)
+        const lng = Number(place.location?.longitude ?? 0)
+        const centerMiles = Number(milesBetween(searchLatitude, searchLongitude, lat, lng).toFixed(2))
+        const memberDistances = travelLocations.map((point) =>
+          milesBetween(point.latitude, point.longitude, lat, lng),
+        )
+        const groupTravelAverageMiles = memberDistances.length > 0
+          ? Number((memberDistances.reduce((sum, value) => sum + value, 0) / memberDistances.length).toFixed(2))
+          : null
+        const groupTravelMaxMiles = memberDistances.length > 0
+          ? Number(Math.max(...memberDistances).toFixed(2))
+          : null
+        const miles = groupTravelAverageMiles ?? centerMiles
+        const rating = typeof place.rating === 'number' ? place.rating : null
+        const ratingCount = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0
+        const openNow = typeof place.currentOpeningHours?.openNow === 'boolean'
+          ? place.currentOpeningHours.openNow : null
+        const openMinutesRemaining = openNow === true ? minutesUntilCurrentClose(place) : null
+        const supportsSignalWindow = openNow === true &&
+          (openMinutesRemaining === null || openMinutesRemaining >= minimumOpenMinutes)
+        const category = place.primaryType ?? activity.slug
+        const photo = place.photos?.[0] ?? null
+        const photoName = typeof photo?.name === 'string' ? photo.name : null
+        const relevance = rawPlaces.length <= 1
+          ? 10
+          : Number((10 * (1 - index / (rawPlaces.length - 1))).toFixed(2))
+        const fit = facilityFit(activity.slug, place.displayName?.text ?? '', category, localHour)
+        const travelScore = groupTravelAverageMiles !== null && groupTravelMaxMiles !== null
+          ? fairTravelScore(groupTravelAverageMiles, groupTravelMaxMiles)
+          : distanceScore(centerMiles)
+        const score = travelScore + ratingScore(rating) + confidenceScore(ratingCount) +
+          (openNow === true ? 10 : openNow === null ? 5 : 0) + relevance + fit
 
-      return {
-        placeId: place.id ?? '',
-        name: place.displayName?.text ?? 'Unknown place',
-        address: place.formattedAddress ?? '', lat, lng, distanceMiles: miles,
-        groupTravelAverageMiles: groupTravelAverageMiles ?? undefined,
-        groupTravelMaxMiles: groupTravelMaxMiles ?? undefined,
-        activitySlug: activity.slug,
-        meetingPointMode: hasGroupMeetingPoint ? 'group_midpoint' : 'city_center',
-        locationMemberCount: validMemberLocations.length,
-        activeMemberCount: activeUserIds.length,
-        venueTimeBand,
-        minimumOpenMinutes,
-        rating, ratingCount, category, openNow, openMinutesRemaining, supportsSignalWindow,
-        utcOffsetMinutes: typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null,
-        openingHours: place.currentOpeningHours ? {
-          periods: Array.isArray(place.currentOpeningHours.periods) ? place.currentOpeningHours.periods : [],
-          weekdayDescriptions: Array.isArray(place.currentOpeningHours.weekdayDescriptions)
-            ? place.currentOpeningHours.weekdayDescriptions.filter((x: unknown) => typeof x === 'string') : [],
-        } : null,
-        photoName,
-        photoUrl: await placePhotoUrl(apiKey, photoName),
-        photoAttributions: Array.isArray(photo?.authorAttributions) ? photo.authorAttributions.map(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (a: any) => ({
-          displayName: typeof a.displayName === 'string' ? a.displayName : 'Google Maps contributor',
-          uri: typeof a.uri === 'string' ? a.uri : null,
-          photoUri: typeof a.photoUri === 'string' ? a.photoUri : null,
-          }),
-        ) : [],
-        googleMapsUri: typeof place.googleMapsUri === 'string' ? place.googleMapsUri : null,
-        reviews: Array.isArray(place.reviews) ? place.reviews.slice(0, 3).map(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (review: any) => ({
-          rating: typeof review.rating === 'number' ? review.rating : 0,
-          text: typeof review.text?.text === 'string' ? review.text.text : '',
-          relativeTime: typeof review.relativePublishTimeDescription === 'string' ? review.relativePublishTimeDescription : null,
-          authorName: typeof review.authorAttribution?.displayName === 'string' ? review.authorAttribution.displayName : 'Google Maps user',
-          authorPhotoUrl: typeof review.authorAttribution?.photoUri === 'string' ? review.authorAttribution.photoUri : null,
-          authorUri: typeof review.authorAttribution?.uri === 'string' ? review.authorAttribution.uri : null,
-          googleMapsUri: typeof review.googleMapsUri === 'string' ? review.googleMapsUri : null,
-          }),
-        ).filter((review: { text: string }) => review.text.length > 0) : [],
-        signalRank: 0,
-        signalScore: Number(score.toFixed(2)),
-        scoreBreakdown: {
-          distance: travelScore, rating: ratingScore(rating),
-          confidence: confidenceScore(ratingCount),
-          availability: openNow === true ? 10 : openNow === null ? 5 : 0,
-          relevance, facilityFit: fit, localHour,
-        },
-      }
-    }))
+        return {
+          placeId: place.id ?? '',
+          name: place.displayName?.text ?? 'Unknown place',
+          address: place.formattedAddress ?? '',
+          lat,
+          lng,
+          distanceMiles: miles,
+          groupTravelAverageMiles: groupTravelAverageMiles ?? undefined,
+          groupTravelMaxMiles: groupTravelMaxMiles ?? undefined,
+          activitySlug: activity.slug,
+          meetingPointMode: hasGroupMeetingPoint ? 'group_midpoint' : 'city_center',
+          locationMemberCount: validMemberLocations.length,
+          activeMemberCount: activeUserIds.length,
+          venueTimeBand,
+          minimumOpenMinutes,
+          searchRadiusMiles,
+          rating,
+          ratingCount,
+          category,
+          openNow,
+          openMinutesRemaining,
+          supportsSignalWindow,
+          utcOffsetMinutes: typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null,
+          openingHours: place.currentOpeningHours ? {
+            periods: Array.isArray(place.currentOpeningHours.periods)
+              ? place.currentOpeningHours.periods : [],
+            weekdayDescriptions: Array.isArray(place.currentOpeningHours.weekdayDescriptions)
+              ? place.currentOpeningHours.weekdayDescriptions.filter((x: unknown) => typeof x === 'string')
+              : [],
+          } : null,
+          photoName,
+          photoUrl: await placePhotoUrl(apiKey, photoName),
+          photoAttributions: Array.isArray(photo?.authorAttributions)
+            ? photo.authorAttributions.map(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (a: any) => ({
+                displayName: typeof a.displayName === 'string' ? a.displayName : 'Google Maps contributor',
+                uri: typeof a.uri === 'string' ? a.uri : null,
+                photoUri: typeof a.photoUri === 'string' ? a.photoUri : null,
+              }),
+            )
+            : [],
+          googleMapsUri: typeof place.googleMapsUri === 'string' ? place.googleMapsUri : null,
+          reviews: Array.isArray(place.reviews)
+            ? place.reviews.slice(0, 3).map(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (review: any) => ({
+                rating: typeof review.rating === 'number' ? review.rating : 0,
+                text: typeof review.text?.text === 'string' ? review.text.text : '',
+                relativeTime: typeof review.relativePublishTimeDescription === 'string'
+                  ? review.relativePublishTimeDescription : null,
+                authorName: typeof review.authorAttribution?.displayName === 'string'
+                  ? review.authorAttribution.displayName : 'Google Maps user',
+                authorPhotoUrl: typeof review.authorAttribution?.photoUri === 'string'
+                  ? review.authorAttribution.photoUri : null,
+                authorUri: typeof review.authorAttribution?.uri === 'string'
+                  ? review.authorAttribution.uri : null,
+                googleMapsUri: typeof review.googleMapsUri === 'string'
+                  ? review.googleMapsUri : null,
+              }),
+            ).filter((review: { text: string }) => review.text.length > 0)
+            : [],
+          signalRank: 0,
+          signalScore: Number(score.toFixed(2)),
+          scoreBreakdown: {
+            distance: travelScore,
+            rating: ratingScore(rating),
+            confidence: confidenceScore(ratingCount),
+            availability: openNow === true ? 10 : openNow === null ? 5 : 0,
+            relevance,
+            facilityFit: fit,
+            localHour,
+          },
+        }
+      }))
+    }
 
-    const eligiblePlaces = places.filter((place) =>
+    let searchRadiusMiles = 12
+    let rawPlaces = await fetchRawPlaces(19312.1)
+    let places = await scorePlaces(rawPlaces, searchRadiusMiles)
+    let eligiblePlaces = places.filter((place) =>
       place.placeId.length > 0 && place.openNow === true && place.supportsSignalWindow,
     )
+
+    if (eligiblePlaces.length < 2) {
+      searchRadiusMiles = 17
+      rawPlaces = await fetchRawPlaces(27358.8)
+      places = await scorePlaces(rawPlaces, searchRadiusMiles)
+      eligiblePlaces = places.filter((place) =>
+        place.placeId.length > 0 && place.openNow === true && place.supportsSignalWindow,
+      )
+    }
 
     const ranked = eligiblePlaces
       .sort((a, b) =>
