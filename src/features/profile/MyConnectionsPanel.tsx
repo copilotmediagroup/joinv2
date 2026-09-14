@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
   disconnectMySignalConnection,
-  getMySignalConnections,
+  getMySignalConnectionsPage,
+  SIGNAL_CONNECTION_PAGE_SIZE,
   type MySignalConnection,
 } from '../activity/signalConnectionsClient'
 import { getOrCreateDirectConversation } from '../messaging/directMessagingClient'
@@ -19,11 +20,18 @@ export default function MyConnectionsPanel({ onOpenDirectConversation }: { onOpe
   const [connections, setConnections] = useState<MySignalConnection[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [cursor, setCursor] = useState<{ connectedAt: string; connectionId: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     try {
-      setConnections(await getMySignalConnections())
+      const page = await getMySignalConnectionsPage()
+      setConnections(page)
+      setHasMore(page.length === SIGNAL_CONNECTION_PAGE_SIZE)
+      const last = page[page.length - 1]
+      setCursor(last ? { connectedAt: last.connectedAt, connectionId: last.connectionId } : null)
       setError(null)
     } catch (loadError) {
       setError(toUserFacingError(loadError, 'Unable to load your connections right now.'))
@@ -31,6 +39,25 @@ export default function MyConnectionsPanel({ onOpenDirectConversation }: { onOpe
       setLoading(false)
     }
   }, [])
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return
+    setLoadingMore(true)
+    setError(null)
+    try {
+      const page = await getMySignalConnectionsPage(cursor)
+      setConnections((current) => [...current, ...page.filter((next) =>
+        !current.some((item) => item.connectionId === next.connectionId),
+      )])
+      setHasMore(page.length === SIGNAL_CONNECTION_PAGE_SIZE)
+      const last = page[page.length - 1]
+      setCursor(last ? { connectedAt: last.connectedAt, connectionId: last.connectionId } : null)
+    } catch (loadError) {
+      setError(toUserFacingError(loadError, 'Unable to load older connections right now.'))
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -86,6 +113,11 @@ export default function MyConnectionsPanel({ onOpenDirectConversation }: { onOpe
           ))}
         </div>
       )}
+      {hasMore ? (
+        <button type="button" className="profile-connections-load-more" onClick={() => { void loadMore() }} disabled={loadingMore}>
+          {loadingMore ? 'LOADING…' : 'LOAD OLDER CONNECTIONS'}
+        </button>
+      ) : null}
       {error ? <p className="profile-connections-error" role="alert">{error}</p> : null}
     </section>
   )

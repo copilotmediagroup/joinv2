@@ -69,8 +69,21 @@ export type MySignalConnection = {
   originPlanId: string
 }
 
-export async function getMySignalConnections(): Promise<MySignalConnection[]> {
-  const { data, error } = await supabase.rpc('get_my_signal_connections')
+export const SIGNAL_CONNECTION_PAGE_SIZE = 30
+
+type SignalConnectionCursor = {
+  connectedAt: string
+  connectionId: string
+}
+
+export async function getMySignalConnectionsPage(
+  cursor: SignalConnectionCursor | null = null,
+): Promise<MySignalConnection[]> {
+  const { data, error } = await supabase.rpc('get_my_signal_connections_page', {
+    p_after_connected_at: cursor?.connectedAt ?? null,
+    p_after_connection_id: cursor?.connectionId ?? null,
+    p_limit: SIGNAL_CONNECTION_PAGE_SIZE,
+  })
   if (error) throw new Error(error.message || 'Unable to load connections')
   if (!Array.isArray(data)) throw new Error('Invalid connections response')
 

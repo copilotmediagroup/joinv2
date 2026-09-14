@@ -797,6 +797,8 @@
 .profile-connection-person button:disabled { opacity: .5; cursor: wait; }
 .profile-connections-empty { min-height: 54px; display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.025); font-size: 10px; opacity: .64; }
 .profile-connections-error { margin: 0; font-size: 10px; }
+.profile-connections-load-more { min-height: 42px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: rgba(255,255,255,.025); color: inherit; font-size: 10px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }
+.profile-connections-load-more:disabled { opacity: .45; cursor: default; }
 .profile-connection-actions { display: flex; gap: 5px; }
 
 .blocked-people-panel { display: grid; gap: 12px; }
