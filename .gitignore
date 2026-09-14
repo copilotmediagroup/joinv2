@@ -24,3 +24,14 @@ dist-ssr
 *.sw?
 .env.local
 supabase/functions/.env
+
+# Local patch-chain / recovery scratch files
+src/**/*.bak
+src/**/*-backup
+src/**/*.g*-backup
+src/**/*.r[0-9]*
+src/**/*.planstate*
+src/**/*.photojsx
+src/**/*.liverail
+src/**/*.hideoptions
+src/**/*.restorephoto
