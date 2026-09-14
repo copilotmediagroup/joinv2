@@ -65,13 +65,34 @@ export async function reportUser(
   reason: UserReportReason,
   details: string | null = null,
 ): Promise<string> {
-  const { data, error } = await supabase.rpc('report_user', {
-    p_target_user_id: userId,
-    p_reason: reason,
-    p_details: details,
-  })
-  if (error) throw new Error(error.message || 'Unable to report this person')
-  return required(data, 'report id')
+  const clientReportId = crypto.randomUUID()
+  let lastMessage = 'Unable to report this person'
+
+  for (let attempt = 0; attempt < SAFETY_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), SAFETY_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('report_user_v2', {
+          p_target_user_id: userId,
+          p_reason: reason,
+          p_details: details,
+          p_client_report_id: clientReportId,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) return required(data, 'report id')
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= SAFETY_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, SAFETY_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export const BLOCKED_USERS_PAGE_SIZE = 30

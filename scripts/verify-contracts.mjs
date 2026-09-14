@@ -34,6 +34,10 @@ const forbidden = [
     pattern: /\.rpc\(\s*['"]send_my_direct_message['"]/,
     message: 'Use send_my_direct_message_v2 so direct sends are idempotent and retry-safe.',
   },
+  {
+    pattern: /\.rpc\(\s*['"]report_user['"]/,
+    message: 'Use report_user_v2 so one report submission is idempotent and retry-safe.',
+  },
 ]
 
 async function walk(directory) {
