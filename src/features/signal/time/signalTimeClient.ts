@@ -110,11 +110,35 @@ export async function recoverSignalVenue(
   failedPlaceId: string,
   reason: SignalVenueRecoveryReason,
 ): Promise<void> {
-  const { data, error } = await supabase.rpc('recover_my_signal_venue', {
-    p_signal_group_id: signalGroupId,
-    p_failed_place_id: failedPlaceId,
-    p_reason: reason,
-  })
-  if (error) throw new Error(error.message || 'Unable to find another Signal venue')
-  if (data !== true) throw new Error('Signal venue recovery returned an invalid response')
+  let lastMessage = 'Unable to find another Signal venue'
+
+  for (let attempt = 0; attempt < TIME_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), TIME_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('recover_my_signal_venue', {
+          p_signal_group_id: signalGroupId,
+          p_failed_place_id: failedPlaceId,
+          p_reason: reason,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) {
+        if (data !== true) throw new Error('Signal venue recovery returned an invalid response')
+        return
+      }
+
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= TIME_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, TIME_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
