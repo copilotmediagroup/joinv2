@@ -145,8 +145,27 @@ export async function getMySignalConnectionsPage(
 }
 
 export async function disconnectMySignalConnection(connectionId: string): Promise<void> {
-  const { error } = await supabase.rpc('disconnect_my_signal_connection', {
-    p_connection_id: connectionId,
-  })
-  if (error) throw new Error(error.message || 'Unable to disconnect')
+  let lastMessage = 'Unable to disconnect'
+
+  for (let attempt = 0; attempt < CONNECTION_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), CONNECTION_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('disconnect_my_signal_connection', { p_connection_id: connectionId })
+        .abortSignal(controller.signal)
+
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= CONNECTION_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await connectionRetryDelay()
+  }
+
+  throw new Error(lastMessage)
 }
