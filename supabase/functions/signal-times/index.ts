@@ -282,6 +282,15 @@ Deno.serve(async (request: Request) => {
     if (!group.starts_at || !group.ends_at) throw new Error('Signal time window is unavailable')
     const generated = buildOptions(group.starts_at, group.ends_at, venueOption.payload as VenuePayload)
     if (generated.length === 0) {
+      // Another participant may have initialized the authoritative round while
+      // this request was building its local candidate set. Re-check before
+      // declaring recovery so a transient stale response cannot push the group
+      // backward after valid options already exist.
+      await new Promise((resolve) => setTimeout(resolve, 300))
+      const concurrent = await loadRound(domain, signalGroupId, user.id)
+      if (concurrent) {
+        return json({ version: 'signal-time-coordination-v1', status: 'ready', ...concurrent })
+      }
       return json({ version: 'signal-time-coordination-v1', status: 'no_options', round: null, options: [] })
     }
 

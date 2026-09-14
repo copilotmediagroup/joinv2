@@ -106,10 +106,27 @@ export default function SignalTimeStage({
   const recoveryStartedRef = useRef(false)
   const recoveryRequiredRef = useRef(false)
   const planConversionStartedRef = useRef(false)
+  const snapshotRequestIdRef = useRef(0)
 
   const loadSnapshot = useCallback(async () => {
+    const requestId = ++snapshotRequestIdRef.current
+
     try {
-      const next = await fetchSignalTimes(signalGroupId)
+      let next = await fetchSignalTimes(signalGroupId)
+
+      // A venue winner and its time round can be initialized by different
+      // participants almost simultaneously. Never surface a transient
+      // no-options response until the authoritative state confirms it.
+      if (next.status === 'no_options') {
+        await new Promise((resolve) => window.setTimeout(resolve, 500))
+        if (requestId !== snapshotRequestIdRef.current) return
+        next = await fetchSignalTimes(signalGroupId)
+      }
+
+      // Realtime, initial load, and post-submit refreshes can overlap. An
+      // older response must never overwrite a newer authoritative snapshot.
+      if (requestId !== snapshotRequestIdRef.current) return
+
       setSnapshot(next)
       setError(null)
 
@@ -117,11 +134,12 @@ export default function SignalTimeStage({
         setSecondsLeft(secondsUntil(next.round.closesAt))
       }
     } catch (loadError) {
+      if (requestId !== snapshotRequestIdRef.current) return
       setError(
         toUserFacingError(loadError, 'Unable to coordinate a Signal time right now.'),
       )
     } finally {
-      setLoading(false)
+      if (requestId === snapshotRequestIdRef.current) setLoading(false)
     }
   }, [signalGroupId])
 
