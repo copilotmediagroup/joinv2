@@ -1,5 +1,9 @@
 import { supabase } from '../../../lib/supabaseClient'
 
+const SIGNAL_CONFIRMATION_TIMEOUT_MS = 12_000
+const SIGNAL_CONFIRMATION_RETRY_DELAY_MS = 250
+const SIGNAL_CONFIRMATION_MAX_ATTEMPTS = 2
+
 export type SignalConfirmationGroupState =
   | 'forming'
   | 'confirming'
@@ -157,22 +161,36 @@ export async function confirmMySignalMembership(
     )
   }
 
-  const {
-    data,
-    error,
-  } = await supabase.rpc(
-    'confirm_my_signal_membership',
-    {
-      p_signal_intent_id: signalIntentId,
-    },
-  )
+  let data: unknown = null
+  let succeeded = false
+  let lastMessage = 'Unable to confirm this Signal'
 
-  if (error) {
-    throw new Error(
-      error.message ||
-        'Unable to confirm this Signal',
-    )
+  for (let attempt = 0; attempt < SIGNAL_CONFIRMATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), SIGNAL_CONFIRMATION_TIMEOUT_MS)
+
+    try {
+      const result = await supabase
+        .rpc('confirm_my_signal_membership', { p_signal_intent_id: signalIntentId })
+        .abortSignal(controller.signal)
+
+      if (!result.error) {
+        data = result.data
+        succeeded = true
+        break
+      }
+
+      lastMessage = result.error.message || lastMessage
+      const retryable = result.status === 0 || result.status >= 500
+      if (!retryable || attempt + 1 >= SIGNAL_CONFIRMATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, SIGNAL_CONFIRMATION_RETRY_DELAY_MS))
   }
+
+  if (!succeeded) throw new Error(lastMessage)
 
   if (
     !Array.isArray(data) ||
