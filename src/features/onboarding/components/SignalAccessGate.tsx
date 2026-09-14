@@ -44,6 +44,14 @@ export function SignalAccessGate({
       return
     }
 
+    if (auth.error) {
+      setGateState({
+        kind: 'error',
+        message: 'SIGNAL could not verify your saved session. Check your connection and try again.',
+      })
+      return
+    }
+
     if (!auth.user) {
       setGateState({ kind: 'signed-out' })
       return
@@ -75,7 +83,7 @@ export function SignalAccessGate({
           toUserFacingError(error, 'SIGNAL could not load your account right now.'),
       })
     }
-  }, [auth.loading, auth.user])
+  }, [auth.error, auth.loading, auth.user])
 
   useEffect(() => {
     let active = true
@@ -148,7 +156,13 @@ export function SignalAccessGate({
             <button
               type="button"
               className="signal-access-primary"
-              onClick={() => void resolveGate()}
+              onClick={() => {
+                if (auth.error) {
+                  window.location.reload()
+                  return
+                }
+                void resolveGate()
+              }}
             >
               TRY AGAIN
             </button>
