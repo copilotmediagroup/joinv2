@@ -99,9 +99,27 @@ export async function markMyDirectConversationRead(conversationId: string): Prom
 }
 
 export function subscribeToDirectMessages(conversationId: string, onChange: () => void): () => void {
-  let channel: RealtimeChannel | null = supabase.channel(`direct-messages:${conversationId}`)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` }, () => onChange())
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'direct_conversations', filter: `id=eq.${conversationId}` }, () => onChange())
+  let channel: RealtimeChannel | null = null
+  let stopped = false
+  let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+  const scheduleRefresh = () => {
+    if (stopped || refreshTimer) return
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null
+      if (!stopped) onChange()
+    }, 40)
+  }
+
+  channel = supabase.channel(`direct-messages:${conversationId}`)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'direct_messages', filter: `conversation_id=eq.${conversationId}` }, scheduleRefresh)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'direct_conversations', filter: `id=eq.${conversationId}` }, scheduleRefresh)
     .subscribe()
-  return () => { if (channel) { void supabase.removeChannel(channel); channel = null } }
+
+  return () => {
+    stopped = true
+    if (refreshTimer) clearTimeout(refreshTimer)
+    refreshTimer = null
+    if (channel) { void supabase.removeChannel(channel); channel = null }
+  }
 }
