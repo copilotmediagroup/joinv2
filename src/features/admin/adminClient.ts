@@ -83,10 +83,28 @@ function mapModerationReport(row: Record<string, unknown>): ModerationReport {
 }
 
 export async function claimNextModerationReport(): Promise<string | null> {
-  const { data, error } = await supabase.rpc('claim_next_moderation_report')
-  if (error) throw new Error(error.message || 'Unable to claim next report')
-  if (data === null) return null
-  return required(data, 'claimed report id')
+  let lastMessage = 'Unable to claim next report'
+
+  for (let attempt = 0; attempt < ADMIN_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), ADMIN_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('claim_next_moderation_report')
+        .abortSignal(controller.signal)
+
+      if (!error) return data === null ? null : required(data, 'claimed report id')
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= ADMIN_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, ADMIN_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 export async function releaseMyModerationReport(reportId: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('release_my_moderation_report', {
@@ -255,9 +273,28 @@ export async function getModerationMomentQueue(input: {
 }
 
 export async function claimNextModerationMoment(): Promise<string | null> {
-  const { data, error } = await supabase.rpc('claim_next_moderation_moment')
-  if (error) throw new Error(error.message || 'Unable to claim next Moment report')
-  return data === null ? null : required(data, 'claimed Moment report id')
+  let lastMessage = 'Unable to claim next Moment report'
+
+  for (let attempt = 0; attempt < ADMIN_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), ADMIN_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('claim_next_moderation_moment')
+        .abortSignal(controller.signal)
+
+      if (!error) return data === null ? null : required(data, 'claimed Moment report id')
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= ADMIN_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, ADMIN_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function releaseMyModerationMoment(reportId: string): Promise<boolean> {
