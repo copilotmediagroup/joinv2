@@ -52,6 +52,12 @@ function formatCountdown(seconds: number): string {
   return `${minutes}:${String(remainder).padStart(2, '0')}`
 }
 
+function venueModeLabel(band: SignalPlace['venueTimeBand']): string | null {
+  if (!band) return null
+  if (band === 'late_night') return 'LATE NIGHT MODE'
+  return `${band.replaceAll('_', ' ').toUpperCase()} MODE`
+}
+
 export default function SignalPlaceStage({
   signalGroupId,
   signalLabel,
@@ -202,6 +208,8 @@ export default function SignalPlaceStage({
   const totalVotes = round
     ? Object.values(round.voteCounts).reduce((sum, count) => sum + count, 0)
     : 0
+  const venueIntelligence = places[0] ?? null
+  const modeLabel = venueModeLabel(venueIntelligence?.venueTimeBand)
 
   const castVote = async (optionId: string) => {
     if (!round || round.state !== 'open' || voteSubmitting) return
@@ -257,6 +265,18 @@ export default function SignalPlaceStage({
             : 'SIGNAL ranked these for your group'}
         </div>
       </div>
+
+      {venueIntelligence && (
+        <div className="signal-venue-intelligence" aria-label="Venue intelligence">
+          {modeLabel && <span>{modeLabel}</span>}
+          <span>OPEN NOW ONLY</span>
+          <span>
+            {venueIntelligence.meetingPointMode === 'group_midpoint'
+              ? `GROUP MIDPOINT${venueIntelligence.locationMemberCount && venueIntelligence.activeMemberCount ? ` · ${venueIntelligence.locationMemberCount}/${venueIntelligence.activeMemberCount} LOCATIONS` : ''}`
+              : 'CITY CENTER FALLBACK'}
+          </span>
+        </div>
+      )}
 
       {placesError && (
         <p className="signal-place-ranking-copy" role="alert">

@@ -2243,3 +2243,29 @@
   }
 }
 
+
+.signal-venue-intelligence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -2px 0 12px;
+}
+
+.signal-venue-intelligence span {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  border: 1px solid rgba(80, 207, 255, .18);
+  border-radius: 999px;
+  background: rgba(80, 207, 255, .055);
+  color: rgba(184, 229, 255, .78);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+@media (max-width: 560px) {
+  .signal-venue-intelligence { margin-bottom: 10px; }
+  .signal-venue-intelligence span { font-size: 6.5px; }
+}

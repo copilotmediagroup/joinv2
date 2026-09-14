@@ -6,13 +6,15 @@ type Json = Record<string, unknown>
 
 const GOOGLE_PLACES_URL = 'https://places.googleapis.com/v1/places:searchText'
 const SEARCH_QUERIES: Record<string, string> = {
+  drinks: 'bars lounges breweries wine bars and social drink spots',
   sports: 'sports complexes recreation centers gyms and athletic centers',
-  creative: 'art studios creative workshops and paint and sip studios',
-  nightlife: 'nightlife bars lounges and rooftop venues',
-  music: 'live music venues',
-  outdoors: 'parks outdoor recreation and activity venues',
-  explore: 'local attractions experiences and things to do',
-  chill: 'late night lounges bars hotel bars cocktail lounges coffee shops and relaxed social hangout spots',
+  creative: 'art studios creative workshops pottery and paint and sip studios',
+  food: 'restaurants food halls diners and social dining',
+  nightlife: 'nightlife bars lounges dance clubs and rooftop venues',
+  music: 'live music venues jazz clubs and music bars',
+  outdoors: 'parks waterfronts trails and outdoor recreation',
+  explore: 'local attractions experiences museums arcades and things to do',
+  chill: 'coffee shops cafes lounges and relaxed social hangout spots',
 }
 
 const corsHeaders = {
@@ -85,7 +87,6 @@ function fairTravelScore(averageMiles: number, maxMiles: number) {
   const farthestPenalty = maxMiles > 15 ? 24 : maxMiles > 12 ? 18 : maxMiles > 10 ? 12 : maxMiles > 8 ? 7 : maxMiles > 6 ? 3 : 0
   return averageScore - farthestPenalty
 }
-const MIN_USABLE_OPEN_MINUTES = 150
 const WEEK_MINUTES = 7 * 24 * 60
 
 function venueWeekMinute(epochMs: number, offsetMinutes: number): number {
@@ -131,48 +132,143 @@ function timeBandFor(localHour: number): VenueTimeBand {
 
 function searchIntentFor(slug: string, activityName: string, localHour: number): string {
   const band = timeBandFor(localHour)
-  if (slug === 'chill') {
-    if (band === 'morning') return 'Starbucks coffee shops cafes breakfast cafes relaxed morning hangout spots'
-    if (band === 'daytime') return 'coffee shops cafes dessert shops casual social hangout spots parks'
-    if (band === 'evening') return 'lounges rooftop lounges cafes dessert shops casual social restaurants'
-    return 'late night lounges hotel bars cocktail lounges bars pubs late night restaurants'
+  const profiles: Record<string, Record<VenueTimeBand, string>> = {
+    drinks: {
+      morning: 'brunch restaurants mimosas coffee cocktails and relaxed drink spots',
+      daytime: 'breweries wine bars rooftop bars social bars and restaurants with drinks',
+      evening: 'cocktail bars breweries wine bars rooftop bars and social bars',
+      late_night: 'late night bars lounges pubs hotel bars and cocktail lounges',
+    },
+    sports: {
+      morning: 'gyms indoor basketball courts recreation centers and sports complexes',
+      daytime: 'sports complexes recreation centers basketball courts gyms and athletic centers',
+      evening: 'indoor sports centers basketball courts gyms and recreation centers open late',
+      late_night: '24 hour gyms indoor sports centers and late night recreation centers',
+    },
+    creative: {
+      morning: 'art studios pottery painting studios creative workshops and museums',
+      daytime: 'art studios creative workshops pottery painting museums and maker spaces',
+      evening: 'paint and sip art studios pottery classes and creative workshops',
+      late_night: 'late night paint and sip art experiences and creative studios',
+    },
+    food: {
+      morning: 'breakfast brunch restaurants diners coffee shops and cafes',
+      daytime: 'lunch restaurants casual restaurants food halls and local restaurants',
+      evening: 'dinner restaurants social restaurants food halls and local dining',
+      late_night: 'late night restaurants diners 24 hour restaurants and food open late',
+    },
+    music: {
+      morning: 'live music brunch cafes restaurants and music venues',
+      daytime: 'live music cafes breweries and music venues',
+      evening: 'live music venues jazz clubs concert venues and music bars',
+      late_night: 'live music bars jazz clubs music lounges and venues open late',
+    },
+    outdoors: {
+      morning: 'parks trails waterfronts beaches and outdoor recreation',
+      daytime: 'parks trails waterfronts and outdoor recreation activity venues',
+      evening: 'waterfront parks boardwalks and outdoor recreation open in the evening',
+      late_night: 'well lit waterfront boardwalks and public outdoor recreation open late',
+    },
+    chill: {
+      morning: 'Starbucks coffee shops cafes breakfast cafes and relaxed morning hangout spots',
+      daytime: 'coffee shops cafes dessert shops casual social hangout spots and parks',
+      evening: 'lounges rooftop lounges cafes dessert shops and casual social restaurants',
+      late_night: 'late night lounges hotel bars cocktail lounges bars pubs and late night restaurants',
+    },
+    explore: {
+      morning: 'markets waterfront attractions museums cafes and sightseeing',
+      daytime: 'local attractions museums experiences markets sightseeing and things to do',
+      evening: 'local attractions arcades waterfront experiences bowling and things to do',
+      late_night: 'late night attractions arcades bowling entertainment and experiences open late',
+    },
+    nightlife: {
+      morning: 'brunch bars rooftop brunch lounges and social venues',
+      daytime: 'rooftop bars breweries day clubs social bars and lounges',
+      evening: 'nightclubs rooftop bars cocktail lounges dance clubs and nightlife',
+      late_night: 'nightclubs bars lounges rooftop venues dance clubs and nightlife open late',
+    },
   }
-  if (slug === 'sports' && band === 'late_night') return '24 hour gyms indoor sports centers late night recreation centers'
-  if (slug === 'outdoors' && band === 'late_night') return 'well lit public outdoor recreation open late'
-  if (slug === 'creative' && band === 'late_night') return 'late night creative studios paint and sip art experiences'
-  return SEARCH_QUERIES[slug] ?? `${activityName} venues and activities`
+  return profiles[slug]?.[band] ?? SEARCH_QUERIES[slug] ?? `${activityName} venues and activities`
+}
+
+function includesAny(text: string, terms: string[]) {
+  return terms.some((term) => text.includes(term))
+}
+
+function minimumUsableOpenMinutes(slug: string, localHour: number) {
+  const band = timeBandFor(localHour)
+  if (band === 'late_night') return 60
+  if (slug === 'creative' || slug === 'sports') return 90
+  return 75
 }
 
 function facilityFit(slug: string, name: string, category: string, localHour: number) {
   const text = `${name} ${category}`.toLowerCase()
-  if (slug === 'chill') {
-    const band = timeBandFor(localHour)
-    const morning = band === 'morning'
-    const starbucks = text.includes('starbucks')
-    const coffee = ['coffee', 'cafe', 'bakery'].some((term) => text.includes(term))
-    const lateNightSocial = ['bar', 'lounge', 'cocktail', 'hotel', 'pub', 'brewery', 'nightclub']
+  const band = timeBandFor(localHour)
+  const coffee = ['coffee', 'cafe', 'bakery'].some((term) => text.includes(term))
+  const nightlife = ['bar', 'lounge', 'cocktail', 'pub', 'brewery', 'nightclub', 'dance club']
+  const restaurant = ['restaurant', 'diner', 'food hall', 'breakfast', 'brunch']
+  const indoorSport = ['basketball', 'recreation center', 'community center', 'sports complex', 'sports center', 'athletic center', 'gym', 'fitness', 'ymca']
+  const outdoorSport = ['park', 'playground', 'trail', 'nature', 'outdoor']
 
-    if (morning) {
-      if (starbucks) return 40
-      if (coffee) return 18
-      if (lateNightSocial.some((term) => text.includes(term))) return -12
+  if (slug === 'chill') {
+    if (band === 'morning') {
+      if (text.includes('starbucks')) return 42
+      if (coffee) return 20
+      if (includesAny(text, nightlife)) return -14
       return 0
     }
-
-    if (band === 'late_night' && lateNightSocial.some((term) => text.includes(term))) return 22
-    if (band === 'evening' && lateNightSocial.some((term) => text.includes(term))) return 14
-    if (band === 'daytime' && coffee) return 12
+    if (band === 'daytime' && coffee) return 14
+    if (band === 'evening' && (coffee || includesAny(text, nightlife))) return 12
+    if (band === 'late_night' && includesAny(text, nightlife)) return 24
     if (band === 'late_night' && coffee) return -4
     return 0
   }
-  if (slug !== 'sports') return 0
-  const indoor = ['basketball', 'recreation center', 'community center', 'sports complex', 'sports center', 'athletic center', 'gym', 'fitness', 'ymca']
-  const outdoor = ['park', 'playground', 'trail', 'nature', 'outdoor']
-  const inside = indoor.some((term) => text.includes(term))
-  const outside = outdoor.some((term) => text.includes(term))
-  if (inside && !outside) return 25
-  if (inside && outside) return 8
-  if (outside) return -30
+
+  if (slug === 'food') {
+    if (band === 'morning' && includesAny(text, ['breakfast', 'brunch', 'diner', 'cafe'])) return 20
+    if (band === 'late_night' && includesAny(text, ['24 hour', 'late night', 'diner'])) return 20
+    return includesAny(text, restaurant) ? 10 : 0
+  }
+
+  if (slug === 'drinks' || slug === 'nightlife') {
+    if (includesAny(text, nightlife)) return band === 'late_night' ? 22 : 14
+    if (band === 'morning' && includesAny(text, ['brunch', 'mimosa'])) return 14
+    return 0
+  }
+
+  if (slug === 'sports') {
+    const inside = includesAny(text, indoorSport)
+    const outside = includesAny(text, outdoorSport)
+    if (inside && !outside) return 25
+    if (inside && outside) return 10
+    if (outside) return band === 'morning' || band === 'daytime' ? 10 : -20
+    return 0
+  }
+
+  if (slug === 'creative') {
+    if (includesAny(text, ['paint', 'pottery', 'art studio', 'creative', 'maker'])) return band === 'evening' ? 20 : 14
+    return 0
+  }
+
+  if (slug === 'music') {
+    if (includesAny(text, ['live music', 'jazz', 'music venue', 'concert'])) return band === 'evening' || band === 'late_night' ? 22 : 12
+    return 0
+  }
+
+  if (slug === 'outdoors') {
+    if (includesAny(text, ['waterfront', 'boardwalk', 'park', 'trail', 'beach', 'outdoor'])) return band === 'late_night' ? 8 : 18
+    return 0
+  }
+
+  if (slug === 'explore') {
+    if (band === 'late_night' && includesAny(text, ['arcade', 'bowling', 'entertainment'])) return 22
+    if (band === 'morning' || band === 'daytime') {
+      if (includesAny(text, ['museum', 'market', 'attraction', 'waterfront'])) return 16
+    }
+    return 0
+  }
+
   return 0
 }
 
@@ -381,7 +477,9 @@ Deno.serve(async (request: Request) => {
       throw new Error('Signal city local time is unavailable')
     }
     const searchIntent = searchIntentFor(activity.slug, activity.name, localHour)
-    const query = `${searchIntent} in ${city.name}`
+    const query = searchIntent
+    const venueTimeBand = timeBandFor(localHour)
+    const minimumOpenMinutes = minimumUsableOpenMinutes(activity.slug, localHour)
     const googleResponse = await fetch(GOOGLE_PLACES_URL, {
       method: 'POST',
       headers: {
@@ -397,8 +495,11 @@ Deno.serve(async (request: Request) => {
       },
       body: JSON.stringify({
         textQuery: query,
-        maxResultCount: 15,
-        locationBias: { circle: { center: { latitude: searchLatitude, longitude: searchLongitude }, radius: 16093.4 } },
+        openNow: true,
+        pageSize: 20,
+        rankPreference: 'DISTANCE',
+        regionCode: 'US',
+        locationBias: { circle: { center: { latitude: searchLatitude, longitude: searchLongitude }, radius: 19312.1 } },
       }),
     })
     if (!googleResponse.ok) {
@@ -429,7 +530,7 @@ Deno.serve(async (request: Request) => {
       const openNow = typeof place.currentOpeningHours?.openNow === 'boolean'
         ? place.currentOpeningHours.openNow : null
       const openMinutesRemaining = openNow === true ? minutesUntilCurrentClose(place) : null
-      const supportsSignalWindow = openNow !== true || openMinutesRemaining === null || openMinutesRemaining >= MIN_USABLE_OPEN_MINUTES
+      const supportsSignalWindow = openNow === true && (openMinutesRemaining === null || openMinutesRemaining >= minimumOpenMinutes)
       const category = place.primaryType ?? activity.slug
       const photo = place.photos?.[0] ?? null
       const photoName = typeof photo?.name === 'string' ? photo.name : null
@@ -447,6 +548,11 @@ Deno.serve(async (request: Request) => {
         address: place.formattedAddress ?? '', lat, lng, distanceMiles: miles,
         groupTravelAverageMiles: groupTravelAverageMiles ?? undefined,
         groupTravelMaxMiles: groupTravelMaxMiles ?? undefined,
+        meetingPointMode: hasGroupMeetingPoint ? 'group_midpoint' : 'city_center',
+        locationMemberCount: validMemberLocations.length,
+        activeMemberCount: activeUserIds.length,
+        venueTimeBand,
+        minimumOpenMinutes,
         rating, ratingCount, category, openNow, openMinutesRemaining, supportsSignalWindow,
         utcOffsetMinutes: typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null,
         openingHours: place.currentOpeningHours ? {
@@ -488,11 +594,9 @@ Deno.serve(async (request: Request) => {
       }
     }))
 
-    const confirmedOpenPlaces = places.filter((place) => place.placeId.length > 0 && place.openNow === true && place.supportsSignalWindow)
-    const unknownHoursPlaces = places.filter((place) => place.placeId.length > 0 && place.openNow === null)
-    const eligiblePlaces = confirmedOpenPlaces.length >= 2
-      ? confirmedOpenPlaces
-      : [...confirmedOpenPlaces, ...unknownHoursPlaces]
+    const eligiblePlaces = places.filter((place) =>
+      place.placeId.length > 0 && place.openNow === true && place.supportsSignalWindow,
+    )
 
     const ranked = eligiblePlaces
       .sort((a, b) =>

@@ -18,6 +18,13 @@ export type SignalPlace = {
   distanceMiles: number
   groupTravelAverageMiles?: number
   groupTravelMaxMiles?: number
+  meetingPointMode?: 'group_midpoint' | 'city_center'
+  locationMemberCount?: number
+  activeMemberCount?: number
+  venueTimeBand?: 'morning' | 'daytime' | 'evening' | 'late_night'
+  minimumOpenMinutes?: number
+  openMinutesRemaining?: number | null
+  supportsSignalWindow?: boolean
   rating: number | null
   ratingCount: number
   category: string
