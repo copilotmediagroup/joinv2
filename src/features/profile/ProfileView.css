@@ -812,3 +812,5 @@
 .blocked-person-row > div small { font-size: 8px; letter-spacing: .12em; opacity: .48; }
 .blocked-person-row > button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,.13); border-radius: 999px; padding: 7px 10px; background: transparent; color: inherit; font-size: 9px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }
 .blocked-person-row > button:disabled { opacity: .5; cursor: wait; }
+.blocked-people-load-more { min-height: 42px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: rgba(255,255,255,.025); color: inherit; font-size: 10px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }
+.blocked-people-load-more:disabled { opacity: .45; cursor: default; }

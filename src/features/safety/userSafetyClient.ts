@@ -43,8 +43,21 @@ export async function reportUser(
   return required(data, 'report id')
 }
 
-export async function getMyBlockedUsers(): Promise<BlockedUser[]> {
-  const { data, error } = await supabase.rpc('get_my_blocked_users')
+export const BLOCKED_USERS_PAGE_SIZE = 30
+
+type BlockedUsersCursor = {
+  blockedAt: string
+  blockId: string
+}
+
+export async function getMyBlockedUsersPage(
+  cursor: BlockedUsersCursor | null = null,
+): Promise<BlockedUser[]> {
+  const { data, error } = await supabase.rpc('get_my_blocked_users_page', {
+    p_after_blocked_at: cursor?.blockedAt ?? null,
+    p_after_block_id: cursor?.blockId ?? null,
+    p_limit: BLOCKED_USERS_PAGE_SIZE,
+  })
   if (error) throw new Error(error.message || 'Unable to load blocked people')
   if (!Array.isArray(data)) throw new Error('Invalid blocked users response')
 

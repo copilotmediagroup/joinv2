@@ -2,7 +2,8 @@ import { Ban, RotateCcw } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
-  getMyBlockedUsers,
+  BLOCKED_USERS_PAGE_SIZE,
+  getMyBlockedUsersPage,
   unblockUser,
   type BlockedUser,
 } from './userSafetyClient'
@@ -10,24 +11,71 @@ import {
 export default function BlockedPeoplePanel() {
   const [items, setItems] = useState<BlockedUser[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [cursor, setCursor] = useState<{
+    blockedAt: string
+    blockId: string
+  } | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     try {
       setError(null)
-      setItems(await getMyBlockedUsers())
+      const page = await getMyBlockedUsersPage()
+      setItems(page)
+      setHasMore(page.length === BLOCKED_USERS_PAGE_SIZE)
+      const last = page[page.length - 1]
+      setCursor(last ? {
+        blockedAt: last.blockedAt,
+        blockId: last.blockId,
+      } : null)
     } catch (value) {
-      setError(toUserFacingError(value, 'Unable to load blocked people right now.'))
+      setError(toUserFacingError(
+        value,
+        'Unable to load blocked people right now.',
+      ))
     } finally {
       setLoading(false)
     }
   }, [])
+
   useEffect(() => {
     let active = true
-    queueMicrotask(() => { if (active) void refresh() })
+    queueMicrotask(() => {
+      if (active) void refresh()
+    })
     return () => { active = false }
   }, [refresh])
+
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return
+    setLoadingMore(true)
+    setError(null)
+    try {
+      const page = await getMyBlockedUsersPage(cursor)
+      setItems((current) => [
+        ...current,
+        ...page.filter((next) =>
+          !current.some((item) => item.blockId === next.blockId),
+        ),
+      ])
+      setHasMore(page.length === BLOCKED_USERS_PAGE_SIZE)
+      const last = page[page.length - 1]
+      setCursor(last ? {
+        blockedAt: last.blockedAt,
+        blockId: last.blockId,
+      } : null)
+    } catch (value) {
+      setError(toUserFacingError(
+        value,
+        'Unable to load older blocked people right now.',
+      ))
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const unblock = async (user: BlockedUser) => {
     if (busyId) return
@@ -35,9 +83,14 @@ export default function BlockedPeoplePanel() {
     setError(null)
     try {
       await unblockUser(user.userId)
-      setItems((current) => current.filter((item) => item.userId !== user.userId))
+      setItems((current) =>
+        current.filter((item) => item.userId !== user.userId),
+      )
     } catch (value) {
-      setError(toUserFacingError(value, 'Unable to unblock this person right now.'))
+      setError(toUserFacingError(
+        value,
+        'Unable to unblock this person right now.',
+      ))
     } finally {
       setBusyId(null)
     }
@@ -71,5 +124,15 @@ export default function BlockedPeoplePanel() {
         </button>
       </div>)}
     </div>
+    {hasMore ? (
+      <button
+        type="button"
+        className="blocked-people-load-more"
+        onClick={() => { void loadMore() }}
+        disabled={loadingMore}
+      >
+        {loadingMore ? 'LOADING…' : 'LOAD OLDER BLOCKS'}
+      </button>
+    ) : null}
   </section>
 }
