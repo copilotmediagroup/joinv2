@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import './features/onboarding/components/signalAccessGate.css'
+import AppErrorBoundary from './AppErrorBoundary'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) throw new Error('Application root is missing')
@@ -16,9 +17,11 @@ async function boot() {
 
     root.render(
       <StrictMode>
-        <SignalAccessGate>
-          <App />
-        </SignalAccessGate>
+        <AppErrorBoundary>
+          <SignalAccessGate>
+            <App />
+          </SignalAccessGate>
+        </AppErrorBoundary>
       </StrictMode>,
     )
   } catch (error) {

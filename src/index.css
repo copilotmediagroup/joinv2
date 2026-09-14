@@ -58,3 +58,16 @@ a {
 
 .startup-error h1 { margin: 0; font-size: 28px; }
 .startup-error p { margin: 0; color: rgba(255,255,255,.62); }
+
+.runtime-error {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  gap: 14px;
+  padding: 32px;
+  text-align: center;
+}
+.runtime-error > span { font-size: 12px; font-weight: 900; letter-spacing: .18em; opacity: .55; }
+.runtime-error h1 { margin: 0; font-size: clamp(28px, 5vw, 44px); }
+.runtime-error p { margin: 0 auto; max-width: 520px; color: rgba(255,255,255,.64); line-height: 1.55; }
+.runtime-error button { justify-self: center; min-height: 44px; padding: 0 20px; border: 1px solid rgba(255,255,255,.14); border-radius: 999px; background: #fff; color: #090909; font: inherit; font-size: 12px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }
