@@ -12,7 +12,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ActivityItem } from './activityClient'
 import {
   deleteMySignalMoment,
@@ -402,6 +402,18 @@ export default function ActivityView({
   const [momentsLoading, setMomentsLoading] = useState(true)
   const [momentsError, setMomentsError] = useState<string | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
+  const momentRealtimeTimerRef = useRef<number | null>(null)
+
+  const refreshMomentFeed = useCallback(async () => {
+    try {
+      const nextMoments = await getSignalMoments(20)
+      setMoments(nextMoments)
+    } catch (loadError) {
+      setMomentsError(
+        toUserFacingError(loadError, 'Unable to refresh Signal Moments right now.'),
+      )
+    }
+  }, [])
 
   const refreshMoments = useCallback(async () => {
     setMomentsLoading(true)
@@ -452,14 +464,25 @@ export default function ActivityView({
     void loadInitialMoments()
 
     const unsubscribe = subscribeToSignalMoments(() => {
-      void refreshMoments()
+      if (momentRealtimeTimerRef.current !== null) {
+        window.clearTimeout(momentRealtimeTimerRef.current)
+      }
+
+      momentRealtimeTimerRef.current = window.setTimeout(() => {
+        momentRealtimeTimerRef.current = null
+        if (!cancelled) void refreshMomentFeed()
+      }, 500)
     })
 
     return () => {
       cancelled = true
+      if (momentRealtimeTimerRef.current !== null) {
+        window.clearTimeout(momentRealtimeTimerRef.current)
+        momentRealtimeTimerRef.current = null
+      }
       unsubscribe()
     }
-  }, [refreshMoments])
+  }, [refreshMomentFeed])
 
   const completionPromptPlan = momentComposerPlanId
     ? eligiblePlans.find((plan) => plan.planId === momentComposerPlanId) ?? null
