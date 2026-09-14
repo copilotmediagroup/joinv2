@@ -1,5 +1,7 @@
 import { supabase } from '../../lib/supabaseClient'
 
+const ATTENDANCE_MAX_ATTEMPTS = 2
+
 export type PlanAttendanceStatus = {
   planId: string
   planState: string
@@ -79,14 +81,26 @@ export async function getMyPlanAttendanceStatus(
 export async function checkInToMyPlan(
   planId: string,
 ): Promise<PlanAttendanceStatus> {
-  const { data, error } = await supabase.rpc(
-    'check_in_to_my_plan',
-    { p_plan_id: planId },
-  )
+  let lastError: unknown = null
 
-  if (error) {
-    throw new Error(error.message || 'Unable to check in')
+  for (let attempt = 0; attempt < ATTENDANCE_MAX_ATTEMPTS; attempt += 1) {
+    const { data, error } = await supabase.rpc(
+      'check_in_to_my_plan',
+      { p_plan_id: planId },
+    )
+
+    if (!error) return parseStatus(data)
+
+    lastError = error
+    const status = typeof error === 'object' && error !== null && 'status' in error
+      ? Number((error as { status?: unknown }).status ?? 0)
+      : 0
+    if (!(status === 0 || status >= 500) || attempt + 1 >= ATTENDANCE_MAX_ATTEMPTS) break
+    await new Promise((resolve) => window.setTimeout(resolve, 250))
   }
 
-  return parseStatus(data)
+  const message = typeof lastError === 'object' && lastError !== null && 'message' in lastError
+    ? String((lastError as { message?: unknown }).message ?? '')
+    : ''
+  throw new Error(message || 'Unable to check in')
 }
