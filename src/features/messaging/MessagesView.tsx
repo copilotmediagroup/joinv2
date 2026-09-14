@@ -360,7 +360,12 @@ export default function MessagesView({
         )}
 
         {selectedConversation && planMembers.length > 0 && (
-          <div className="messages-plan-members" aria-label="Plan members">
+          <section className="messages-plan-roster">
+            <div className="messages-plan-roster-heading">
+              <strong>GROUP MEMBERS</strong>
+              <span>{planMembers.length} IN PLAN</span>
+            </div>
+            <div className="messages-plan-members" aria-label="Plan members">
             {planMembers.slice(0, 8).map((member) => (
               <div className="messages-plan-member" key={member.userId}>
                 {member.avatarUrl ? (
@@ -373,13 +378,15 @@ export default function MessagesView({
                 <small>{member.isMe ? 'YOU' : member.displayName}</small>
               </div>
             ))}
-            {planMembers.length > 8 && (
-              <strong>+{planMembers.length - 8}</strong>
-            )}
-          </div>
+              {planMembers.length > 8 && (
+                <strong>+{planMembers.length - 8}</strong>
+              )}
+            </div>
+          </section>
         )}
 
         {selectedConversation && (
+          <div className="messages-plan-controls">
           <PlanGovernancePanel
             planId={selectedConversation.planId}
             onLeftPlan={(reason) => {
@@ -396,8 +403,14 @@ export default function MessagesView({
               onPlanEnded?.(reason)
             }}
           />
+          </div>
         )}
 
+        <div className="messages-chat-section">
+          <div className="messages-chat-heading">
+            <strong>GROUP CHAT</strong>
+            <span>{messages.length > 0 ? 'LIVE CONVERSATION' : 'START THE CONVERSATION'}</span>
+          </div>
         <div className="messages-thread-feed">
           {loadingMessages ? (
             <div className="messages-state">
@@ -455,6 +468,8 @@ export default function MessagesView({
               )
             })
           )}
+        </div>
+
         </div>
 
         <form
