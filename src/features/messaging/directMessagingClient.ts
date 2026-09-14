@@ -72,9 +72,27 @@ export async function getMyDirectThread(conversationId: string): Promise<DirectT
 }
 
 export async function getOrCreateDirectConversation(connectionId: string): Promise<string> {
-  const { data, error } = await supabase.rpc('get_or_create_my_direct_conversation', { p_connection_id: connectionId })
-  if (error) throw new Error(error.message || 'Unable to open direct message')
-  return req(data, 'conversation_id')
+  let lastMessage = 'Unable to open direct message'
+
+  for (let attempt = 0; attempt < DIRECT_SEND_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), DIRECT_SEND_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('get_or_create_my_direct_conversation', { p_connection_id: connectionId })
+        .abortSignal(controller.signal)
+      if (!error) return req(data, 'conversation_id')
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= DIRECT_SEND_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, DIRECT_SEND_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function getMyDirectMessages(conversationId: string): Promise<DirectMessage[]> {
@@ -124,8 +142,27 @@ export async function sendMyDirectMessage(conversationId: string, body: string):
 }
 
 export async function markMyDirectConversationRead(conversationId: string): Promise<void> {
-  const { error } = await supabase.rpc('mark_my_direct_conversation_read', { p_conversation_id: conversationId })
-  if (error) throw new Error(error.message || 'Unable to mark direct messages read')
+  let lastMessage = 'Unable to mark direct messages read'
+
+  for (let attempt = 0; attempt < DIRECT_SEND_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), DIRECT_SEND_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('mark_my_direct_conversation_read', { p_conversation_id: conversationId })
+        .abortSignal(controller.signal)
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= DIRECT_SEND_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, DIRECT_SEND_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export function subscribeToDirectMessages(conversationId: string, onChange: () => void): () => void {

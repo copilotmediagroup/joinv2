@@ -1,5 +1,9 @@
 import { supabase } from '../../lib/supabaseClient'
 
+const NOTIFICATION_MUTATION_TIMEOUT_MS = 12_000
+const NOTIFICATION_MUTATION_RETRY_DELAY_MS = 250
+const NOTIFICATION_MUTATION_MAX_ATTEMPTS = 2
+
 export type SignalNotification = {
   id: string
   type: string
@@ -125,10 +129,27 @@ export async function resolveMyNotificationTarget(
 }
 
 export async function markMyNotificationRead(notificationId: string): Promise<void> {
-  const { error } = await supabase.rpc('mark_my_notification_read', {
-    p_notification_id: notificationId,
-  })
-  if (error) throw new Error(error.message || 'Unable to mark notification read')
+  let lastMessage = 'Unable to mark notification read'
+
+  for (let attempt = 0; attempt < NOTIFICATION_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), NOTIFICATION_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('mark_my_notification_read', { p_notification_id: notificationId })
+        .abortSignal(controller.signal)
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= NOTIFICATION_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, NOTIFICATION_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export function subscribeToMyNotifications(userId: string, onInvalidate: () => void): () => void {

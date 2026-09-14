@@ -59,15 +59,32 @@ export async function submitMySignalLocation(signalGroupId: string): Promise<boo
   })
   if (!position) return false
 
-  const { error } = await supabase.rpc('set_my_signal_location', {
-    p_signal_group_id: signalGroupId,
-    p_latitude: position.coords.latitude,
-    p_longitude: position.coords.longitude,
-    p_accuracy_meters: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
-    p_captured_at: new Date(position.timestamp).toISOString(),
-  })
-  if (error) return false
-  return true
+  const capturedAt = new Date(position.timestamp).toISOString()
+  for (let attempt = 0; attempt < COORDINATION_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), COORDINATION_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('set_my_signal_location', {
+          p_signal_group_id: signalGroupId,
+          p_latitude: position.coords.latitude,
+          p_longitude: position.coords.longitude,
+          p_accuracy_meters: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
+          p_captured_at: capturedAt,
+        })
+        .abortSignal(controller.signal)
+      if (!error) return true
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= COORDINATION_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await coordinationDelay(COORDINATION_MUTATION_RETRY_DELAY_MS)
+  }
+
+  return false
 }
 
 export async function fetchSignalPlaces(
