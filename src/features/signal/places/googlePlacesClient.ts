@@ -53,21 +53,49 @@ export async function fetchSignalPlaces(
   return data as SignalPlacesResponse
 }
 
+const COORDINATION_MUTATION_TIMEOUT_MS = 12_000
+const COORDINATION_MUTATION_RETRY_DELAY_MS = 250
+const COORDINATION_MUTATION_MAX_ATTEMPTS = 2
+
+function coordinationDelay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
+}
+
 export async function castSignalVenueVote(
   roundId: string,
   optionId: string,
 ): Promise<SignalVenueVoteResult> {
-  const { data, error } = await supabase.rpc('cast_my_signal_venue_vote', {
-    p_round_id: roundId,
-    p_option_id: optionId,
-  })
-  if (error) throw new Error(error.message || 'Unable to cast your venue vote')
-  const row = requireRpcRow(data, 'Venue vote')
-  return {
-    voteAccepted: row.vote_accepted === true,
-    roundState: String(row.round_state) as SignalVenueVoteResult['roundState'],
-    winnerOptionId: typeof row.winner_option_id === 'string' ? row.winner_option_id : null,
+  let lastMessage = 'Unable to cast your venue vote'
+
+  for (let attempt = 0; attempt < COORDINATION_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), COORDINATION_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('cast_my_signal_venue_vote', { p_round_id: roundId, p_option_id: optionId })
+        .abortSignal(controller.signal)
+
+      if (!error) {
+        const row = requireRpcRow(data, 'Venue vote')
+        return {
+          voteAccepted: row.vote_accepted === true,
+          roundState: String(row.round_state) as SignalVenueVoteResult['roundState'],
+          winnerOptionId: typeof row.winner_option_id === 'string' ? row.winner_option_id : null,
+        }
+      }
+
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= COORDINATION_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await coordinationDelay(COORDINATION_MUTATION_RETRY_DELAY_MS)
   }
+
+  throw new Error(lastMessage)
 }
 
 export async function reconcileSignalVenueRound(

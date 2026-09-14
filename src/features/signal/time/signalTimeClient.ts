@@ -40,17 +40,42 @@ export async function fetchSignalTimes(
   return data as SignalTimesResponse
 }
 
+const TIME_MUTATION_TIMEOUT_MS = 12_000
+const TIME_MUTATION_RETRY_DELAY_MS = 250
+const TIME_MUTATION_MAX_ATTEMPTS = 2
+
 export async function submitSignalTimeAvailability(
   roundId: string,
   availableOptionIds: string[],
   preferredOptionId: string | null = null,
 ): Promise<void> {
-  const { error } = await supabase.rpc('submit_my_signal_time_availability', {
-    p_round_id: roundId,
-    p_available_option_ids: availableOptionIds,
-    p_preferred_option_id: preferredOptionId,
-  })
-  if (error) throw new Error(error.message || 'Unable to submit your available times')
+  let lastMessage = 'Unable to submit your available times'
+
+  for (let attempt = 0; attempt < TIME_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), TIME_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('submit_my_signal_time_availability', {
+          p_round_id: roundId,
+          p_available_option_ids: availableOptionIds,
+          p_preferred_option_id: preferredOptionId,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= TIME_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, TIME_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function reconcileSignalTimeRound(roundId: string): Promise<void> {
