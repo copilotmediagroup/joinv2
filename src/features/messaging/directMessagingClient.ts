@@ -88,9 +88,39 @@ export async function getMyDirectMessages(conversationId: string): Promise<Direc
   }))
 }
 
+const DIRECT_SEND_TIMEOUT_MS = 12_000
+const DIRECT_SEND_RETRY_DELAY_MS = 250
+const DIRECT_SEND_MAX_ATTEMPTS = 2
+
 export async function sendMyDirectMessage(conversationId: string, body: string): Promise<void> {
-  const { error } = await supabase.rpc('send_my_direct_message', { p_conversation_id: conversationId, p_body: body })
-  if (error) throw new Error(error.message || 'Unable to send direct message')
+  const clientMessageId = crypto.randomUUID()
+  let lastMessage = 'Unable to send direct message'
+
+  for (let attempt = 0; attempt < DIRECT_SEND_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), DIRECT_SEND_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('send_my_direct_message_v2', {
+          p_conversation_id: conversationId,
+          p_body: body,
+          p_client_message_id: clientMessageId,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= DIRECT_SEND_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, DIRECT_SEND_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function markMyDirectConversationRead(conversationId: string): Promise<void> {

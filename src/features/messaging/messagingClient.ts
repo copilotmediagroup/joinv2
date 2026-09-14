@@ -192,6 +192,14 @@ export async function getPlanMessages(
     .reverse()
 }
 
+const MESSAGE_SEND_TIMEOUT_MS = 12_000
+const MESSAGE_SEND_RETRY_DELAY_MS = 250
+const MESSAGE_SEND_MAX_ATTEMPTS = 2
+
+function messageSendDelay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
+}
+
 export async function sendPlanMessage(
   conversationId: string,
   body: string,
@@ -225,38 +233,38 @@ export async function sendPlanMessage(
     )
   }
 
-  const {
-    data,
-    error,
-  } = await supabase.rpc(
-    'send_plan_message',
-    {
-      p_conversation_id:
-        conversationId,
-      p_body:
-        normalizedBody,
-    },
-  )
+  const clientMessageId = crypto.randomUUID()
+  let lastMessage = 'Unable to send message.'
 
-  if (error) {
-    throw new Error(
-      error.message ||
-        'Unable to send message.',
-    )
+  for (let attempt = 0; attempt < MESSAGE_SEND_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), MESSAGE_SEND_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('send_plan_message_v2', {
+          p_conversation_id: conversationId,
+          p_body: normalizedBody,
+          p_client_message_id: clientMessageId,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) {
+        if (!Array.isArray(data) || data.length !== 1 || !data[0] || typeof data[0] !== 'object') {
+          throw new Error('Invalid send message response.')
+        }
+        return parseSendPlanMessageRow(data[0] as SendPlanMessageRpcRow)
+      }
+
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= MESSAGE_SEND_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await messageSendDelay(MESSAGE_SEND_RETRY_DELAY_MS)
   }
 
-  if (
-    !Array.isArray(data) ||
-    data.length !== 1 ||
-    data[0] === null ||
-    typeof data[0] !== 'object'
-  ) {
-    throw new Error(
-      'Invalid send message response.',
-    )
-  }
-
-  return parseSendPlanMessageRow(
-    data[0] as SendPlanMessageRpcRow,
-  )
+  throw new Error(lastMessage)
 }

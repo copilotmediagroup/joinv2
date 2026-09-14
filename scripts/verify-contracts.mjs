@@ -26,6 +26,14 @@ const forbidden = [
     pattern: /\.rpc\(\s*['"]get_signal_moments['"]/, 
     message: 'Use get_signal_moments_page instead of the retired hard-cap Moments RPC.',
   },
+  {
+    pattern: /\.rpc\(\s*['"]send_plan_message['"]/,
+    message: 'Use send_plan_message_v2 so Plan sends are idempotent and retry-safe.',
+  },
+  {
+    pattern: /\.rpc\(\s*['"]send_my_direct_message['"]/,
+    message: 'Use send_my_direct_message_v2 so direct sends are idempotent and retry-safe.',
+  },
 ]
 
 async function walk(directory) {
