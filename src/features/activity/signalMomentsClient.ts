@@ -7,6 +7,9 @@ const MAX_FILE_BYTES = 100 * 1024 * 1024
 const MOMENT_REPORT_TIMEOUT_MS = 12_000
 const MOMENT_REPORT_RETRY_DELAY_MS = 250
 const MOMENT_REPORT_MAX_ATTEMPTS = 2
+const MOMENT_DELETE_TIMEOUT_MS = 12_000
+const MOMENT_DELETE_RETRY_DELAY_MS = 250
+const MOMENT_DELETE_MAX_ATTEMPTS = 2
 
 export type SignalMomentMedia = {
   storagePath: string
@@ -355,25 +358,44 @@ export async function reportSignalMoment(input: {
 }
 
 export async function deleteMySignalMoment(momentId: string): Promise<void> {
-  const { data, error } = await supabase.rpc('delete_my_signal_moment', {
-    p_moment_id: momentId,
-  })
+  let paths: string[] = []
+  let lastMessage = 'Unable to delete this Signal Moment.'
 
-  if (error) {
-    throw new Error(error.message || 'Unable to delete this Signal Moment.')
+  for (let attempt = 0; attempt < MOMENT_DELETE_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), MOMENT_DELETE_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('delete_my_signal_moment', { p_moment_id: momentId })
+        .abortSignal(controller.signal)
+
+      if (!error) {
+        paths = Array.isArray(data)
+          ? data.filter((value): value is string => typeof value === 'string' && value.length > 0)
+          : []
+        break
+      }
+
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= MOMENT_DELETE_MAX_ATTEMPTS) {
+        throw new Error(lastMessage)
+      }
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, MOMENT_DELETE_RETRY_DELAY_MS))
   }
 
-  const paths = Array.isArray(data)
-    ? data.filter((value): value is string => typeof value === 'string' && value.length > 0)
-    : []
-
   if (paths.length > 0) {
-    const { error: storageError } = await supabase.storage
-      .from(MOMENT_BUCKET)
-      .remove(paths)
-
-    if (storageError) {
-      throw new Error(storageError.message || 'Moment was removed, but media cleanup failed.')
+    let storageMessage = 'Moment was removed, but media cleanup failed.'
+    for (let attempt = 0; attempt < MOMENT_DELETE_MAX_ATTEMPTS; attempt += 1) {
+      const { error: storageError } = await supabase.storage.from(MOMENT_BUCKET).remove(paths)
+      if (!storageError) break
+      storageMessage = storageError.message || storageMessage
+      if (attempt + 1 >= MOMENT_DELETE_MAX_ATTEMPTS) throw new Error(storageMessage)
+      await new Promise((resolve) => window.setTimeout(resolve, MOMENT_DELETE_RETRY_DELAY_MS))
     }
   }
 
