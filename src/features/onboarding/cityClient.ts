@@ -8,31 +8,12 @@ export type OnboardingCityOption = {
   stateName: string
 }
 
-type CityRow = {
-  id: string
-  name: string
-  slug: string
-  state_id: string
-  states:
-    | {
-        code: string
-        name: string
-      }
-    | {
-        code: string
-        name: string
-      }[]
-    | null
-}
-
-function normalizeState(
-  value: CityRow['states'],
-): { code: string; name: string } | null {
-  if (Array.isArray(value)) {
-    return value[0] ?? null
-  }
-
-  return value
+type CitySearchRow = {
+  id: unknown
+  city_name: unknown
+  city_slug: unknown
+  state_code: unknown
+  state_name: unknown
 }
 
 export async function searchOnboardingCities(
@@ -46,44 +27,31 @@ export async function searchOnboardingCities(
   }
 
   const safeLimit = Math.max(1, Math.min(limit, 50))
+  const { data, error } = await supabase.rpc('search_onboarding_cities', {
+    p_query: normalizedQuery,
+    p_limit: safeLimit,
+  })
 
-  const { data, error } = await supabase
-    .from('cities')
-    .select(`
-      id,
-      name,
-      slug,
-      state_id,
-      states!inner (
-        code,
-        name
-      )
-    `)
-    .eq('is_active', true)
-    .eq('states.is_active', true)
-    .ilike('name', `${normalizedQuery}%`)
-    .order('name', { ascending: true })
-    .limit(safeLimit)
+  if (error) throw error
+  if (!Array.isArray(data)) throw new Error('Invalid city search response')
 
-  if (error) {
-    throw error
-  }
+  return (data as CitySearchRow[]).map((row) => {
+    if (
+      typeof row.id !== 'string' ||
+      typeof row.city_name !== 'string' ||
+      typeof row.city_slug !== 'string' ||
+      typeof row.state_code !== 'string' ||
+      typeof row.state_name !== 'string'
+    ) {
+      throw new Error('Invalid city search response')
+    }
 
-  return ((data ?? []) as unknown as CityRow[])
-    .map((row) => {
-      const state = normalizeState(row.states)
-
-      if (!state) {
-        return null
-      }
-
-      return {
-        id: row.id,
-        cityName: row.name,
-        citySlug: row.slug,
-        stateCode: state.code,
-        stateName: state.name,
-      }
-    })
-    .filter((row): row is OnboardingCityOption => row !== null)
+    return {
+      id: row.id,
+      cityName: row.city_name,
+      citySlug: row.city_slug,
+      stateCode: row.state_code,
+      stateName: row.state_name,
+    }
+  })
 }
