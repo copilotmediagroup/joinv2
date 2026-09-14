@@ -42,6 +42,18 @@ const forbidden = [
     pattern: /\.rpc\(\s*['"]propose_plan_change['"]/,
     message: 'Use propose_plan_change_v2 so one Plan-change submission is idempotent and retry-safe.',
   },
+  {
+    pattern: /\.rpc\(\s*['"]enforce_user_account['"]/,
+    message: 'Use enforce_user_account_v2 so one admin enforcement click is idempotent and retry-safe.',
+  },
+  {
+    pattern: /\.rpc\(\s*['"]lift_user_account_restriction['"]/,
+    message: 'Use lift_user_account_restriction_v2 so restriction lifts recover safely after transport failure.',
+  },
+  {
+    pattern: /\.rpc\(\s*['"]enforce_moment_author_account['"]/,
+    message: 'Use enforce_moment_author_account_v2 so Moment-author enforcement is idempotent and retry-safe.',
+  },
 ]
 
 async function walk(directory) {

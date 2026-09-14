@@ -152,22 +152,61 @@ export async function enforceUserAccount(input: {
   reason: string
   sourceReportId?: string | null
 }): Promise<void> {
-  const { error } = await supabase.rpc('enforce_user_account', {
-    p_target_user_id: input.userId,
-    p_action: input.action,
-    p_duration_minutes: input.durationMinutes ?? null,
-    p_reason: input.reason,
-    p_source_report_id: input.sourceReportId ?? null,
-  })
-  if (error) throw new Error(error.message || 'Unable to enforce account action')
+  const clientActionId = crypto.randomUUID()
+  let lastMessage = 'Unable to enforce account action'
+
+  for (let attempt = 0; attempt < ADMIN_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), ADMIN_MUTATION_TIMEOUT_MS)
+    try {
+      const { error, status } = await supabase
+        .rpc('enforce_user_account_v2', {
+          p_target_user_id: input.userId,
+          p_action: input.action,
+          p_duration_minutes: input.durationMinutes ?? null,
+          p_reason: input.reason,
+          p_source_report_id: input.sourceReportId ?? null,
+          p_source_moment_report_id: null,
+          p_client_action_id: clientActionId,
+        })
+        .abortSignal(controller.signal)
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= ADMIN_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, ADMIN_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function liftUserAccountRestriction(userId: string, reason: string): Promise<void> {
-  const { error } = await supabase.rpc('lift_user_account_restriction', {
-    p_target_user_id: userId,
-    p_reason: reason,
-  })
-  if (error) throw new Error(error.message || 'Unable to lift account restriction')
+  const clientActionId = crypto.randomUUID()
+  let lastMessage = 'Unable to lift account restriction'
+
+  for (let attempt = 0; attempt < ADMIN_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), ADMIN_MUTATION_TIMEOUT_MS)
+    try {
+      const { error, status } = await supabase
+        .rpc('lift_user_account_restriction_v2', {
+          p_target_user_id: userId,
+          p_reason: reason,
+          p_client_action_id: clientActionId,
+        })
+        .abortSignal(controller.signal)
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= ADMIN_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, ADMIN_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export type ModerationMomentState = 'open' | 'reviewed' | 'dismissed' | 'actioned'
@@ -297,13 +336,32 @@ export async function enforceMomentAuthorAccount(input: {
   durationMinutes?: number | null
   reason: string
 }): Promise<void> {
-  const { error } = await supabase.rpc('enforce_moment_author_account', {
-    p_report_id: input.reportId,
-    p_action: input.action,
-    p_duration_minutes: input.durationMinutes ?? null,
-    p_reason: input.reason,
-  })
-  if (error) throw new Error(error.message || 'Unable to enforce Moment author account')
+  const clientActionId = crypto.randomUUID()
+  let lastMessage = 'Unable to enforce Moment author account'
+
+  for (let attempt = 0; attempt < ADMIN_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), ADMIN_MUTATION_TIMEOUT_MS)
+    try {
+      const { error, status } = await supabase
+        .rpc('enforce_moment_author_account_v2', {
+          p_report_id: input.reportId,
+          p_action: input.action,
+          p_duration_minutes: input.durationMinutes ?? null,
+          p_reason: input.reason,
+          p_client_action_id: clientActionId,
+        })
+        .abortSignal(controller.signal)
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= ADMIN_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, ADMIN_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export type AdminOperationsSnapshot = {
