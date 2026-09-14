@@ -1,5 +1,9 @@
 import { supabase } from '../../lib/supabaseClient'
 
+const ADMIN_MUTATION_TIMEOUT_MS = 12_000
+const ADMIN_MUTATION_RETRY_DELAY_MS = 250
+const ADMIN_MUTATION_MAX_ATTEMPTS = 2
+
 export type ModerationReportState =
   | 'open' | 'reviewing' | 'resolved' | 'dismissed'
 
@@ -97,12 +101,23 @@ export async function reviewUserReport(input: {
   state: 'resolved' | 'dismissed'
   note: string | null
 }): Promise<void> {
-  const { error } = await supabase.rpc('review_user_report', {
-    p_report_id: input.reportId,
-    p_state: input.state,
-    p_note: input.note,
-  })
-  if (error) throw new Error(error.message || 'Unable to review this report')
+  let lastMessage = 'Unable to review this report'
+  for (let attempt = 0; attempt < ADMIN_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), ADMIN_MUTATION_TIMEOUT_MS)
+    try {
+      const { error, status } = await supabase
+        .rpc('review_user_report', { p_report_id: input.reportId, p_state: input.state, p_note: input.note })
+        .abortSignal(controller.signal)
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= ADMIN_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, ADMIN_MUTATION_RETRY_DELAY_MS))
+  }
+  throw new Error(lastMessage)
 }
 
 export type AccountEnforcementSummary = {
@@ -217,12 +232,23 @@ export async function reviewModerationMoment(input: {
   state: 'dismissed' | 'actioned'
   note: string | null
 }): Promise<void> {
-  const { error } = await supabase.rpc('review_moderation_moment', {
-    p_report_id: input.reportId,
-    p_state: input.state,
-    p_note: input.note,
-  })
-  if (error) throw new Error(error.message || 'Unable to finish Moment report')
+  let lastMessage = 'Unable to finish Moment report'
+  for (let attempt = 0; attempt < ADMIN_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), ADMIN_MUTATION_TIMEOUT_MS)
+    try {
+      const { error, status } = await supabase
+        .rpc('review_moderation_moment', { p_report_id: input.reportId, p_state: input.state, p_note: input.note })
+        .abortSignal(controller.signal)
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= ADMIN_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, ADMIN_MUTATION_RETRY_DELAY_MS))
+  }
+  throw new Error(lastMessage)
 }
 
 export type ModerationMomentEvidenceMedia = {
