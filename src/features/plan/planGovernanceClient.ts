@@ -153,13 +153,34 @@ export async function proposePlanTimeChange(
   planId: string,
   startsAt: string,
 ): Promise<void> {
-  const { error } = await supabase.rpc('propose_plan_change', {
-    p_plan_id: planId,
-    p_change_type: 'time',
-    p_proposed_venue_id: null,
-    p_proposed_starts_at: startsAt,
-  })
-  if (error) throw new Error(error.message || 'Unable to propose a new meetup time')
+  const clientProposalId = crypto.randomUUID()
+  let lastMessage = 'Unable to propose a new meetup time'
+
+  for (let attempt = 0; attempt < GOVERNANCE_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), GOVERNANCE_TIMEOUT_MS)
+
+    try {
+      const { error, status } = await supabase
+        .rpc('propose_plan_change_v2', {
+          p_plan_id: planId,
+          p_change_type: 'time',
+          p_proposed_venue_id: null,
+          p_proposed_starts_at: startsAt,
+          p_client_proposal_id: clientProposalId,
+        })
+        .abortSignal(controller.signal)
+      if (!error) return
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= GOVERNANCE_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, GOVERNANCE_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
 
 export async function leaveMyPlan(planId: string): Promise<void> {
