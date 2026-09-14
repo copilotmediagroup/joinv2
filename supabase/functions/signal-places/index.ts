@@ -12,7 +12,7 @@ const SEARCH_QUERIES: Record<string, string> = {
   music: 'live music venues',
   outdoors: 'parks outdoor recreation and activity venues',
   explore: 'local attractions experiences and things to do',
-  chill: 'casual social lounges coffee shops and relaxed hangout spots',
+  chill: 'late night lounges bars hotel bars cocktail lounges coffee shops and relaxed social hangout spots',
 }
 
 const corsHeaders = {
@@ -81,8 +81,15 @@ function confidenceScore(count: number) {
   return 1
 }
 function facilityFit(slug: string, name: string, category: string) {
-  if (slug !== 'sports') return 0
   const text = `${name} ${category}`.toLowerCase()
+  if (slug === 'chill') {
+    const lateNightSocial = ['bar', 'lounge', 'cocktail', 'hotel', 'pub', 'brewery', 'nightclub']
+    const daytimeLeaning = ['coffee', 'cafe', 'bakery']
+    if (lateNightSocial.some((term) => text.includes(term))) return 16
+    if (daytimeLeaning.some((term) => text.includes(term))) return -4
+    return 0
+  }
+  if (slug !== 'sports') return 0
   const indoor = ['basketball', 'recreation center', 'community center', 'sports complex', 'sports center', 'athletic center', 'gym', 'fitness', 'ymca']
   const outdoor = ['park', 'playground', 'trail', 'nature', 'outdoor']
   const inside = indoor.some((term) => text.includes(term))
@@ -335,7 +342,11 @@ Deno.serve(async (request: Request) => {
 
     const ranked = places
       .filter((place) => place.placeId.length > 0)
-      .sort((a, b) => b.signalScore - a.signalScore || b.ratingCount - a.ratingCount || a.distanceMiles - b.distanceMiles)
+      .sort((a, b) => {
+        const availabilityOrder = (value: boolean | null) => value === true ? 0 : value === null ? 1 : 2
+        return availabilityOrder(a.openNow) - availabilityOrder(b.openNow) ||
+          b.signalScore - a.signalScore || b.ratingCount - a.ratingCount || a.distanceMiles - b.distanceMiles
+      })
       .slice(0, Math.min(Math.max(limit, 2), 3))
       .map((place, index) => ({ ...place, signalRank: index + 1 }))
 

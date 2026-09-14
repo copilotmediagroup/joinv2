@@ -104,6 +104,7 @@ export default function SignalTimeStage({
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [recoverySeconds, setRecoverySeconds] = useState(10)
   const recoveryStartedRef = useRef(false)
+  const recoveryRequiredRef = useRef(false)
   const planConversionStartedRef = useRef(false)
 
   const loadSnapshot = useCallback(async () => {
@@ -236,6 +237,14 @@ export default function SignalTimeStage({
   const recoveryRequired =
     snapshot?.status === 'no_options' ||
     round?.state === 'no_eligible'
+
+  useEffect(() => {
+    if (recoveryRequired && !recoveryRequiredRef.current) {
+      recoveryStartedRef.current = false
+      setRecoverySeconds(10)
+    }
+    recoveryRequiredRef.current = recoveryRequired
+  }, [recoveryRequired])
 
   const ensurePlan = useCallback(async () => {
     if (planConversionStartedRef.current || planId) return
