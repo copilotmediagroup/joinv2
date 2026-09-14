@@ -180,11 +180,29 @@ export async function reconcileSignalVenueRound(
 export async function restartDeadlockedSignalVenueVote(
   signalGroupId: string,
 ): Promise<boolean> {
-  const { data, error } = await supabase.rpc('restart_my_deadlocked_signal_venue_vote', {
-    p_signal_group_id: signalGroupId,
-  })
-  if (error) throw new Error(error.message || 'Unable to restart venue voting')
-  return data === true
+  let lastMessage = 'Unable to restart venue voting'
+
+  for (let attempt = 0; attempt < COORDINATION_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), COORDINATION_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('restart_my_deadlocked_signal_venue_vote', { p_signal_group_id: signalGroupId })
+        .abortSignal(controller.signal)
+
+      if (!error) return data === true
+      lastMessage = error.message || lastMessage
+      const retryable = status === 0 || status >= 500
+      if (!retryable || attempt + 1 >= COORDINATION_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await coordinationDelay(COORDINATION_MUTATION_RETRY_DELAY_MS)
+  }
+
+  throw new Error(lastMessage)
 }
 
 export function subscribeToSignalVenueRound(
