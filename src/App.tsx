@@ -366,6 +366,7 @@ function App() {
     useState<SignalParticipantIdentity[]>([])
   const [formationSubmitting, setFormationSubmitting] =
     useState(false)
+  const formationRequestRef = useRef(false)
   const [formationError, setFormationError] =
     useState<string | null>(null)
   const [withdrawalSubmitting, setWithdrawalSubmitting] =
@@ -535,8 +536,13 @@ function App() {
 
   const restoreActiveSignal = useCallback(async (openJourney = false) => {
     try {
+      // Resume the canonical Signal journey before considering attendance.
+      // A checked-in attendance row must never bypass the explicit PLAN SET handoff;
+      // Active Outing becomes the primary surface only after the journey authority
+      // itself has advanced to active_outing.
+      const resume = await getMyActiveSignalResume()
       const outing = await getMyActiveSignalOuting().catch(() => null)
-      if (outing) {
+      if (outing && resume?.groupState === 'active_outing' && resume.signalStage !== 'plan') {
         setActiveOutingPlanId(outing.planId)
         setActivePlanId(outing.planId)
         setMessagePlanId(outing.planId)
@@ -550,8 +556,6 @@ function App() {
         return
       }
       setActiveOutingPlanId(null)
-
-      const resume = await getMyActiveSignalResume()
       if (!resume) {
         // Server truth says there is no live journey. Purge any stale browser-only
         // Signal/Plan state instead of leaving an old room alive in memory.
@@ -1042,51 +1046,57 @@ function App() {
   }
 
   const handleImDown = async () => {
-    if (formationSubmitting) {
-      return
-    }
+    // React state does not synchronously lock a rapid second click. The ref does.
+    // One user gesture must own exactly one immutable formation request.
+    if (formationRequestRef.current) return
+    formationRequestRef.current = true
+
+    const requestedActivitySlug =
+      directActivitySlug ??
+      boredSuggestionActivitySlug[suggestion.id]
+    const requestedJourneyOrigin = directActivitySlug
+      ? 'direct_signal' as const
+      : 'im_bored' as const
+    const requestedTimeWindow = signalTimePreference
+    const requestedCrowdMode = effectiveSignalCrowdPreference
+    const requestedAgePreference = effectiveSignalAgePreference
 
     setFormationSubmitting(true)
     setFormationError(null)
 
     try {
-      const existingJourney = await getMyActiveSignalResume().catch(() => null)
+      if (!requestedActivitySlug) {
+        throw new Error('This Signal suggestion is not available yet.')
+      }
+
+      const existingJourney = await getMyActiveSignalResume()
       if (existingJourney) {
+        // Never silently substitute another activity for the Signal the user tapped.
+        if (existingJourney.activitySlug !== requestedActivitySlug) {
+          throw new Error(
+            `You already have an active ${existingJourney.activitySlug.replace(/[-_]/g, ' ')} Signal. Leave it before joining another Signal.`,
+          )
+        }
         await restoreActiveSignal(true)
         return
       }
 
-      const homeCity =
-        await getAuthoritativeHomeCity()
-
-      const activitySlug =
-        directActivitySlug ??
-        boredSuggestionActivitySlug[
-          suggestion.id
-        ]
-
-      const journeyOrigin = directActivitySlug
-        ? 'direct_signal' as const
-        : 'im_bored' as const
-
-      if (!activitySlug) {
-        throw new Error(
-          'This Signal suggestion is not available yet.',
-        )
-      }
+      const homeCity = await getAuthoritativeHomeCity()
+      const activitySlug = requestedActivitySlug
+      const journeyOrigin = requestedJourneyOrigin
 
       const minAge =
-        effectiveSignalAgePreference === '30_plus'
+        requestedAgePreference === '30_plus'
           ? 30
-          : effectiveSignalAgePreference === '40_plus'
+          : requestedAgePreference === '40_plus'
             ? 40
             : null
 
       const replacement = await claimMatchingPlanReplacement({
         citySlug: homeCity.slug,
         activitySlug,
-        timeWindow: signalTimePreference,
-        crowdMode: effectiveSignalCrowdPreference,
+        timeWindow: requestedTimeWindow,
+        crowdMode: requestedCrowdMode,
         minAge,
         maxAge: null,
       })
@@ -1111,9 +1121,9 @@ function App() {
           citySlug: homeCity.slug,
           activitySlug,
           timeWindow:
-            signalTimePreference,
+            requestedTimeWindow,
           crowdMode:
-            effectiveSignalCrowdPreference,
+            requestedCrowdMode,
           minAge,
           maxAge: null,
           journeyOrigin,
@@ -1135,10 +1145,20 @@ function App() {
       setFormationResult(null)
       setSignalRealtimeTarget(null)
 
+      // A formation request can commit on the server even if the browser loses
+      // the response. Reconcile once before declaring failure so Incognito does
+      // not visually fall back to the pre-join card after a successful commit.
+      const committedJourney = await getMyActiveSignalResume().catch(() => null)
+      if (committedJourney && committedJourney.activitySlug === requestedActivitySlug) {
+        await restoreActiveSignal(true)
+        return
+      }
+
       setFormationError(
         toUserFacingError(error, 'Unable to join this Signal right now.'),
       )
     } finally {
+      formationRequestRef.current = false
       setFormationSubmitting(false)
     }
   }
