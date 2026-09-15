@@ -1239,3 +1239,21 @@
   box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 8px 24px rgba(18,111,172,.12);
 }
 .signal-time-open-chat:hover { background: rgba(63, 169, 232, .48); }
+
+/* Coordination loading uses the same centered, living language as venue intelligence. */
+.signal-time-searching {
+  min-height: 132px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 9px;
+  text-align: center;
+}
+.signal-time-searching p { margin: 0; max-width: 210px; color: rgba(226,240,255,.76); font-size: 10px; font-weight: 760; line-height: 1.35; text-align: center; }
+.signal-time-search-orbit { width: 28px; height: 28px; border: 1px solid rgba(90,210,255,.16); border-radius: 50%; position: relative; box-shadow: 0 0 22px rgba(54,185,255,.10); }
+.signal-time-search-orbit span { position: absolute; width: 7px; height: 7px; left: 50%; top: -4px; transform: translateX(-50%); border-radius: 50%; background: #68dcff; box-shadow: 0 0 13px rgba(104,220,255,.9); }
+.signal-time-search-dots { display: flex; gap: 5px; height: 5px; }
+.signal-time-search-dots i { width: 4px; height: 4px; border-radius: 50%; background: rgba(104,220,255,.82); animation: signal-time-search-pulse 1.2s ease-in-out infinite; }
+.signal-time-search-dots i:nth-child(2) { animation-delay: .16s; }
+.signal-time-search-dots i:nth-child(3) { animation-delay: .32s; }
+@keyframes signal-time-search-pulse { 0%,100% { opacity:.25; transform:translateY(0); } 50% { opacity:1; transform:translateY(-3px); } }

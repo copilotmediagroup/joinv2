@@ -403,10 +403,17 @@ export default function SignalTimeStage({
 
   if (loading && !snapshot) {
     return (
-      <section className="signal-time-stage">
-        <p className="signal-time-context">
-          Building the group’s live time window...
-        </p>
+      <section className="signal-time-stage signal-time-searching" aria-live="polite">
+        <motion.div
+          className="signal-time-search-orbit"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
+          aria-hidden="true"
+        >
+          <span />
+        </motion.div>
+        <p>Building the group’s live time window</p>
+        <div className="signal-time-search-dots" aria-hidden="true"><i /><i /><i /></div>
       </section>
     )
   }

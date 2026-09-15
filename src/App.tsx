@@ -586,19 +586,15 @@ function App() {
       setDirectActivitySlug(matchingPulse.id)
 
       if (resume.groupState === 'active_outing' && resume.planId) {
-        setMessagePlanId(resume.planId)
-        setMessageDirectConversationId(null)
+        // Conversion means the Plan exists; it does NOT mean the member opened chat.
+        // Preserve the live time-stage handoff so PLAN SET / OPEN GROUP CHAT stays
+        // visible. Only an explicit OPEN GROUP CHAT click may enter Messages.
         setActivePlanId(resume.planId)
+        setMessagePlanId(null)
+        setMessageDirectConversationId(null)
         setSignalPlanSetVisible(true)
-        setSignalThreshold(false)
-        setLockedSignalVenue(null)
-        setSignalRealtimeTarget(null)
-        setFormationResult(null)
-        setAccepted(false)
-        setBored(false)
         setFormationError(null)
         setWithdrawalError(null)
-        if (openJourney) setActiveSurface('messages')
         return
       }
 
@@ -737,12 +733,6 @@ function App() {
       : authoritativeJourneyStage === 'places'
         ? 'places'
         : 'arrival'
-
-  useEffect(() => {
-    if (!signalThreshold || authoritativeJourneyStage !== 'plan') return
-    const timer = window.setTimeout(() => { void restoreActiveSignal(true) }, 0)
-    return () => window.clearTimeout(timer)
-  }, [authoritativeJourneyStage, restoreActiveSignal, signalThreshold])
 
   useEffect(() => {
     if (!signalThreshold || authoritativeRoomStage !== 'time' || lockedSignalVenue) return
