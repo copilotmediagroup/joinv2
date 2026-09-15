@@ -801,14 +801,25 @@ function App() {
       // forming roster on screen long enough for the newly joined person to
       // animate in before revealing coordination. Server state is already locked.
       const revealTimer = window.setTimeout(() => {
-        setSignalRoomStage('arrival')
         setLockedSignalVenue(null)
         setSignalPlanSetVisible(false)
         setSignalThreshold(true)
+
+        // Lock-in is the user's final action. After the lock animation, move the
+        // server-owned journey directly into venue selection; there is no extra
+        // PICK THE PLACE confirmation screen.
+        if (authoritativeSignalGroupId) {
+          void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'places')
+            .then((stage) => {
+              setServerJourneyStage(stage)
+              setSignalRoomStage('places')
+            })
+            .catch(() => void restoreActiveSignal(false))
+        }
       }, 3200)
       return () => window.clearTimeout(revealTimer)
     }
-  }, [authoritativeGroupState, signalThreshold])
+  }, [authoritativeGroupState, authoritativeSignalGroupId, restoreActiveSignal, signalThreshold])
 
   const signalHasReachedCriticalMass =
     authoritativeGroupState === 'confirming' ||
@@ -1070,8 +1081,10 @@ function App() {
       }
 
       const existingJourney = await getMyActiveSignalResume()
-      if (existingJourney) {
-        // Never silently substitute another activity for the Signal the user tapped.
+      if (existingJourney?.signalIntentId) {
+        // Only an in-flight Signal intent blocks another formation request.
+        // A future Plan is not the Signal the user just tapped and must not turn
+        // I'M DOWN into a silent no-op.
         if (existingJourney.activitySlug !== requestedActivitySlug) {
           throw new Error(
             `You already have an active ${existingJourney.activitySlug.replace(/[-_]/g, ' ')} Signal. Leave it before joining another Signal.`,
@@ -1149,7 +1162,10 @@ function App() {
       // the response. Reconcile once before declaring failure so Incognito does
       // not visually fall back to the pre-join card after a successful commit.
       const committedJourney = await getMyActiveSignalResume().catch(() => null)
-      if (committedJourney && committedJourney.activitySlug === requestedActivitySlug) {
+      if (
+        committedJourney?.signalIntentId &&
+        committedJourney.activitySlug === requestedActivitySlug
+      ) {
         await restoreActiveSignal(true)
         return
       }
