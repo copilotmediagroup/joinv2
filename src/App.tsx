@@ -748,9 +748,9 @@ function App() {
 
   useEffect(() => {
     if (!signalRealtimeTarget?.signalGroupId) return
-    const timer = window.setInterval(() => { void restoreActiveSignal(false) }, 2000)
+    const timer = window.setInterval(() => { void restoreActiveSignal(false) }, 5000)
     return () => window.clearInterval(timer)
-  }, [restoreActiveSignal, signalRealtimeTarget?.signalGroupId])
+  }, [authoritativeGroupState, restoreActiveSignal, signalRealtimeTarget?.signalGroupId])
 
   const signalParticipantRosterVersion =
     signalRealtimeSnapshot?.memberships
@@ -799,10 +799,16 @@ function App() {
       previousGroupState !== 'locked' &&
       !signalThreshold
     ) {
-      setSignalRoomStage('arrival')
-      setLockedSignalVenue(null)
-      setSignalPlanSetVisible(false)
-      setSignalThreshold(true)
+      // Product beat: critical mass should be felt, not skipped. Keep the live
+      // forming roster on screen long enough for the newly joined person to
+      // animate in before revealing coordination. Server state is already locked.
+      const revealTimer = window.setTimeout(() => {
+        setSignalRoomStage('arrival')
+        setLockedSignalVenue(null)
+        setSignalPlanSetVisible(false)
+        setSignalThreshold(true)
+      }, 3200)
+      return () => window.clearTimeout(revealTimer)
     }
   }, [authoritativeGroupState, signalThreshold])
 
