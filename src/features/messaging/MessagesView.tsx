@@ -38,6 +38,7 @@ type MessagesViewProps = {
   initialPlanId?: string | null
   initialDirectConversationId?: string | null
   onPlanEnded?: (reason: 'left' | 'ended' | 'safety') => void
+  onPlanCheckedIn?: (planId: string) => void
 }
 
 function mergePlanConversations(
@@ -75,6 +76,7 @@ export default function MessagesView({
   initialPlanId = null,
   initialDirectConversationId = null,
   onPlanEnded,
+  onPlanCheckedIn,
 }: MessagesViewProps) {
   const [conversations, setConversations] =
     useState<PlanConversation[]>([])
@@ -389,6 +391,7 @@ export default function MessagesView({
           <div className="messages-plan-controls">
           <PlanGovernancePanel
             planId={selectedConversation.planId}
+            onCheckedIn={onPlanCheckedIn}
             onLeftPlan={(reason) => {
               setMessages([])
               setPlanMembers([])

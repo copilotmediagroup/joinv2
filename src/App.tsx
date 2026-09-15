@@ -42,6 +42,7 @@ import {
 import {
   getMyActiveSignalResume,
 } from './features/signal/resume/signalResumeClient'
+import { getMyActiveSignalOuting } from './features/outing/activeOutingClient'
 import {
   claimMatchingPlanReplacement,
 } from './features/plan/planGovernanceClient'
@@ -69,6 +70,9 @@ const ProfileView = React.lazy(
 )
 const ModerationView = React.lazy(
   () => import('./features/admin/ModerationView'),
+)
+const ActiveOutingView = React.lazy(
+  () => import('./features/outing/ActiveOutingView'),
 )
 const SignalPlaceStage = React.lazy(
   () => import('./features/signal/SignalPlaceStage'),
@@ -397,6 +401,8 @@ function App() {
     useState<string | null>(null)
   const [activePlanId, setActivePlanId] =
     useState<string | null>(null)
+  const [activeOutingPlanId, setActiveOutingPlanId] =
+    useState<string | null>(null)
   const [planExitNotice, setPlanExitNotice] =
     useState<string | null>(null)
   const [momentComposerPlanId, setMomentComposerPlanId] =
@@ -525,6 +531,22 @@ function App() {
 
   const restoreActiveSignal = useCallback(async (openJourney = false) => {
     try {
+      const outing = await getMyActiveSignalOuting().catch(() => null)
+      if (outing) {
+        setActiveOutingPlanId(outing.planId)
+        setActivePlanId(outing.planId)
+        setMessagePlanId(outing.planId)
+        setMessageDirectConversationId(null)
+        setSignalThreshold(false)
+        setFormationResult(null)
+        setSignalRealtimeTarget(null)
+        setAccepted(false)
+        setBored(false)
+        if (openJourney) setActiveSurface('discover')
+        return
+      }
+      setActiveOutingPlanId(null)
+
       const resume = await getMyActiveSignalResume()
       if (!resume) {
         // Server truth says there is no live journey. Purge any stale browser-only
@@ -537,6 +559,7 @@ function App() {
         setLockedSignalVenue(null)
         setSignalPlanSetVisible(false)
         setActivePlanId(null)
+        setActiveOutingPlanId(null)
         setMessagePlanId(null)
         setAccepted(false)
         setDirectActivitySlug(null)
@@ -790,6 +813,7 @@ function App() {
   }
 
   const handleActivityNavigation = () => {
+    if (activeOutingPlanId) { void restoreActiveSignal(true); return }
     setActiveSurface('activity')
     void refreshActivity()
   }
@@ -802,6 +826,7 @@ function App() {
   }
 
   const handleMessagesNavigation = () => {
+    if (activeOutingPlanId) { setMessagePlanId(activeOutingPlanId); setMessageDirectConversationId(null); setActiveSurface('messages'); return }
     setMessagePlanId(null)
     setMessageDirectConversationId(null)
     setActiveSurface('messages')
@@ -865,6 +890,7 @@ function App() {
   }
 
   const handleProfileNavigation = () => {
+    if (activeOutingPlanId) { void restoreActiveSignal(true); return }
     setActiveSurface('profile')
   }
 
@@ -882,6 +908,7 @@ function App() {
 
   const handleSignalCenterNavigation = () => {
     setActiveSurface('discover')
+    if (activeOutingPlanId) { void restoreActiveSignal(true); return }
 
     if (hasActiveSignalJourney) {
       setBored(true)
@@ -903,6 +930,7 @@ function App() {
 
   const handleDiscoverNavigation = () => {
     setActiveSurface('discover')
+    if (activeOutingPlanId) { void restoreActiveSignal(true); return }
 
     if (hasActiveSignalJourney) {
       setBored(true)
@@ -1311,7 +1339,20 @@ function App() {
       )}
 
       <React.Suspense fallback={<div className="surface-loading">Loading…</div>}>
-      {activeSurface === 'activity' ? (
+      {activeOutingPlanId && activeSurface !== 'messages' ? (
+        <ActiveOutingView
+          planId={activeOutingPlanId}
+          onOpenChat={handleOpenPlanChat}
+          onOutingEnded={(reason) => {
+            setActiveOutingPlanId(null)
+            setActivePlanId(null)
+            setMessagePlanId(null)
+            setActiveSurface('discover')
+            setPlanExitNotice(reason === 'safety' ? 'You left the live outing.' : 'This SIGNAL outing has ended.')
+            void Promise.all([refreshActivity(), refreshDiscovery(), restoreActiveSignal(false)])
+          }}
+        />
+      ) : activeSurface === 'activity' ? (
         <ActivityView
           items={activityItems}
           loading={activityLoading}
@@ -1328,9 +1369,16 @@ function App() {
           currentUserId={currentUser.userId}
           initialPlanId={messagePlanId}
           initialDirectConversationId={messageDirectConversationId}
+          onPlanCheckedIn={(planId) => {
+            setActiveOutingPlanId(planId)
+            setActivePlanId(planId)
+            setMessagePlanId(planId)
+            setActiveSurface('discover')
+          }}
           onPlanEnded={(reason) => {
             setMessagePlanId(null)
             setActivePlanId(null)
+            setActiveOutingPlanId(null)
             setSignalPlanSetVisible(false)
             setActiveSurface('discover')
             setBored(false)

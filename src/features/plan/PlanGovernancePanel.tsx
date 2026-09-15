@@ -24,6 +24,7 @@ import {
 type Props = {
   planId: string
   onLeftPlan?: (reason: 'left' | 'ended' | 'safety') => void
+  onCheckedIn?: (planId: string) => void
 }
 
 function formatTime(iso: string | null): string {
@@ -46,7 +47,7 @@ function toLocalInputValue(iso: string | null): string {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16)
 }
 
-export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
+export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }: Props) {
   const [snapshot, setSnapshot] = useState<PlanGovernanceSnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -136,7 +137,9 @@ export default function PlanGovernancePanel({ planId, onLeftPlan }: Props) {
     setAttendanceBusy(true)
     setError(null)
     try {
-      setAttendance(await checkInToMyPlan(planId))
+      const nextAttendance = await checkInToMyPlan(planId)
+      setAttendance(nextAttendance)
+      if (nextAttendance.checkedIn) onCheckedIn?.(planId)
     } catch (checkInError) {
       setError(toUserFacingError(checkInError, 'Unable to check you in right now. Please try again.'))
     } finally {
