@@ -640,10 +640,14 @@ function App() {
       setSignalThreshold(coordinationReady)
       setServerJourneyStage(resume.signalStage)
       setSignalRoomStage(
-        resume.signalStage === 'plan' ? 'arrival' : resume.signalStage,
+        resume.signalStage === 'plan' ? 'time' : resume.signalStage,
       )
       setLockedSignalVenue(resume.lockedVenue)
-      setSignalPlanSetVisible(false)
+      setActivePlanId(resume.planId)
+      setMessagePlanId(null)
+      // A converted Plan remains on the explicit PLAN SET handoff. Chat is a
+      // user action; reconciliation/focus/realtime must never auto-open it.
+      setSignalPlanSetVisible(resume.signalStage === 'plan' && resume.planId !== null)
     } catch {
       // Discovery remains available if resume authority is temporarily unavailable.
     }
