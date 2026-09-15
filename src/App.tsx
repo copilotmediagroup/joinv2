@@ -1301,6 +1301,10 @@ function App() {
   const formedSignalCriteria =
     `${formedSignalTimeLabel} · ${formedSignalCrowdLabel} · ${formedSignalAgeLabel}`
 
+  // Live Signal navigation begins when the member explicitly opens the current
+  // Signal Plan chat. Checked-in outing state is a later phase, not the shell gate.
+  const liveSignalNavPlanId = activeOutingPlanId ?? (messagePlanId && activePlanId === messagePlanId ? messagePlanId : null)
+
   const boredStatus = (() => {
     if (
       !bored &&
@@ -2454,11 +2458,11 @@ function App() {
       )}
       </React.Suspense>
 
-      <nav className={activeOutingPlanId ? "bottom-nav live-signal-nav" : "bottom-nav"}>
-        {activeOutingPlanId ? (
+      <nav className={liveSignalNavPlanId ? "bottom-nav live-signal-nav" : "bottom-nav"}>
+        {liveSignalNavPlanId ? (
           <>
-            <button className="nav-item" onClick={() => { setLiveCaptureMode('camera'); setMessagePlanId(null); setActiveSurface('discover') }}><Camera size={20} /><span>Take Pic</span></button>
-            <button className="nav-item" onClick={() => { setLiveCaptureMode('upload'); setMessagePlanId(null); setActiveSurface('discover') }}><ImagePlus size={20} /><span>Upload</span></button>
+            <button className="nav-item" disabled={!activeOutingPlanId} title={!activeOutingPlanId ? 'Available after check-in' : undefined} onClick={() => { if (!activeOutingPlanId) return; setLiveCaptureMode('camera'); setMessagePlanId(null); setActiveSurface('discover') }}><Camera size={20} /><span>Take Pic</span></button>
+            <button className="nav-item" disabled={!activeOutingPlanId} title={!activeOutingPlanId ? 'Available after check-in' : undefined} onClick={() => { if (!activeOutingPlanId) return; setLiveCaptureMode('upload'); setMessagePlanId(null); setActiveSurface('discover') }}><ImagePlus size={20} /><span>Upload</span></button>
             <button className="signal-center live" onClick={handleSignalCenterNavigation} aria-label="Return to live Signal"><Zap size={27} fill="currentColor" /></button>
             <button className={activeSurface === 'messages' ? 'nav-item active' : 'nav-item'} onClick={handleMessagesNavigation}><MessageCircle size={20} /><span>Group</span></button>
             <button className="nav-item" onClick={() => { setLiveCaptureMode(null); setMessagePlanId(null); setActiveSurface('discover') }}><MoreHorizontal size={20} /><span>More</span></button>
