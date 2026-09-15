@@ -252,7 +252,7 @@ Deno.serve(async (request: Request) => {
 
     const { data: group, error: groupError } = await domain
       .from('signal_groups')
-      .select('state,starts_at,ends_at')
+      .select('state,journey_stage,starts_at,ends_at')
       .eq('id', signalGroupId)
       .single()
     if (groupError || !group) throw groupError ?? new Error('Signal group not found')
@@ -260,6 +260,7 @@ Deno.serve(async (request: Request) => {
 
     const existing = await loadRound(domain, signalGroupId, user.id)
     if (existing) return json({ version: 'signal-time-coordination-v1', status: 'ready', ...existing })
+    if (group.journey_stage !== 'time') return json({ error: `signal_stage_mismatch:${group.journey_stage}` }, 409)
 
     const { data: venueRound, error: venueRoundError } = await domain
       .from('signal_venue_rounds')

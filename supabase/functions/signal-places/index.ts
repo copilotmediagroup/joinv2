@@ -442,7 +442,7 @@ Deno.serve(async (request: Request) => {
 
     const { data: group, error: groupError } = await domain
       .from('signal_groups')
-      .select('city_id,activity_id,state,starts_at,ends_at')
+      .select('city_id,activity_id,state,journey_stage,starts_at,ends_at')
       .eq('id', signalGroupId)
       .single()
     if (groupError || !group) throw groupError ?? new Error('Signal group not found')
@@ -458,6 +458,9 @@ Deno.serve(async (request: Request) => {
     if (activityError || !activity?.is_active) throw activityError ?? new Error('Signal activity is unavailable')
 
     const existing = await loadRound(domain, signalGroupId, user.id)
+    if (!existing && group.journey_stage !== 'places') {
+      return json({ error: `signal_stage_mismatch:${group.journey_stage}` }, 409)
+    }
     if (existing) {
       return json({
         version: 'signal-venue-vote-v1', source: 'database', query: null,

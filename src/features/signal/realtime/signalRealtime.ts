@@ -48,6 +48,7 @@ type SignalGroupRow = {
   min_age: number | null
   max_age: number | null
   state: SignalGroupSnapshot['state']
+  journey_stage: SignalGroupSnapshot['journeyStage']
   confirmation_deadline: string | null
   coordination_deadline: string | null
   formed_at: string | null
@@ -134,6 +135,7 @@ function mapGroup(
     minAge: row.min_age,
     maxAge: row.max_age,
     state: row.state,
+    journeyStage: row.journey_stage,
     confirmationDeadline:
       row.confirmation_deadline,
     coordinationDeadline:
@@ -226,6 +228,7 @@ export async function fetchSignalSnapshot(
           'min_age',
           'max_age',
           'state',
+          'journey_stage',
           'confirmation_deadline',
           'coordination_deadline',
           'formed_at',

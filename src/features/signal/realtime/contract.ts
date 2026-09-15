@@ -4,6 +4,15 @@ export type SignalIntentState =
   | 'withdrawn'
   | 'expired'
 
+export type SignalJourneyStage =
+  | 'forming'
+  | 'arrival'
+  | 'places'
+  | 'time'
+  | 'plan'
+  | 'active_outing'
+  | 'completed'
+
 export type SignalGroupState =
   | 'forming'
   | 'confirming'
@@ -69,6 +78,7 @@ export type SignalGroupSnapshot = {
   minAge: number | null
   maxAge: number | null
   state: SignalGroupState
+  journeyStage: SignalJourneyStage
   confirmationDeadline: string | null
   coordinationDeadline: string | null
   formedAt: string | null

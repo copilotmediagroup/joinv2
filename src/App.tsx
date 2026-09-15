@@ -43,6 +43,7 @@ import {
   getMyActiveSignalResume,
 } from './features/signal/resume/signalResumeClient'
 import { getMyActiveSignalOuting } from './features/outing/activeOutingClient'
+import { advanceMySignalJourneyStage } from './features/signal/journey/signalJourneyClient'
 import {
   claimMatchingPlanReplacement,
 } from './features/plan/planGovernanceClient'
@@ -715,6 +716,25 @@ function App() {
     signalRealtimeTarget?.signalGroupId ??
     formationResult?.signalGroupId ??
     null
+
+  const authoritativeJourneyStage =
+    signalRealtimeSnapshot?.group.journeyStage ??
+    (signalThreshold ? signalRoomStage : 'forming')
+
+  const authoritativeRoomStage: 'arrival' | 'places' | 'time' =
+    authoritativeJourneyStage === 'time' ||
+    authoritativeJourneyStage === 'plan' ||
+    authoritativeJourneyStage === 'active_outing'
+      ? 'time'
+      : authoritativeJourneyStage === 'places'
+        ? 'places'
+        : 'arrival'
+
+  useEffect(() => {
+    if (!signalThreshold || authoritativeRoomStage !== 'time' || lockedSignalVenue) return
+    const timer = window.setTimeout(() => { void restoreActiveSignal(false) }, 0)
+    return () => window.clearTimeout(timer)
+  }, [authoritativeRoomStage, lockedSignalVenue, restoreActiveSignal, signalThreshold])
 
   const signalParticipantRosterVersion =
     signalRealtimeSnapshot?.memberships
@@ -2181,7 +2201,7 @@ function App() {
             <motion.div
               className={[
                 'threshold-copy',
-                signalRoomStage !== 'arrival'
+                authoritativeRoomStage !== 'arrival'
                   ? 'threshold-copy-hidden'
                   : '',
               ].filter(Boolean).join(' ')}
@@ -2267,7 +2287,7 @@ function App() {
                 </div>
 
                 <AnimatePresence mode="wait">
-                  {signalRoomStage === 'arrival' ? (
+                  {authoritativeRoomStage === 'arrival' ? (
                     <motion.div
                       key="signal-arrival"
                       className="room-next"
@@ -2275,13 +2295,18 @@ function App() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -8, scale: 0.985 }}
                       transition={{ duration: 0.35 }}
-                      onClick={() => setSignalRoomStage('places')}
+                      onClick={() => {
+                        if (!authoritativeSignalGroupId) return
+                        void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'places')
+                          .then(() => setSignalRoomStage('places'))
+                          .catch(() => void restoreActiveSignal(false))
+                      }}
                     >
                       <small>NEXT</small>
                       <strong>PICK THE PLACE</strong>
                       <span>→</span>
                     </motion.div>
-                  ) : signalRoomStage === 'places' ? (
+                  ) : authoritativeRoomStage === 'places' ? (
                     <motion.div
                       key="signal-places"
                       initial={{ opacity: 0, y: 14, scale: 0.985 }}
@@ -2302,10 +2327,9 @@ function App() {
                           signalLabel={journeyPresentation.title}
                           onVenueLocked={(venue) => {
                             setLockedSignalVenue(venue)
-
-                            window.setTimeout(() => {
-                              setSignalRoomStage('time')
-                            }, 5000)
+                            void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'time')
+                              .then(() => setSignalRoomStage('time'))
+                              .catch(() => void restoreActiveSignal(false))
                           }}
                         />
                       ) : (

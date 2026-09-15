@@ -40,6 +40,11 @@ async function getFunctionErrorMessage(error: unknown): Promise<string> {
   return fallback
 }
 
+export class SignalStageMismatchError extends Error {
+  stage: string
+  constructor(stage: string) { super(`signal_stage_mismatch:${stage}`); this.name='SignalStageMismatchError'; this.stage=stage }
+}
+
 export class SignalGroupLocationPendingError extends Error {
   constructor() {
     super('group_location_pending')
@@ -98,6 +103,7 @@ export async function fetchSignalPlaces(
   if (error) {
     const message = await getFunctionErrorMessage(error)
     if (message.includes('group_location_pending')) throw new SignalGroupLocationPendingError()
+    if (message.includes('signal_stage_mismatch:')) throw new SignalStageMismatchError(message.split('signal_stage_mismatch:')[1]?.trim() || 'unknown')
     throw new Error(message)
   }
   if (!data || typeof data !== 'object') throw new Error('Signal Places returned an invalid response')
