@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Bell,
+  Camera,
+  ImagePlus,
+  MoreHorizontal,
   ChevronRight,
   Compass,
   MessageCircle,
@@ -322,6 +325,8 @@ function App() {
 
   const [activeSurface, setActiveSurface] =
     useState<'discover' | 'activity' | 'messages' | 'profile' | 'admin'>('discover')
+  const [liveCaptureMode, setLiveCaptureMode] =
+    useState<'camera' | 'upload' | null>(null)
   const [activityItems, setActivityItems] =
     useState<ActivityItem[]>([])
   const [activityLoading, setActivityLoading] =
@@ -1414,6 +1419,8 @@ function App() {
       {activeOutingPlanId && activeSurface !== 'messages' ? (
         <ActiveOutingView
           planId={activeOutingPlanId}
+          captureMode={liveCaptureMode}
+          onCaptureModeHandled={() => setLiveCaptureMode(null)}
           onOpenChat={handleOpenPlanChat}
           onOutingEnded={(reason) => {
             setActiveOutingPlanId(null)
@@ -2447,84 +2454,27 @@ function App() {
       )}
       </React.Suspense>
 
-      <nav className="bottom-nav">
-        <button
-          className={
-            activeSurface === 'discover'
-              ? 'nav-item active'
-              : 'nav-item'
-          }
-          onClick={handleDiscoverNavigation}
-        >
-          <Compass size={20} />
-          <span>Discover</span>
-        </button>
-
-        <button
-          className={
-            activeSurface === 'activity'
-              ? 'nav-item active'
-              : 'nav-item'
-          }
-          onClick={handleActivityNavigation}
-        >
-          <Sparkles size={20} />
-          <span>Activity</span>
-        </button>
-
-        <button
-          className="signal-center"
-          onClick={handleSignalCenterNavigation}
-          aria-label="Open Signal"
-        >
-          <Zap size={27} fill="currentColor" />
-        </button>
-
-        <button
-          className={
-            activeSurface === 'messages'
-              ? 'nav-item active'
-              : 'nav-item'
-          }
-          onClick={handleMessagesNavigation}
-        >
-          <MessageCircle size={20} />
-          <span>Messages</span>
-        </button>
-
-        <button
-          className={
-            activeSurface === 'profile'
-              ? 'nav-item active'
-              : 'nav-item'
-          }
-          onClick={handleProfileNavigation}
-        >
-          <UserRound size={20} />
-          <span>Profile</span>
-        </button>
-
-        {canReviewModeration && (
-          <button
-            className={activeSurface === 'admin' ? 'nav-item active' : 'nav-item'}
-            onClick={() => { setActiveSurface('admin'); setNotificationsOpen(false) }}
-          >
-            <ShieldCheck size={20} />
-            <span>Admin</span>
-          </button>
+      <nav className={activeOutingPlanId ? "bottom-nav live-signal-nav" : "bottom-nav"}>
+        {activeOutingPlanId ? (
+          <>
+            <button className="nav-item" onClick={() => { setLiveCaptureMode('camera'); setMessagePlanId(null); setActiveSurface('discover') }}><Camera size={20} /><span>Take Pic</span></button>
+            <button className="nav-item" onClick={() => { setLiveCaptureMode('upload'); setMessagePlanId(null); setActiveSurface('discover') }}><ImagePlus size={20} /><span>Upload</span></button>
+            <button className="signal-center live" onClick={handleSignalCenterNavigation} aria-label="Return to live Signal"><Zap size={27} fill="currentColor" /></button>
+            <button className={activeSurface === 'messages' ? 'nav-item active' : 'nav-item'} onClick={handleMessagesNavigation}><MessageCircle size={20} /><span>Group</span></button>
+            <button className="nav-item" onClick={() => { setLiveCaptureMode(null); setMessagePlanId(null); setActiveSurface('discover') }}><MoreHorizontal size={20} /><span>More</span></button>
+          </>
+        ) : (
+          <>
+            <button className={activeSurface === 'discover' ? 'nav-item active' : 'nav-item'} onClick={handleDiscoverNavigation}><Compass size={20} /><span>Discover</span></button>
+            <button className={activeSurface === 'activity' ? 'nav-item active' : 'nav-item'} onClick={handleActivityNavigation}><Sparkles size={20} /><span>Activity</span></button>
+            <button className="signal-center" onClick={handleSignalCenterNavigation} aria-label="Open Signal"><Zap size={27} fill="currentColor" /></button>
+            <button className={activeSurface === 'messages' ? 'nav-item active' : 'nav-item'} onClick={handleMessagesNavigation}><MessageCircle size={20} /><span>Messages</span></button>
+            <button className={activeSurface === 'profile' ? 'nav-item active' : 'nav-item'} onClick={handleProfileNavigation}><UserRound size={20} /><span>Profile</span></button>
+            {canReviewModeration && <button className={activeSurface === 'admin' ? 'nav-item active' : 'nav-item'} onClick={() => { setActiveSurface('admin'); setNotificationsOpen(false) }}><ShieldCheck size={20} /><span>Admin</span></button>}
+            <button className="nav-item nav-logout" onClick={() => { void handleLogout() }} disabled={logoutSubmitting} aria-label="Log out"><LogOut size={20} /><span>{logoutSubmitting ? 'Logging out…' : 'Log out'}</span></button>
+          </>
         )}
-
-        <button
-          className="nav-item nav-logout"
-          onClick={() => { void handleLogout() }}
-          disabled={logoutSubmitting}
-          aria-label="Log out"
-        >
-          <LogOut size={20} />
-          <span>{logoutSubmitting ? 'Logging out…' : 'Log out'}</span>
-        </button>
-      </nav>
-    </main>
+      </nav>    </main>
   )
 }
 

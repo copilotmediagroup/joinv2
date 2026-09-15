@@ -11,6 +11,8 @@ type Props = {
   planId: string
   onOpenChat: (planId: string) => void
   onOutingEnded: (reason: 'ended' | 'safety') => void
+  captureMode?: 'camera' | 'upload' | null
+  onCaptureModeHandled?: () => void
 }
 
 function formatTime(value: string | null) {
@@ -20,7 +22,7 @@ function formatTime(value: string | null) {
   return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date)
 }
 
-export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded }: Props) {
+export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, captureMode = null, onCaptureModeHandled }: Props) {
   const [plan, setPlan] = useState<PlanGovernanceSnapshot | null>(null)
   const [attendance, setAttendance] = useState<PlanAttendanceStatus | null>(null)
   const [members, setMembers] = useState<PlanMemberIdentity[]>([])
@@ -30,6 +32,15 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded }: 
   const [leaving, setLeaving] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const cameraInputId = `live-signal-camera-${planId}`
+  const uploadInputId = `live-signal-upload-${planId}`
+
+  useEffect(() => {
+    if (!captureMode) return
+    const input = document.getElementById(captureMode === 'camera' ? cameraInputId : uploadInputId) as HTMLInputElement | null
+    input?.click()
+    onCaptureModeHandled?.()
+  }, [cameraInputId, captureMode, onCaptureModeHandled, uploadInputId])
 
   const refresh = useCallback(async () => {
     try {
@@ -146,11 +157,11 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded }: 
         <div className="active-outing-capture-actions">
           <label className="active-outing-capture-button primary">
             <Camera size={18} /><span><strong>TAKE PHOTO / VIDEO</strong><small>Open your camera</small></span>
-            <input type="file" accept="image/*,video/*" capture="environment" onChange={(event) => { acceptFiles(event.target.files); event.currentTarget.value = '' }} />
+            <input id={cameraInputId} type="file" accept="image/*,video/*" capture="environment" onChange={(event) => { acceptFiles(event.target.files); event.currentTarget.value = '' }} />
           </label>
           <label className="active-outing-capture-button">
             <Upload size={18} /><span><strong>UPLOAD</strong><small>Choose from your device</small></span>
-            <input type="file" accept="image/*,video/*" multiple onChange={(event) => { acceptFiles(event.target.files); event.currentTarget.value = '' }} />
+            <input id={uploadInputId} type="file" accept="image/*,video/*" multiple onChange={(event) => { acceptFiles(event.target.files); event.currentTarget.value = '' }} />
           </label>
         </div>
 

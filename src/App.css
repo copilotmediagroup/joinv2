@@ -4685,3 +4685,15 @@ button:disabled,
   letter-spacing: 0.02em;
   text-align: center;
 }
+
+/* ACTIVE LIVE SIGNAL MODE — outing owns primary navigation */
+.bottom-nav.live-signal-nav {
+  border-color: rgba(65, 190, 255, 0.28);
+  background: linear-gradient(180deg, rgba(7, 13, 20, 0.97), rgba(5, 8, 13, 0.97));
+  box-shadow: 0 18px 55px rgba(0,0,0,0.46), 0 0 34px rgba(45,174,255,0.13);
+}
+.bottom-nav.live-signal-nav .signal-center.live::after {
+  content: 'LIVE'; position: absolute; bottom: -4px; padding: 2px 5px;
+  border-radius: 999px; font-size: 6px; font-weight: 900; letter-spacing: .12em;
+  color: #071018; background: #79d8ff; box-shadow: 0 0 12px rgba(83,194,255,.55);
+}
