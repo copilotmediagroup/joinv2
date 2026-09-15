@@ -248,10 +248,17 @@ export default function SignalPlaceStage({
 
   if (placesLoading && !snapshot) {
     return (
-      <section className="signal-place-stage">
-        <p className="signal-place-ranking-copy">
-          Finding the best open meeting point for your group...
-        </p>
+      <section className="signal-place-stage signal-place-searching" aria-live="polite">
+        <motion.div
+          className="signal-place-search-orbit"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
+          aria-hidden="true"
+        >
+          <span />
+        </motion.div>
+        <p>Finding the best open meeting point for your group</p>
+        <div className="signal-place-search-dots" aria-hidden="true"><i /><i /><i /></div>
       </section>
     )
   }

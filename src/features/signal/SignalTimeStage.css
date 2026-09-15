@@ -1231,3 +1231,11 @@
   border: 1px solid rgba(95, 221, 255, .42);
   box-shadow: 0 0 16px rgba(62, 205, 255, .12);
 }
+
+.signal-time-open-chat {
+  border-color: rgba(103, 207, 255, .34);
+  background: rgba(54, 151, 211, .38);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 8px 24px rgba(18,111,172,.12);
+}
+.signal-time-open-chat:hover { background: rgba(63, 169, 232, .48); }

@@ -336,11 +336,13 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
       {error && <p className="plan-governance-error" role="alert">{error}</p>}
 
       <div className="plan-governance-exit-actions">
-        <button type="button" className="plan-governance-safety-exit" disabled={busy} onClick={() => { void leave('safety') }}>
-          <ShieldCheck size={14} /> I DON’T FEEL SAFE — LEAVE NOW
-        </button>
+        {attendance?.checkedIn && (
+          <button type="button" className="plan-governance-safety-exit" disabled={busy} onClick={() => { void leave('safety') }}>
+            <ShieldCheck size={14} /> I DON’T FEEL SAFE — LEAVE NOW
+          </button>
+        )}
         <button type="button" className="plan-governance-leave" disabled={busy} onClick={() => { void leave('left') }}>
-          <LogOut size={14} /> LEAVE PLAN
+          <LogOut size={14} /> LEAVE SIGNAL
         </button>
       </div>
     </aside>

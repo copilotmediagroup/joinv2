@@ -4,6 +4,7 @@ const INTERNAL_ERROR_PATTERNS = [
   /live_signal_assignment_not_found/i,
   /live_signal_membership_not_found/i,
   /signal_group_not_found/i,
+  /signal_stage_mismatch/i,
   /authentication_required/i,
   /permission denied/i,
   /row-level security/i,

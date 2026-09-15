@@ -387,9 +387,12 @@ function App() {
         ? 'open'
         : signalAgePreference
   const [signalThreshold, setSignalThreshold] = useState(false)
-  const [signalRoomStage, setSignalRoomStage] = useState<
+  const [, setSignalRoomStage] = useState<
     'arrival' | 'places' | 'time'
   >('arrival')
+  const [serverJourneyStage, setServerJourneyStage] = useState<
+    'forming' | 'arrival' | 'places' | 'time' | 'plan' | 'active_outing' | 'completed'
+  >('forming')
 
   const [lockedSignalVenue, setLockedSignalVenue] =
     useState<LockedSignalVenue | null>(null)
@@ -557,6 +560,7 @@ function App() {
         setSignalParticipants([])
         setSignalThreshold(false)
         setSignalRoomStage('arrival')
+        setServerJourneyStage('forming')
         setLockedSignalVenue(null)
         setSignalPlanSetVisible(false)
         setActivePlanId(null)
@@ -634,6 +638,7 @@ function App() {
         resume.groupState === 'locked' ||
         resume.groupState === 'active_outing'
       setSignalThreshold(coordinationReady)
+      setServerJourneyStage(resume.signalStage)
       setSignalRoomStage(
         resume.signalStage === 'plan' ? 'arrival' : resume.signalStage,
       )
@@ -718,8 +723,7 @@ function App() {
     null
 
   const authoritativeJourneyStage =
-    signalRealtimeSnapshot?.group.journeyStage ??
-    (signalThreshold ? signalRoomStage : 'forming')
+    signalRealtimeSnapshot?.group.journeyStage ?? serverJourneyStage
 
   const authoritativeRoomStage: 'arrival' | 'places' | 'time' =
     authoritativeJourneyStage === 'time' ||
@@ -731,10 +735,22 @@ function App() {
         : 'arrival'
 
   useEffect(() => {
+    if (!signalThreshold || authoritativeJourneyStage !== 'plan') return
+    const timer = window.setTimeout(() => { void restoreActiveSignal(true) }, 0)
+    return () => window.clearTimeout(timer)
+  }, [authoritativeJourneyStage, restoreActiveSignal, signalThreshold])
+
+  useEffect(() => {
     if (!signalThreshold || authoritativeRoomStage !== 'time' || lockedSignalVenue) return
     const timer = window.setTimeout(() => { void restoreActiveSignal(false) }, 0)
     return () => window.clearTimeout(timer)
   }, [authoritativeRoomStage, lockedSignalVenue, restoreActiveSignal, signalThreshold])
+
+  useEffect(() => {
+    if (!signalRealtimeTarget?.signalGroupId) return
+    const timer = window.setInterval(() => { void restoreActiveSignal(false) }, 2000)
+    return () => window.clearInterval(timer)
+  }, [restoreActiveSignal, signalRealtimeTarget?.signalGroupId])
 
   const signalParticipantRosterVersion =
     signalRealtimeSnapshot?.memberships
@@ -2298,7 +2314,7 @@ function App() {
                       onClick={() => {
                         if (!authoritativeSignalGroupId) return
                         void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'places')
-                          .then(() => setSignalRoomStage('places'))
+                          .then((stage) => { setServerJourneyStage(stage); setSignalRoomStage('places') })
                           .catch(() => void restoreActiveSignal(false))
                       }}
                     >
@@ -2328,7 +2344,7 @@ function App() {
                           onVenueLocked={(venue) => {
                             setLockedSignalVenue(venue)
                             void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'time')
-                              .then(() => setSignalRoomStage('time'))
+                              .then((stage) => { setServerJourneyStage(stage); setSignalRoomStage('time') })
                               .catch(() => void restoreActiveSignal(false))
                           }}
                         />
