@@ -51,7 +51,7 @@ begin
   end if;
 
   return query
-  with journey_candidates as (
+  with journey_candidates(signal_intent_id,signal_group_id,group_state,member_count,activation_threshold,activity_slug,time_window_code,crowd_mode,min_age,max_age,signal_stage,locked_venue,plan_id,plan_details_opened,priority,sort_at) as (
     select
       null::uuid as signal_intent_id,
       sg.id as signal_group_id,
