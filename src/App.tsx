@@ -680,7 +680,10 @@ function App() {
   }, [restoreActiveSignal])
 
   useEffect(() => {
-    const refreshJourney = () => { void restoreActiveSignal(false) }
+    // Returning to a visible/focused app is a journey-entry event. Server resume
+    // already owns whether a live Signal exists, so restore its current surface
+    // instead of merely refreshing hidden state behind Discover.
+    const refreshJourney = () => { void restoreActiveSignal(true) }
     const onVisibility = () => {
       if (document.visibilityState === 'visible') refreshJourney()
     }
@@ -2493,7 +2496,7 @@ function App() {
                   ) : null}
                 </AnimatePresence>
 
-                {!signalPlanSetVisible && (
+                {!signalPlanSetVisible && !hasActiveSignalJourney && (
                   <button
                     className="threshold-back"
                     onClick={() => {
