@@ -301,27 +301,70 @@ function minimumUsableOpenMinutes(slug: string, localHour: number) {
   return 125
 }
 
-type ChillLane = 'bowling' | 'movies' | 'games' | 'cafe' | 'outdoors' | 'social' | 'other'
+type VenueLane = 'primary' | 'secondary' | 'tertiary' | 'social' | 'other'
 
-function chillLane(name: string, category: string): ChillLane {
+function venueLane(slug: string, name: string, category: string): VenueLane {
   const text = `${name} ${category}`.toLowerCase()
-  if (includesAny(text, ['bowling', 'bowling alley'])) return 'bowling'
-  if (includesAny(text, ['movie', 'cinema', 'theater', 'theatre'])) return 'movies'
-  if (includesAny(text, ['arcade', 'game center', 'amusement center'])) return 'games'
-  if (includesAny(text, ['coffee', 'cafe', 'bakery', 'dessert', 'tea house'])) return 'cafe'
-  if (includesAny(text, ['park', 'waterfront', 'boardwalk', 'beach', 'trail'])) return 'outdoors'
-  if (includesAny(text, ['lounge', 'bar', 'pub', 'cocktail', 'brewery'])) return 'social'
+  const has = (terms: string[]) => includesAny(text, terms)
+  if (slug === 'chill') {
+    if (has(['bowling'])) return 'primary'
+    if (has(['movie','cinema','theater','theatre'])) return 'secondary'
+    if (has(['arcade','game center','amusement','park','waterfront','boardwalk','beach','coffee','cafe','bakery','dessert','tea'])) return 'tertiary'
+    if (has(['lounge','bar','pub','cocktail','brewery'])) return 'social'
+  }
+  if (slug === 'drinks') {
+    if (has(['brewery','taproom','beer garden'])) return 'primary'
+    if (has(['wine bar','winery'])) return 'secondary'
+    if (has(['rooftop','hotel bar'])) return 'tertiary'
+    if (has(['cocktail','bar','pub','lounge'])) return 'social'
+  }
+  if (slug === 'food') {
+    if (has(['food hall','market'])) return 'primary'
+    if (has(['diner','breakfast','brunch','cafe'])) return 'secondary'
+    if (has(['restaurant','grill','bistro','kitchen'])) return 'tertiary'
+  }
+  if (slug === 'nightlife') {
+    if (has(['nightclub','dance club','club'])) return 'primary'
+    if (has(['rooftop'])) return 'secondary'
+    if (has(['live music','jazz','music venue'])) return 'tertiary'
+    if (has(['cocktail','lounge','bar'])) return 'social'
+  }
+  if (slug === 'sports') {
+    if (has(['basketball','sports complex','recreation center'])) return 'primary'
+    if (has(['gym','fitness','athletic'])) return 'secondary'
+    if (has(['tennis','pickleball','soccer','volleyball'])) return 'tertiary'
+  }
+  if (slug === 'creative') {
+    if (has(['pottery','ceramic'])) return 'primary'
+    if (has(['paint','art studio'])) return 'secondary'
+    if (has(['museum','maker','workshop'])) return 'tertiary'
+  }
+  if (slug === 'music') {
+    if (has(['jazz'])) return 'primary'
+    if (has(['concert','music venue','live music'])) return 'secondary'
+    if (has(['bar','lounge','brewery'])) return 'social'
+  }
+  if (slug === 'outdoors') {
+    if (has(['waterfront','boardwalk','beach'])) return 'primary'
+    if (has(['park'])) return 'secondary'
+    if (has(['trail','nature','garden'])) return 'tertiary'
+  }
+  if (slug === 'explore') {
+    if (has(['museum','gallery'])) return 'primary'
+    if (has(['market','attraction','sightseeing'])) return 'secondary'
+    if (has(['arcade','bowling','amusement','experience'])) return 'tertiary'
+  }
   return 'other'
 }
 
-function diversifiedChillSlate<T extends { name: string; category: string; signalScore: number; ratingCount: number; distanceMiles: number }>(places: T[], band: VenueTimeBand, limit: number): T[] {
+function diversifiedVenueSlate<T extends { name: string; category: string; signalScore: number; ratingCount: number; distanceMiles: number }>(places: T[], slug: string, band: VenueTimeBand, limit: number): T[] {
   const ordered = [...places].sort((a,b) => b.signalScore-a.signalScore || b.ratingCount-a.ratingCount || a.distanceMiles-b.distanceMiles)
-  const laneOrder: ChillLane[] = band === 'late_night'
-    ? ['bowling','games','movies','social','cafe','outdoors','other']
-    : ['bowling','movies','cafe','outdoors','games','social','other']
+  const laneOrder: VenueLane[] = slug === 'chill' && band === 'late_night'
+    ? ['primary','tertiary','social','secondary','other']
+    : ['primary','secondary','tertiary','social','other']
   const picked: T[] = []
   for (const lane of laneOrder) {
-    const candidate = ordered.find((place) => chillLane(place.name, place.category) === lane && !picked.includes(place))
+    const candidate = ordered.find((place) => venueLane(slug, place.name, place.category) === lane && !picked.includes(place))
     if (candidate) picked.push(candidate)
     if (picked.length >= limit) return picked
   }
@@ -799,11 +842,9 @@ Deno.serve(async (request: Request) => {
     }
 
     const slateSize = Math.min(Math.max(limit, 2), 3)
-    const slate = activity.slug === 'chill'
-      ? diversifiedChillSlate(eligiblePlaces, venueTimeBand, slateSize)
-      : [...eligiblePlaces]
-          .sort((a, b) => b.signalScore - a.signalScore || b.ratingCount - a.ratingCount || a.distanceMiles - b.distanceMiles)
-          .slice(0, slateSize)
+    // Every activity returns a deliberately varied slate when eligible inventory allows it.
+    // Ranking still chooses the best candidate inside each experience lane.
+    const slate = diversifiedVenueSlate(eligiblePlaces, activity.slug, venueTimeBand, slateSize)
     const ranked = slate.map((place, index) => ({ ...place, signalRank: index + 1 }))
 
     // A Signal only needs one genuinely usable venue to keep coordination moving.
