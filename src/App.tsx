@@ -1000,6 +1000,20 @@ function App() {
 
   const handleSignalCenterNavigation = () => {
     setActiveSurface('discover')
+
+    // Re-open the already-authoritative journey immediately. Do not expose the
+    // ordinary I'M DOWN discovery card while the resume RPC is in flight.
+    if (activeSignalResume?.groupState === 'active_outing' && activeSignalResume.planId) {
+      setBored(true)
+      setSignalThreshold(true)
+      setServerJourneyStage('plan')
+      setSignalRoomStage('time')
+      setLockedSignalVenue(activeSignalResume.lockedVenue)
+      setSignalPlanSetVisible(true)
+      void restoreActiveSignal(true)
+      return
+    }
+
     if (activeOutingPlanId) { void restoreActiveSignal(true); return }
 
     if (hasActiveSignalJourney) {
@@ -2467,6 +2481,7 @@ function App() {
                         signalGroupId={authoritativeSignalGroupId}
                         signalLabel={journeyPresentation.title}
                         venue={lockedSignalVenue}
+                        initialPlanId={activeSignalResume?.planId ?? activePlanId}
                         onFindAnotherPlace={() => {
                           setLockedSignalVenue(null)
                           setSignalRoomStage('places')

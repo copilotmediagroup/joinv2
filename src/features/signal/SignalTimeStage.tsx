@@ -53,6 +53,7 @@ type SignalTimeStageProps = {
   signalLabel: string
   venue: LockedSignalVenue
   onFindAnotherPlace?: () => void
+  initialPlanId?: string | null
   onPlanSetChange?: (isPlanSet: boolean) => void
   onOpenPlanChat?: (planId: string) => void
 }
@@ -87,6 +88,7 @@ export default function SignalTimeStage({
   signalLabel,
   venue,
   onFindAnotherPlace,
+  initialPlanId = null,
   onPlanSetChange,
   onOpenPlanChat,
 }: SignalTimeStageProps) {
@@ -96,7 +98,7 @@ export default function SignalTimeStage({
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [recovering, setRecovering] = useState(false)
-  const [planId, setPlanId] = useState<string | null>(null)
+  const [planId, setPlanId] = useState<string | null>(initialPlanId)
   const [planMembers, setPlanMembers] =
     useState<PlanMemberIdentity[]>([])
   const [planCreating, setPlanCreating] = useState(false)
