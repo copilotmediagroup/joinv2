@@ -37,6 +37,7 @@ type MessagesViewProps = {
   currentUserId: string
   initialPlanId?: string | null
   initialDirectConversationId?: string | null
+  lockedPlanId?: string | null
   onPlanEnded?: (reason: 'left' | 'ended' | 'safety') => void
   onPlanCheckedIn?: (planId: string) => void
 }
@@ -75,6 +76,7 @@ export default function MessagesView({
   currentUserId,
   initialPlanId = null,
   initialDirectConversationId = null,
+  lockedPlanId = null,
   onPlanEnded,
   onPlanCheckedIn,
 }: MessagesViewProps) {
@@ -112,11 +114,16 @@ export default function MessagesView({
       setError(null)
 
       try {
-        const page = await getMyPlanConversationsPage()
-        let visible = page
-        let deepLinked: PlanConversation | null = null
+        const lockedConversation = lockedPlanId
+          ? await getMyPlanConversation(lockedPlanId)
+          : null
+        const page = lockedPlanId ? [] : await getMyPlanConversationsPage()
+        let visible = lockedPlanId
+          ? (lockedConversation ? [lockedConversation] : [])
+          : page
+        let deepLinked: PlanConversation | null = lockedConversation
 
-        if (initialPlanId && !page.some((item) => item.planId === initialPlanId)) {
+        if (!lockedPlanId && initialPlanId && !page.some((item) => item.planId === initialPlanId)) {
           deepLinked = await getMyPlanConversation(initialPlanId)
           if (deepLinked) visible = mergePlanConversations(page, [deepLinked])
         }
@@ -127,8 +134,9 @@ export default function MessagesView({
         const last = page[page.length - 1]
         setConversationCursor(last ? { createdAt: last.createdAt, conversationId: last.conversationId } : null)
 
-        const target = initialPlanId
-          ? visible.find((item) => item.planId === initialPlanId) ?? deepLinked
+        const targetPlanId = lockedPlanId ?? initialPlanId
+        const target = targetPlanId
+          ? visible.find((item) => item.planId === targetPlanId) ?? deepLinked
           : null
         if (target) setSelectedConversationId(target.conversationId)
       } catch (loadError) {
@@ -140,7 +148,7 @@ export default function MessagesView({
 
     void loadConversations()
     return () => { cancelled = true }
-  }, [initialPlanId])
+  }, [initialPlanId, lockedPlanId])
 
   useEffect(() => {
     if (selectedConversationId === null) {
@@ -324,7 +332,7 @@ export default function MessagesView({
     return (
       <section className="messages-view messages-thread-view">
         <header className="messages-view-header">
-          <button
+          {!lockedPlanId && <button
             type="button"
             className="messages-back-button"
             onClick={() => {
@@ -334,7 +342,7 @@ export default function MessagesView({
           >
             <ArrowLeft size={18} />
             MESSAGES
-          </button>
+          </button>}
 
           <div className="messages-thread-title">
             <span>
@@ -501,6 +509,17 @@ export default function MessagesView({
             <Send size={18} />
           </button>
         </form>
+      </section>
+    )
+  }
+
+  if (lockedPlanId) {
+    return (
+      <section className="messages-view messages-thread-view">
+        <div className="messages-state">
+          {loadingConversations ? 'Opening your live Signal group…' : 'Live Signal group chat is unavailable right now.'}
+        </div>
+        {error && <div className="messages-error" role="alert">{error}</div>}
       </section>
     )
   }

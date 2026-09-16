@@ -1488,6 +1488,7 @@ function App() {
           currentUserId={currentUser.userId}
           initialPlanId={messagePlanId}
           initialDirectConversationId={messageDirectConversationId}
+          lockedPlanId={activePlanId}
           onPlanCheckedIn={(planId) => {
             setActiveOutingPlanId(planId)
             setActivePlanId(planId)
