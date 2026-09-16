@@ -394,9 +394,6 @@ function App() {
         ? 'open'
         : signalAgePreference
   const [signalThreshold, setSignalThreshold] = useState(false)
-  const [, setSignalRoomStage] = useState<
-    'arrival' | 'places' | 'time'
-  >('arrival')
   const [serverJourneyStage, setServerJourneyStage] = useState<
     'forming' | 'arrival' | 'places' | 'time' | 'plan' | 'active_outing' | 'completed'
   >('forming')
@@ -575,7 +572,6 @@ function App() {
         setSignalRealtimeTarget(null)
         setSignalParticipants([])
         setSignalThreshold(false)
-        setSignalRoomStage('arrival')
         setServerJourneyStage('forming')
         setLockedSignalVenue(null)
         setSignalPlanSetVisible(false)
@@ -610,7 +606,6 @@ function App() {
         setMessagePlanId(null)
         setMessageDirectConversationId(null)
         setServerJourneyStage('plan')
-        setSignalRoomStage('time')
         setLockedSignalVenue(resume.lockedVenue)
         setSignalPlanSetVisible(true)
         if (openJourney) {
@@ -661,9 +656,6 @@ function App() {
         resume.groupState === 'active_outing'
       setSignalThreshold(coordinationReady)
       setServerJourneyStage(resume.signalStage)
-      setSignalRoomStage(
-        resume.signalStage === 'plan' ? 'time' : resume.signalStage,
-      )
       setLockedSignalVenue(resume.lockedVenue)
       setActivePlanId(resume.planId)
       setMessagePlanId(null)
@@ -865,7 +857,6 @@ function App() {
       .then((stage) => {
         if (cancelled) return
         setServerJourneyStage(stage)
-        setSignalRoomStage('places')
       })
       .catch(() => {
         if (!cancelled) void restoreActiveSignal(false)
@@ -958,7 +949,6 @@ function App() {
     setFormationResult(null)
     setSignalRealtimeTarget(null)
     setSignalThreshold(false)
-    setSignalRoomStage('arrival')
     setLockedSignalVenue(null)
     setSignalPlanSetVisible(false)
     setMessagePlanId(null)
@@ -1020,7 +1010,6 @@ function App() {
       setBored(true)
       setSignalThreshold(true)
       setServerJourneyStage('plan')
-      setSignalRoomStage('time')
       setLockedSignalVenue(activeSignalResume.lockedVenue)
       setSignalPlanSetVisible(true)
       void restoreActiveSignal(true)
@@ -1042,7 +1031,6 @@ function App() {
     setFormationResult(null)
     setSignalRealtimeTarget(null)
     setSignalThreshold(false)
-    setSignalRoomStage('arrival')
     setLockedSignalVenue(null)
     setSignalPlanSetVisible(false)
   }
@@ -1059,7 +1047,6 @@ function App() {
 
     setBored(false)
     setSignalThreshold(false)
-    setSignalRoomStage('arrival')
     setLockedSignalVenue(null)
     setSignalPlanSetVisible(false)
     void refreshDiscovery()
@@ -1105,7 +1092,6 @@ function App() {
       setBored(false)
 
       setSignalThreshold(false)
-      setSignalRoomStage('arrival')
       setLockedSignalVenue(null)
       setSignalPlanSetVisible(false)
 
@@ -1187,7 +1173,6 @@ function App() {
         setFormationResult(null)
         setSignalRealtimeTarget(null)
         setSignalThreshold(false)
-        setSignalRoomStage('arrival')
         setLockedSignalVenue(null)
         setAccepted(false)
         setBored(false)
@@ -2454,7 +2439,7 @@ function App() {
                             setVenueConfirmationClock(Date.now())
                             setVenueConfirmationUntil(Date.now() + 3000)
                             void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'time')
-                              .then((stage) => { setServerJourneyStage(stage); setSignalRoomStage('time') })
+                              .then((stage) => { setServerJourneyStage(stage) })
                               .catch(() => void restoreActiveSignal(false))
                           }}
                         />
@@ -2491,7 +2476,6 @@ function App() {
                         initialPlanId={activeSignalResume?.planId ?? activePlanId}
                         onFindAnotherPlace={() => {
                           setLockedSignalVenue(null)
-                          setSignalRoomStage('places')
                         }}
                         onPlanSetChange={setSignalPlanSetVisible}
                         onOpenPlanChat={handleOpenPlanChat}
@@ -2505,7 +2489,6 @@ function App() {
                     className="threshold-back"
                     onClick={() => {
                       setSignalThreshold(false)
-                      setSignalRoomStage('arrival')
                       setLockedSignalVenue(null)
                     }}
                   >
