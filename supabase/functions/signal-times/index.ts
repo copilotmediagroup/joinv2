@@ -256,10 +256,14 @@ Deno.serve(async (request: Request) => {
       .eq('id', signalGroupId)
       .single()
     if (groupError || !group) throw groupError ?? new Error('Signal group not found')
-    if (!['locked', 'coordinating'].includes(group.state)) return json({ error: 'Signal is not ready for time coordination' }, 409)
 
+    // A finalized time round remains the authoritative read model after the
+    // Signal converts to a Plan. Resume must be able to read that immutable
+    // winner without reopening or mutating time coordination.
     const existing = await loadRound(domain, signalGroupId, user.id)
     if (existing) return json({ version: 'signal-time-coordination-v1', status: 'ready', ...existing })
+
+    if (!['locked', 'coordinating'].includes(group.state)) return json({ error: 'Signal is not ready for time coordination' }, 409)
     if (group.journey_stage !== 'time') return json({ error: `signal_stage_mismatch:${group.journey_stage}` }, 409)
 
     const { data: venueRound, error: venueRoundError } = await domain
