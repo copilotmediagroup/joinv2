@@ -411,6 +411,8 @@ function App() {
     useState<string | null>(null)
   const [activePlanId, setActivePlanId] =
     useState<string | null>(null)
+  const [liveSignalNavPlanId, setLiveSignalNavPlanId] =
+    useState<string | null>(null)
   const [activeOutingPlanId, setActiveOutingPlanId] =
     useState<string | null>(null)
   const [planExitNotice, setPlanExitNotice] =
@@ -550,6 +552,8 @@ function App() {
       if (outing && resume?.groupState === 'active_outing' && resume.signalStage !== 'plan') {
         setActiveOutingPlanId(outing.planId)
         setActivePlanId(outing.planId)
+        setLiveSignalNavPlanId(outing.planId)
+        setPlanExitNotice(null)
         setMessagePlanId(outing.planId)
         setMessageDirectConversationId(null)
         setSignalThreshold(false)
@@ -573,6 +577,7 @@ function App() {
         setLockedSignalVenue(null)
         setSignalPlanSetVisible(false)
         setActivePlanId(null)
+        setLiveSignalNavPlanId(null)
         setActiveOutingPlanId(null)
         setMessagePlanId(null)
         setAccepted(false)
@@ -595,10 +600,12 @@ function App() {
       setDirectActivitySlug(matchingPulse.id)
 
       if (resume.groupState === 'active_outing' && resume.planId) {
-        // Conversion means the Plan exists; it does NOT mean the member opened chat.
-        // Preserve the live time-stage handoff so PLAN SET / OPEN GROUP CHAT stays
-        // visible. Only an explicit OPEN GROUP CHAT click may enter Messages.
+        // The authoritative Plan snapshot owns the live shell on every session.
+        // Preserve the PLAN SET handoff surface, but never let stale historical
+        // browser state downgrade a member who is still in this live Signal.
         setActivePlanId(resume.planId)
+        setLiveSignalNavPlanId(resume.planId)
+        setPlanExitNotice(null)
         setMessagePlanId(null)
         setMessageDirectConversationId(null)
         setSignalPlanSetVisible(true)
@@ -882,7 +889,8 @@ function App() {
   }
 
   const handleMessagesNavigation = () => {
-    if (activeOutingPlanId) { setMessagePlanId(activeOutingPlanId); setMessageDirectConversationId(null); setActiveSurface('messages'); return }
+    const livePlanId = activeOutingPlanId ?? liveSignalNavPlanId
+    if (livePlanId) { setMessagePlanId(livePlanId); setMessageDirectConversationId(null); setActiveSurface('messages'); return }
     setMessagePlanId(null)
     setMessageDirectConversationId(null)
     setActiveSurface('messages')
@@ -890,6 +898,7 @@ function App() {
 
   const handleOpenPlanChat = (planId: string) => {
     setActivePlanId(planId)
+    setLiveSignalNavPlanId(planId)
     setMessagePlanId(planId)
     setMessageDirectConversationId(null)
     setNotificationsOpen(false)
@@ -1301,10 +1310,6 @@ function App() {
   const formedSignalCriteria =
     `${formedSignalTimeLabel} · ${formedSignalCrowdLabel} · ${formedSignalAgeLabel}`
 
-  // Live Signal navigation begins when the member explicitly opens the current
-  // Signal Plan chat. Checked-in outing state is a later phase, not the shell gate.
-  const liveSignalNavPlanId = activeOutingPlanId ?? (messagePlanId && activePlanId === messagePlanId ? messagePlanId : null)
-
   const boredStatus = (() => {
     if (
       !bored &&
@@ -1429,6 +1434,7 @@ function App() {
           onOutingEnded={(reason) => {
             setActiveOutingPlanId(null)
             setActivePlanId(null)
+            setLiveSignalNavPlanId(null)
             setMessagePlanId(null)
             setActiveSurface('discover')
             setPlanExitNotice(reason === 'safety' ? 'You left the live outing.' : 'This SIGNAL outing has ended.')
@@ -1455,12 +1461,14 @@ function App() {
           onPlanCheckedIn={(planId) => {
             setActiveOutingPlanId(planId)
             setActivePlanId(planId)
+            setLiveSignalNavPlanId(planId)
             setMessagePlanId(planId)
             setActiveSurface('discover')
           }}
           onPlanEnded={(reason) => {
             setMessagePlanId(null)
             setActivePlanId(null)
+            setLiveSignalNavPlanId(null)
             setActiveOutingPlanId(null)
             setSignalPlanSetVisible(false)
             setActiveSurface('discover')
@@ -2461,11 +2469,11 @@ function App() {
       <nav className={liveSignalNavPlanId ? "bottom-nav live-signal-nav" : "bottom-nav"}>
         {liveSignalNavPlanId ? (
           <>
-            <button className="nav-item" disabled={!activeOutingPlanId} title={!activeOutingPlanId ? 'Available after check-in' : undefined} onClick={() => { if (!activeOutingPlanId) return; setLiveCaptureMode('camera'); setMessagePlanId(null); setActiveSurface('discover') }}><Camera size={20} /><span>Take Pic</span></button>
-            <button className="nav-item" disabled={!activeOutingPlanId} title={!activeOutingPlanId ? 'Available after check-in' : undefined} onClick={() => { if (!activeOutingPlanId) return; setLiveCaptureMode('upload'); setMessagePlanId(null); setActiveSurface('discover') }}><ImagePlus size={20} /><span>Upload</span></button>
+            <button className="nav-item" disabled={!activeOutingPlanId} title={!activeOutingPlanId ? 'Available after check-in' : undefined} onClick={() => { if (!activeOutingPlanId) return; setLiveCaptureMode('camera'); setActiveSurface('discover') }}><Camera size={20} /><span>Take Pic</span></button>
+            <button className="nav-item" disabled={!activeOutingPlanId} title={!activeOutingPlanId ? 'Available after check-in' : undefined} onClick={() => { if (!activeOutingPlanId) return; setLiveCaptureMode('upload'); setActiveSurface('discover') }}><ImagePlus size={20} /><span>Upload</span></button>
             <button className="signal-center live" onClick={handleSignalCenterNavigation} aria-label="Return to live Signal"><Zap size={27} fill="currentColor" /></button>
             <button className={activeSurface === 'messages' ? 'nav-item active' : 'nav-item'} onClick={handleMessagesNavigation}><MessageCircle size={20} /><span>Group</span></button>
-            <button className="nav-item" onClick={() => { setLiveCaptureMode(null); setMessagePlanId(null); setActiveSurface('discover') }}><MoreHorizontal size={20} /><span>More</span></button>
+            <button className="nav-item" onClick={() => { setLiveCaptureMode(null); setActiveSurface('discover') }}><MoreHorizontal size={20} /><span>More</span></button>
           </>
         ) : (
           <>
