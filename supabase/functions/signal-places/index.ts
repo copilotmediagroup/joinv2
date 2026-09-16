@@ -223,6 +223,23 @@ function searchIntentFor(slug: string, activityName: string, localHour: number):
   return profiles[slug]?.[band] ?? SEARCH_QUERIES[slug] ?? `${activityName} venues and activities`
 }
 
+function supplementalSearchIntents(slug: string, band: VenueTimeBand): string[] {
+  const intents: Record<string, string[]> = {
+    chill: band === 'late_night'
+      ? ['bowling alleys open late', 'arcades and entertainment open late', 'lounges and relaxed social hangouts open late']
+      : ['bowling alleys', 'movie theaters and cinemas', 'arcades cafes dessert shops parks and waterfront hangouts'],
+    drinks: ['breweries and taprooms', 'wine bars', 'rooftop cocktail bars and lounges'],
+    food: ['food halls and markets', 'diners and casual restaurants', 'local restaurants and social dining'],
+    nightlife: ['nightclubs and dance clubs', 'rooftop nightlife', 'live music lounges and cocktail bars'],
+    sports: ['basketball courts and recreation centers', 'gyms and athletic centers', 'tennis pickleball and sports complexes'],
+    creative: ['pottery and ceramic studios', 'paint and art studios', 'creative workshops maker spaces and museums'],
+    music: ['jazz clubs', 'live music venues', 'music bars and lounges'],
+    outdoors: ['waterfronts boardwalks and beaches', 'parks', 'trails gardens and outdoor recreation'],
+    explore: ['museums and galleries', 'markets attractions and sightseeing', 'arcades bowling and local experiences'],
+  }
+  return intents[slug] ?? []
+}
+
 function includesAny(text: string, terms: string[]) {
   return terms.some((term) => text.includes(term))
 }
@@ -670,7 +687,7 @@ Deno.serve(async (request: Request) => {
       ? Math.max(signalEndsAt, nowEpoch + LATE_NIGHT_WINDOW_FLOOR_MINUTES * 60_000)
       : signalEndsAt
     const requireOpenNow = signalStartsAt <= nowEpoch + 15 * 60_000
-    const fetchRawPlaces = async (radiusMeters: number) => {
+    const fetchRawPlaces = async (radiusMeters: number, textQuery = query) => {
       const googleResponse = await fetch(GOOGLE_PLACES_URL, {
         method: 'POST',
         headers: {
@@ -685,7 +702,7 @@ Deno.serve(async (request: Request) => {
           ].join(','),
         },
         body: JSON.stringify({
-          textQuery: query,
+          textQuery,
           ...(requireOpenNow ? { openNow: true } : {}),
           pageSize: 20,
           rankPreference: 'DISTANCE',
@@ -834,6 +851,28 @@ Deno.serve(async (request: Request) => {
     if (eligiblePlaces.length < 2) {
       searchRadiusMiles = 17
       rawPlaces = await fetchRawPlaces(27358.8)
+      places = await scorePlaces(rawPlaces, searchRadiusMiles)
+      eligiblePlaces = places.filter((place) =>
+        place.placeId.length > 0 && place.supportsSignalWindow && place.hasMinimumOpenTime &&
+        (!requireOpenNow || place.openNow === true),
+      )
+    }
+
+    // A broad Places text search can collapse a category into only one or two Google
+    // result types. If that happens, deliberately source additional experience lanes,
+    // then dedupe by Google place id before applying the same availability/quality gates.
+    if (eligiblePlaces.length < 3) {
+      const supplementalBatches = await Promise.all(
+        supplementalSearchIntents(activity.slug, venueTimeBand)
+          .map((intent) => fetchRawPlaces(searchRadiusMiles * 1609.34, intent)),
+      )
+      const mergedByPlaceId = new Map<string, unknown>()
+      for (const place of [...rawPlaces, ...supplementalBatches.flat()]) {
+        const placeId = typeof (place as { id?: unknown })?.id === 'string'
+          ? (place as { id: string }).id : ''
+        if (placeId && !mergedByPlaceId.has(placeId)) mergedByPlaceId.set(placeId, place)
+      }
+      rawPlaces = [...mergedByPlaceId.values()]
       places = await scorePlaces(rawPlaces, searchRadiusMiles)
       eligiblePlaces = places.filter((place) =>
         place.placeId.length > 0 && place.supportsSignalWindow && place.hasMinimumOpenTime &&
