@@ -54,7 +54,7 @@ type SignalTimeStageProps = {
   venue: LockedSignalVenue
   onFindAnotherPlace?: () => void
   initialPlanId?: string | null
-  onOpenPlanChat?: (planId: string) => void
+  onOpenPlanDetails?: (planId: string) => void
 }
 
 function secondsUntil(isoTimestamp: string): number {
@@ -88,7 +88,7 @@ export default function SignalTimeStage({
   venue,
   onFindAnotherPlace,
   initialPlanId = null,
-  onOpenPlanChat,
+  onOpenPlanDetails,
 }: SignalTimeStageProps) {
   const [snapshot, setSnapshot] =
     useState<SignalTimesResponse | null>(null)
@@ -584,13 +584,13 @@ export default function SignalTimeStage({
             {planError && (
               <p className="signal-time-context" role="alert">{planError}</p>
             )}
-            {planId && onOpenPlanChat && (
+            {planId && onOpenPlanDetails && (
               <button
                 type="button"
                 className="signal-time-open-chat"
-                onClick={() => onOpenPlanChat(planId)}
+                onClick={() => onOpenPlanDetails(planId)}
               >
-                OPEN GROUP CHAT
+                OPEN DETAILS
               </button>
             )}
             <div className="forming-people arrival-list signal-live-rail">

@@ -40,6 +40,7 @@ export type SignalResumeResult = {
   signalStage: SignalResumeStage
   lockedVenue: SignalResumeVenue | null
   planId: string | null
+  planDetailsOpened: boolean
 }
 
 type ResumeRpcRow = {
@@ -56,6 +57,7 @@ type ResumeRpcRow = {
   signal_stage: unknown
   locked_venue: unknown
   plan_id: unknown
+  plan_details_opened: unknown
 }
 
 function requireString(value: unknown, field: string): string {
@@ -144,6 +146,7 @@ function parseResumeRow(row: ResumeRpcRow): SignalResumeResult {
     signalStage: signalStage as SignalResumeStage,
     lockedVenue: parseVenue(row.locked_venue),
     planId: typeof row.plan_id === 'string' ? row.plan_id : null,
+    planDetailsOpened: row.plan_details_opened === true,
   }
 }
 
@@ -161,4 +164,9 @@ export async function getMyActiveSignalResume(): Promise<SignalResumeResult | nu
   if (data.length === 0) return null
 
   return parseResumeRow(data[0] as ResumeRpcRow)
+}
+
+export async function openMySignalPlanDetails(planId: string): Promise<void> {
+  const { error } = await supabase.rpc('open_my_signal_plan_details', { p_plan_id: planId })
+  if (error) throw new Error(error.message || 'Unable to open live Signal details.')
 }

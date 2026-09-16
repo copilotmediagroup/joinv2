@@ -44,6 +44,7 @@ import {
 } from './features/signal/formation/signalFormationClient'
 import {
   getMyActiveSignalResume,
+  openMySignalPlanDetails,
   type SignalResumeResult,
 } from './features/signal/resume/signalResumeClient'
 import { getMyActiveSignalOuting } from './features/outing/activeOutingClient'
@@ -605,8 +606,14 @@ function App() {
         setServerJourneyStage('plan')
         setLockedSignalVenue(resume.lockedVenue)
         if (openJourney) {
-          setBored(true)
-          setSignalThreshold(true)
+          if (resume.planDetailsOpened) {
+            setActiveOutingPlanId(resume.planId)
+            setBored(false)
+            setSignalThreshold(false)
+          } else {
+            setBored(true)
+            setSignalThreshold(true)
+          }
           setActiveSurface('discover')
         }
         setFormationError(null)
@@ -920,6 +927,17 @@ function App() {
     setMessagePlanId(null)
     setMessageDirectConversationId(null)
     setActiveSurface('messages')
+  }
+
+  const handleOpenPlanDetails = async (planId: string) => {
+    await openMySignalPlanDetails(planId)
+    setActivePlanId(planId)
+    setMessagePlanId(planId)
+    setMessageDirectConversationId(null)
+    setNotificationsOpen(false)
+    setSignalThreshold(false)
+    setActiveOutingPlanId(planId)
+    setActiveSurface('discover')
   }
 
   const handleOpenPlanChat = (planId: string) => {
@@ -2466,7 +2484,7 @@ function App() {
                         onFindAnotherPlace={() => {
                           setLockedSignalVenue(null)
                         }}
-                        onOpenPlanChat={handleOpenPlanChat}
+                        onOpenPlanDetails={(planId) => { void handleOpenPlanDetails(planId) }}
                       />
                     </motion.div>
                   ) : null}
