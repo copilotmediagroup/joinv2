@@ -403,8 +403,6 @@ function App() {
   const [venueConfirmationUntil, setVenueConfirmationUntil] = useState(0)
   const [venueConfirmationClock, setVenueConfirmationClock] = useState(0)
 
-  const [signalPlanSetVisible, setSignalPlanSetVisible] =
-    useState(false)
   const [messagePlanId, setMessagePlanId] =
     useState<string | null>(null)
   const [messageDirectConversationId, setMessageDirectConversationId] =
@@ -574,7 +572,6 @@ function App() {
         setSignalThreshold(false)
         setServerJourneyStage('forming')
         setLockedSignalVenue(null)
-        setSignalPlanSetVisible(false)
         setActivePlanId(null)
         setActiveOutingPlanId(null)
         setMessagePlanId(null)
@@ -607,7 +604,6 @@ function App() {
         setMessageDirectConversationId(null)
         setServerJourneyStage('plan')
         setLockedSignalVenue(resume.lockedVenue)
-        setSignalPlanSetVisible(true)
         if (openJourney) {
           setBored(true)
           setSignalThreshold(true)
@@ -661,7 +657,6 @@ function App() {
       setMessagePlanId(null)
       // A converted Plan remains on the explicit PLAN SET handoff. Chat is a
       // user action; reconciliation/focus/realtime must never auto-open it.
-      setSignalPlanSetVisible(resume.signalStage === 'plan' && resume.planId !== null)
     } catch {
       // Discovery remains available if resume authority is temporarily unavailable.
     }
@@ -837,7 +832,6 @@ function App() {
       // animate in before revealing coordination. Server state is already locked.
       const revealTimer = window.setTimeout(() => {
         setLockedSignalVenue(null)
-        setSignalPlanSetVisible(false)
         setSignalThreshold(true)
 
 
@@ -950,7 +944,6 @@ function App() {
     setSignalRealtimeTarget(null)
     setSignalThreshold(false)
     setLockedSignalVenue(null)
-    setSignalPlanSetVisible(false)
     setMessagePlanId(null)
     setActivePlanId(null)
     setAccepted(false)
@@ -1011,7 +1004,6 @@ function App() {
       setSignalThreshold(true)
       setServerJourneyStage('plan')
       setLockedSignalVenue(activeSignalResume.lockedVenue)
-      setSignalPlanSetVisible(true)
       void restoreActiveSignal(true)
       return
     }
@@ -1032,7 +1024,6 @@ function App() {
     setSignalRealtimeTarget(null)
     setSignalThreshold(false)
     setLockedSignalVenue(null)
-    setSignalPlanSetVisible(false)
   }
 
   const handleDiscoverNavigation = () => {
@@ -1048,7 +1039,6 @@ function App() {
     setBored(false)
     setSignalThreshold(false)
     setLockedSignalVenue(null)
-    setSignalPlanSetVisible(false)
     void refreshDiscovery()
   }
 
@@ -1093,7 +1083,6 @@ function App() {
 
       setSignalThreshold(false)
       setLockedSignalVenue(null)
-      setSignalPlanSetVisible(false)
 
       setFormationError(null)
       setActiveSurface('discover')
@@ -1510,7 +1499,6 @@ function App() {
             setMessagePlanId(null)
             setActivePlanId(null)
             setActiveOutingPlanId(null)
-            setSignalPlanSetVisible(false)
             setActiveSurface('discover')
             setBored(false)
             setAccepted(false)
@@ -2477,14 +2465,13 @@ function App() {
                         onFindAnotherPlace={() => {
                           setLockedSignalVenue(null)
                         }}
-                        onPlanSetChange={setSignalPlanSetVisible}
                         onOpenPlanChat={handleOpenPlanChat}
                       />
                     </motion.div>
                   ) : null}
                 </AnimatePresence>
 
-                {!signalPlanSetVisible && !hasActiveSignalJourney && (
+                {!hasActiveSignalJourney && (
                   <button
                     className="threshold-back"
                     onClick={() => {

@@ -54,7 +54,6 @@ type SignalTimeStageProps = {
   venue: LockedSignalVenue
   onFindAnotherPlace?: () => void
   initialPlanId?: string | null
-  onPlanSetChange?: (isPlanSet: boolean) => void
   onOpenPlanChat?: (planId: string) => void
 }
 
@@ -89,7 +88,6 @@ export default function SignalTimeStage({
   venue,
   onFindAnotherPlace,
   initialPlanId = null,
-  onPlanSetChange,
   onOpenPlanChat,
 }: SignalTimeStageProps) {
   const [snapshot, setSnapshot] =
@@ -215,11 +213,6 @@ export default function SignalTimeStage({
       unsubscribe()
     }
   }, [planId])
-
-  useEffect(() => {
-    onPlanSetChange?.(planId !== null)
-    return () => onPlanSetChange?.(false)
-  }, [onPlanSetChange, planId])
 
   useEffect(() => {
     if (!round || round.state !== 'open') return
