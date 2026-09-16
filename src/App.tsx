@@ -653,26 +653,16 @@ function App() {
         resume.groupState === 'locked' ||
         resume.groupState === 'active_outing'
       setSignalThreshold(coordinationReady)
-
-      // The database journey is authoritative. A locked/coordinating Signal may
-      // legitimately resume at arrival immediately after critical mass; advance
-      // that server stage once here so refresh/focus/realtime cannot strand the
-      // user on the lock card waiting for a browser-only transition.
-      const resumedStage = coordinationReady && resume.signalStage === 'arrival'
-        ? await advanceMySignalJourneyStage(resume.signalGroupId, 'places')
-        : resume.signalStage
-      setServerJourneyStage(resumedStage)
+      setServerJourneyStage(resume.signalStage)
       setSignalRoomStage(
-        resumedStage === 'places' ? 'places'
-          : resumedStage === 'time' || resumedStage === 'plan' || resumedStage === 'active_outing' || resumedStage === 'completed' ? 'time'
-            : 'arrival',
+        resume.signalStage === 'plan' ? 'time' : resume.signalStage,
       )
       setLockedSignalVenue(resume.lockedVenue)
       setActivePlanId(resume.planId)
       setMessagePlanId(null)
       // A converted Plan remains on the explicit PLAN SET handoff. Chat is a
       // user action; reconciliation/focus/realtime must never auto-open it.
-      setSignalPlanSetVisible(resumedStage === 'plan' && resume.planId !== null)
+      setSignalPlanSetVisible(resume.signalStage === 'plan' && resume.planId !== null)
     } catch {
       // Discovery remains available if resume authority is temporarily unavailable.
     }
