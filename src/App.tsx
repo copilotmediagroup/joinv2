@@ -402,6 +402,8 @@ function App() {
 
   const [lockedSignalVenue, setLockedSignalVenue] =
     useState<LockedSignalVenue | null>(null)
+  const [venueConfirmationUntil, setVenueConfirmationUntil] = useState(0)
+  const [venueConfirmationClock, setVenueConfirmationClock] = useState(0)
 
   const [signalPlanSetVisible, setSignalPlanSetVisible] =
     useState(false)
@@ -644,6 +646,7 @@ function App() {
       setWithdrawalError(null)
       setAccepted(true)
       setBored(true)
+      setActiveSurface('discover')
 
       const coordinationReady =
         resume.groupState === 'coordinating' ||
@@ -749,6 +752,18 @@ function App() {
       : authoritativeJourneyStage === 'places'
         ? 'places'
         : 'arrival'
+
+  const presentationRoomStage: 'arrival' | 'places' | 'time' =
+    authoritativeRoomStage === 'time' && venueConfirmationUntil > venueConfirmationClock
+      ? 'places'
+      : authoritativeRoomStage
+
+  useEffect(() => {
+    if (venueConfirmationUntil <= 0) return
+    const remaining = venueConfirmationUntil - Date.now()
+    const timer = window.setTimeout(() => setVenueConfirmationClock(Date.now()), Math.max(0, remaining))
+    return () => window.clearTimeout(timer)
+  }, [venueConfirmationUntil])
 
   useEffect(() => {
     if (!signalThreshold || authoritativeRoomStage !== 'time' || lockedSignalVenue) return
@@ -2358,7 +2373,7 @@ function App() {
                 </div>
 
                 <AnimatePresence mode="wait">
-                  {authoritativeRoomStage === 'arrival' ? (
+                  {presentationRoomStage === 'arrival' ? (
                     <motion.div
                       key="signal-arrival"
                       className="room-next"
@@ -2377,7 +2392,7 @@ function App() {
                       <strong>PICK THE PLACE</strong>
                       <span>→</span>
                     </motion.div>
-                  ) : authoritativeRoomStage === 'places' ? (
+                  ) : presentationRoomStage === 'places' ? (
                     <motion.div
                       key="signal-places"
                       initial={{ opacity: 0, y: 14, scale: 0.985 }}
@@ -2398,6 +2413,8 @@ function App() {
                           signalLabel={journeyPresentation.title}
                           onVenueLocked={(venue) => {
                             setLockedSignalVenue(venue)
+                            setVenueConfirmationClock(Date.now())
+                            setVenueConfirmationUntil(Date.now() + 3000)
                             void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'time')
                               .then((stage) => { setServerJourneyStage(stage); setSignalRoomStage('time') })
                               .catch(() => void restoreActiveSignal(false))
