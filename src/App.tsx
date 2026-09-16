@@ -848,21 +848,31 @@ function App() {
         setSignalPlanSetVisible(false)
         setSignalThreshold(true)
 
-        // Lock-in is the user's final action. After the lock animation, move the
-        // server-owned journey directly into venue selection; there is no extra
-        // PICK THE PLACE confirmation screen.
-        if (authoritativeSignalGroupId) {
-          void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'places')
-            .then((stage) => {
-              setServerJourneyStage(stage)
-              setSignalRoomStage('places')
-            })
-            .catch(() => void restoreActiveSignal(false))
-        }
+
       }, 3200)
       return () => window.clearTimeout(revealTimer)
     }
   }, [authoritativeGroupState, authoritativeSignalGroupId, restoreActiveSignal, signalThreshold])
+
+  // One owner for arrival -> places. Fresh locks wait for the reveal beat above;
+  // resumed locked Signals that are already at arrival converge through the same
+  // path. There is no separate user-controlled NEXT transition.
+  useEffect(() => {
+    if (!signalThreshold || !authoritativeSignalGroupId || authoritativeRoomStage !== 'arrival') return
+
+    let cancelled = false
+    void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'places')
+      .then((stage) => {
+        if (cancelled) return
+        setServerJourneyStage(stage)
+        setSignalRoomStage('places')
+      })
+      .catch(() => {
+        if (!cancelled) void restoreActiveSignal(false)
+      })
+
+    return () => { cancelled = true }
+  }, [authoritativeRoomStage, authoritativeSignalGroupId, restoreActiveSignal, signalThreshold])
 
   const signalHasReachedCriticalMass =
     authoritativeGroupState === 'confirming' ||
@@ -2411,20 +2421,14 @@ function App() {
                     <motion.div
                       key="signal-arrival"
                       className="room-next"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.985 }}
-                      transition={{ duration: 0.35 }}
-                      onClick={() => {
-                        if (!authoritativeSignalGroupId) return
-                        void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'places')
-                          .then((stage) => { setServerJourneyStage(stage); setSignalRoomStage('places') })
-                          .catch(() => void restoreActiveSignal(false))
-                      }}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      aria-live="polite"
                     >
-                      <small>NEXT</small>
-                      <strong>PICK THE PLACE</strong>
-                      <span>→</span>
+                      <small>SIGNAL LOCKED</small>
+                      <strong>FINDING THE PLACE</strong>
                     </motion.div>
                   ) : presentationRoomStage === 'places' ? (
                     <motion.div
