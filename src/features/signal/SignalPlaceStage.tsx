@@ -211,7 +211,9 @@ export default function SignalPlaceStage({
     if (notifiedWinnerId.current === winner.optionId) return
 
     notifiedWinnerId.current = winner.optionId
-    onVenueLocked({
+    // Business truth is already locked. Hold the confirmation presentation long
+    // enough for every client to register the shared venue before TIME renders.
+    const transitionTimer = window.setTimeout(() => onVenueLocked({
       placeId: winner.placeId,
       name: winner.name,
       address: winner.address,
@@ -220,7 +222,8 @@ export default function SignalPlaceStage({
       openingHours: winner.openingHours,
       utcOffsetMinutes: winner.utcOffsetMinutes,
       openNow: winner.openNow,
-    })
+    }), 3000)
+    return () => window.clearTimeout(transitionTimer)
   }, [round, winner, onVenueLocked])
 
   const totalVotes = round

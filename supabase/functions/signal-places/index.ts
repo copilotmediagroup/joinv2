@@ -94,11 +94,36 @@ function venueWeekMinute(epochMs: number, offsetMinutes: number): number {
   return local.getUTCDay() * 1440 + local.getUTCHours() * 60 + local.getUTCMinutes()
 }
 
-function minutesUntilCurrentClose(place: { currentOpeningHours?: { periods?: Array<{ open?: { day?: number; hour?: number; minute?: number } | null; close?: { day?: number; hour?: number; minute?: number } | null }> } | null; utcOffsetMinutes?: number | null }): number | null {
+function periodContainsWindow(
+  pointWeekMinute: number,
+  durationMinutes: number,
+  openWeekMinute: number,
+  closeWeekMinute: number,
+): boolean {
+  let close = closeWeekMinute
+  if (close <= openWeekMinute) close += WEEK_MINUTES
+  for (const point of [pointWeekMinute, pointWeekMinute + WEEK_MINUTES]) {
+    for (const open of [openWeekMinute, openWeekMinute + WEEK_MINUTES]) {
+      const normalizedClose = close + (open - openWeekMinute)
+      if (point >= open && point + durationMinutes <= normalizedClose) return true
+    }
+  }
+  return false
+}
+
+// Guard the subtle midnight/week-boundary behavior that previously rejected
+// valid late-night venues after midnight.
+if (!periodContainsWindow(1500, 35, 1200, 1560) ||
+    !periodContainsWindow(60, 35, 6 * 1440 + 1200, 120) ||
+    periodContainsWindow(130, 35, 6 * 1440 + 1200, 120)) {
+  throw new Error('signal-places opening-hours invariant failed')
+}
+
+function minutesUntilCurrentClose(place: { currentOpeningHours?: { periods?: Array<{ open?: { day?: number; hour?: number; minute?: number } | null; close?: { day?: number; hour?: number; minute?: number } | null }> } | null; utcOffsetMinutes?: number | null }, epochMs = Date.now()): number | null {
   const offset = typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null
   const periods = place.currentOpeningHours?.periods
   if (offset === null || !Array.isArray(periods) || periods.length === 0) return null
-  const nowMinute = venueWeekMinute(Date.now(), offset)
+  const nowMinute = venueWeekMinute(epochMs, offset)
   for (const period of periods) {
     if (!period.open) continue
     const open = (period.open.day ?? 0) * 1440 + (period.open.hour ?? 0) * 60 + (period.open.minute ?? 0)
@@ -106,9 +131,13 @@ function minutesUntilCurrentClose(place: { currentOpeningHours?: { periods?: Arr
       ? (period.close.day ?? 0) * 1440 + (period.close.hour ?? 0) * 60 + (period.close.minute ?? 0)
       : open + WEEK_MINUTES
     if (close <= open) close += WEEK_MINUTES
-    const candidates = [nowMinute, nowMinute + WEEK_MINUTES]
-    for (const candidate of candidates) {
-      if (candidate >= open && candidate < close) return close - candidate
+    for (const point of [nowMinute, nowMinute + WEEK_MINUTES]) {
+      for (const normalizedOpen of [open, open + WEEK_MINUTES]) {
+        const normalizedClose = close + (normalizedOpen - open)
+        if (point >= normalizedOpen && point < normalizedClose) {
+          return normalizedClose - point
+        }
+      }
     }
   }
   return null
@@ -122,6 +151,9 @@ function minutesUntilCurrentClose(place: { currentOpeningHours?: { periods?: Arr
 }
 
 type VenueTimeBand = 'morning' | 'daytime' | 'evening' | 'late_night'
+
+const LATE_NIGHT_MINIMUM_OPEN_MINUTES = 45
+const LATE_NIGHT_WINDOW_FLOOR_MINUTES = 90
 
 function timeBandFor(localHour: number): VenueTimeBand {
   if (localHour >= 6 && localHour < 10) return 'morning'
@@ -170,10 +202,10 @@ function searchIntentFor(slug: string, activityName: string, localHour: number):
       late_night: 'well lit waterfront boardwalks and public outdoor recreation open late',
     },
     chill: {
-      morning: 'Starbucks coffee shops cafes breakfast cafes and relaxed morning hangout spots',
-      daytime: 'coffee shops cafes dessert shops casual social hangout spots and parks',
-      evening: 'lounges rooftop lounges cafes dessert shops and casual social restaurants',
-      late_night: 'late night lounges hotel bars cocktail lounges bars pubs and late night restaurants',
+      morning: 'bowling alleys coffee shops cafes movie theaters parks waterfronts arcades and relaxed hangout spots',
+      daytime: 'bowling alleys movie theaters cafes dessert shops parks waterfronts arcades and relaxed social activities',
+      evening: 'bowling alleys movie theaters arcades cafes dessert shops waterfronts social lounges and relaxed activities',
+      late_night: 'bowling alleys arcades movie theaters open late lounges hotel bars cocktail lounges bars pubs and late night hangouts',
     },
     explore: {
       morning: 'markets waterfront attractions museums cafes and sightseeing',
@@ -204,7 +236,9 @@ type CoordinationPolicy = {
 
 function coordinationPolicy(slug: string, band: VenueTimeBand): CoordinationPolicy {
   if (band === 'late_night') {
-    return { leadMinutes: 15, durationMinutes: 60, closingBufferMinutes: 5, alignmentMinutes: 15 }
+    // Late-night Signals are spontaneous. Do not reject a genuinely open venue
+    // merely because less than a full hour remains before its posted close.
+    return { leadMinutes: 10, durationMinutes: 30, closingBufferMinutes: 5, alignmentMinutes: 15 }
   }
   if (slug === 'sports' || slug === 'creative') {
     return { leadMinutes: 20, durationMinutes: 90, closingBufferMinutes: 15, alignmentMinutes: 30 }
@@ -226,13 +260,14 @@ function hasUsableSignalSlot(
     utcOffsetMinutes?: number | null
   },
   policy: CoordinationPolicy,
+  nowEpoch = Date.now(),
 ): boolean {
   const offset = typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null
   const periods = place.currentOpeningHours?.periods
   if (offset === null || !Array.isArray(periods) || periods.length === 0) return false
 
   const earliest = alignVenueTime(
-    Math.max(signalStartsAt, Date.now() + policy.leadMinutes * 60_000),
+    Math.max(signalStartsAt, nowEpoch + policy.leadMinutes * 60_000),
     offset,
     policy.alignmentMinutes,
   )
@@ -241,17 +276,17 @@ function hasUsableSignalSlot(
 
   for (let candidate = earliest; candidate <= latest; candidate += policy.alignmentMinutes * 60_000) {
     const candidateWeekMinute = venueWeekMinute(candidate, offset)
-    const requiredEnd = candidateWeekMinute + policy.durationMinutes + policy.closingBufferMinutes
     const fits = periods.some((period) => {
       if (!period.open) return false
       const open = (period.open.day ?? 0) * 1440 + (period.open.hour ?? 0) * 60 + (period.open.minute ?? 0)
-      let close = period.close
+      const close = period.close
         ? (period.close.day ?? 0) * 1440 + (period.close.hour ?? 0) * 60 + (period.close.minute ?? 0)
         : open + WEEK_MINUTES
-      if (close <= open) close += WEEK_MINUTES
-      return (
-        (candidateWeekMinute >= open && requiredEnd <= close) ||
-        (candidateWeekMinute + WEEK_MINUTES >= open && requiredEnd + WEEK_MINUTES <= close)
+      return periodContainsWindow(
+        candidateWeekMinute,
+        policy.durationMinutes + policy.closingBufferMinutes,
+        open,
+        close,
       )
     })
     if (fits) return true
@@ -261,9 +296,40 @@ function hasUsableSignalSlot(
 
 function minimumUsableOpenMinutes(slug: string, localHour: number) {
   const band = timeBandFor(localHour)
-  if (band === 'late_night') return 95
+  if (band === 'late_night') return LATE_NIGHT_MINIMUM_OPEN_MINUTES
   if (slug === 'creative' || slug === 'sports') return 150
   return 125
+}
+
+type ChillLane = 'bowling' | 'movies' | 'games' | 'cafe' | 'outdoors' | 'social' | 'other'
+
+function chillLane(name: string, category: string): ChillLane {
+  const text = `${name} ${category}`.toLowerCase()
+  if (includesAny(text, ['bowling', 'bowling alley'])) return 'bowling'
+  if (includesAny(text, ['movie', 'cinema', 'theater', 'theatre'])) return 'movies'
+  if (includesAny(text, ['arcade', 'game center', 'amusement center'])) return 'games'
+  if (includesAny(text, ['coffee', 'cafe', 'bakery', 'dessert', 'tea house'])) return 'cafe'
+  if (includesAny(text, ['park', 'waterfront', 'boardwalk', 'beach', 'trail'])) return 'outdoors'
+  if (includesAny(text, ['lounge', 'bar', 'pub', 'cocktail', 'brewery'])) return 'social'
+  return 'other'
+}
+
+function diversifiedChillSlate<T extends { name: string; category: string; signalScore: number; ratingCount: number; distanceMiles: number }>(places: T[], band: VenueTimeBand, limit: number): T[] {
+  const ordered = [...places].sort((a,b) => b.signalScore-a.signalScore || b.ratingCount-a.ratingCount || a.distanceMiles-b.distanceMiles)
+  const laneOrder: ChillLane[] = band === 'late_night'
+    ? ['bowling','games','movies','social','cafe','outdoors','other']
+    : ['bowling','movies','cafe','outdoors','games','social','other']
+  const picked: T[] = []
+  for (const lane of laneOrder) {
+    const candidate = ordered.find((place) => chillLane(place.name, place.category) === lane && !picked.includes(place))
+    if (candidate) picked.push(candidate)
+    if (picked.length >= limit) return picked
+  }
+  for (const candidate of ordered) {
+    if (!picked.includes(candidate)) picked.push(candidate)
+    if (picked.length >= limit) break
+  }
+  return picked
 }
 
 function facilityFit(slug: string, name: string, category: string, localHour: number) {
@@ -544,7 +610,8 @@ Deno.serve(async (request: Request) => {
     if (!Number.isFinite(signalStartsAt) || !Number.isFinite(signalEndsAt) || signalEndsAt <= signalStartsAt) {
       throw new Error('Signal time window is unavailable')
     }
-    const venueTargetEpoch = Math.max(Date.now(), signalStartsAt)
+    const nowEpoch = Date.now()
+    const venueTargetEpoch = Math.max(nowEpoch, signalStartsAt)
     const localHour = cityLocalHour(city.timezone_name, venueTargetEpoch)
     if (!Number.isInteger(localHour) || localHour < 0 || localHour > 23) {
       throw new Error('Signal city local time is unavailable')
@@ -554,7 +621,12 @@ Deno.serve(async (request: Request) => {
     const venueTimeBand = timeBandFor(localHour)
     const minimumOpenMinutes = minimumUsableOpenMinutes(activity.slug, localHour)
     const venuePolicy = coordinationPolicy(activity.slug, venueTimeBand)
-    const requireOpenNow = signalStartsAt <= Date.now() + 15 * 60_000
+    // Late-night intent can legitimately continue across midnight. Extend only that
+    // active coordination horizon; daytime/evening Signals retain their persisted window.
+    const effectiveSignalEndsAt = venueTimeBand === 'late_night'
+      ? Math.max(signalEndsAt, nowEpoch + LATE_NIGHT_WINDOW_FLOOR_MINUTES * 60_000)
+      : signalEndsAt
+    const requireOpenNow = signalStartsAt <= nowEpoch + 15 * 60_000
     const fetchRawPlaces = async (radiusMeters: number) => {
       const googleResponse = await fetch(GOOGLE_PLACES_URL, {
         method: 'POST',
@@ -609,10 +681,13 @@ Deno.serve(async (request: Request) => {
         const ratingCount = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0
         const openNow = typeof place.currentOpeningHours?.openNow === 'boolean'
           ? place.currentOpeningHours.openNow : null
-        const openMinutesRemaining = openNow === true ? minutesUntilCurrentClose(place) : null
+        const openMinutesRemaining = openNow === true ? minutesUntilCurrentClose(place, nowEpoch) : null
         const supportsSignalWindow = hasUsableSignalSlot(
-          signalStartsAt, signalEndsAt, place, venuePolicy,
+          signalStartsAt, effectiveSignalEndsAt, place, venuePolicy, nowEpoch,
         )
+        const hasMinimumOpenTime = openNow === true
+          ? openMinutesRemaining !== null && openMinutesRemaining >= minimumOpenMinutes
+          : openNow === false ? false : supportsSignalWindow
         const category = place.primaryType ?? activity.slug
         const photo = place.photos?.[0] ?? null
         const photoName = typeof photo?.name === 'string' ? photo.name : null
@@ -649,6 +724,7 @@ Deno.serve(async (request: Request) => {
           openNow,
           openMinutesRemaining,
           supportsSignalWindow,
+          hasMinimumOpenTime,
           utcOffsetMinutes: typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null,
           openingHours: place.currentOpeningHours ? {
             periods: Array.isArray(place.currentOpeningHours.periods)
@@ -708,7 +784,8 @@ Deno.serve(async (request: Request) => {
     let rawPlaces = await fetchRawPlaces(19312.1)
     let places = await scorePlaces(rawPlaces, searchRadiusMiles)
     let eligiblePlaces = places.filter((place) =>
-      place.placeId.length > 0 && place.supportsSignalWindow && (!requireOpenNow || place.openNow === true),
+      place.placeId.length > 0 && place.supportsSignalWindow && place.hasMinimumOpenTime &&
+      (!requireOpenNow || place.openNow === true),
     )
 
     if (eligiblePlaces.length < 2) {
@@ -716,19 +793,42 @@ Deno.serve(async (request: Request) => {
       rawPlaces = await fetchRawPlaces(27358.8)
       places = await scorePlaces(rawPlaces, searchRadiusMiles)
       eligiblePlaces = places.filter((place) =>
-        place.placeId.length > 0 && place.supportsSignalWindow && (!requireOpenNow || place.openNow === true),
+        place.placeId.length > 0 && place.supportsSignalWindow && place.hasMinimumOpenTime &&
+        (!requireOpenNow || place.openNow === true),
       )
     }
 
-    const ranked = eligiblePlaces
-      .sort((a, b) =>
-        b.signalScore - a.signalScore || b.ratingCount - a.ratingCount || a.distanceMiles - b.distanceMiles,
-      )
-      .slice(0, Math.min(Math.max(limit, 2), 3))
-      .map((place, index) => ({ ...place, signalRank: index + 1 }))
+    const slateSize = Math.min(Math.max(limit, 2), 3)
+    const slate = activity.slug === 'chill'
+      ? diversifiedChillSlate(eligiblePlaces, venueTimeBand, slateSize)
+      : [...eligiblePlaces]
+          .sort((a, b) => b.signalScore - a.signalScore || b.ratingCount - a.ratingCount || a.distanceMiles - b.distanceMiles)
+          .slice(0, slateSize)
+    const ranked = slate.map((place, index) => ({ ...place, signalRank: index + 1 }))
 
-    if (ranked.length < 2) {
-      return json({ error: 'Not enough venues with usable hours fit this Signal window' }, 409)
+    // A Signal only needs one genuinely usable venue to keep coordination moving.
+    // Requiring two candidates turned a healthy single-option result into a dead-end,
+    // even though the database can deterministically lock the only viable choice.
+    if (ranked.length === 0) {
+      return json({
+        error: 'No open venue has a usable meetup time in this Signal window',
+        diagnostics: {
+          activity: activity.slug,
+          venueTimeBand,
+          requireOpenNow,
+          rawCandidateCount: rawPlaces.length,
+          openCandidateCount: places.filter((place) => place.openNow === true).length,
+          windowCompatibleCount: places.filter((place) => place.supportsSignalWindow).length,
+          minimumOpenTimeCount: places.filter((place) => place.hasMinimumOpenTime).length,
+          usableCandidateCount: eligiblePlaces.length,
+          policy: venuePolicy,
+          minimumOpenMinutes,
+          lateNightWindowFloorMinutes: venueTimeBand === 'late_night' ? LATE_NIGHT_WINDOW_FLOOR_MINUTES : null,
+          signalEndsAt: new Date(signalEndsAt).toISOString(),
+          effectiveSignalEndsAt: new Date(effectiveSignalEndsAt).toISOString(),
+          searchRadiusMiles,
+        },
+      }, 409)
     }
 
     const { error: ensureError } = await domain.rpc('ensure_signal_venue_round', {
