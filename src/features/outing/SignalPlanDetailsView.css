@@ -20,3 +20,9 @@
 .signal-details-person-marker>i{display:block;background:#5edcff}
 .signal-details-person-marker b{padding:4px 7px;border-radius:999px;background:rgba(4,13,24,.92);color:#fff;font-size:7px;letter-spacing:.08em;white-space:nowrap;box-shadow:0 5px 15px rgba(0,0,0,.4)}
 .signal-details-person-marker.is-me img,.signal-details-person-marker.is-me>i{box-shadow:0 0 0 5px rgba(36,200,255,.28),0 0 22px rgba(36,200,255,.8)}
+@keyframes signal-user-pulse{0%{box-shadow:0 0 0 0 rgba(36,200,255,.7),0 0 18px rgba(36,200,255,.95)}70%{box-shadow:0 0 0 18px rgba(36,200,255,0),0 0 24px rgba(36,200,255,.72)}100%{box-shadow:0 0 0 0 rgba(36,200,255,0),0 0 18px rgba(36,200,255,.95)}}
+@keyframes signal-destination-pulse{0%{box-shadow:0 0 0 0 rgba(255,61,75,.78),0 0 18px rgba(255,61,75,.95)}70%{box-shadow:0 0 0 20px rgba(255,61,75,0),0 0 28px rgba(255,61,75,.75)}100%{box-shadow:0 0 0 0 rgba(255,61,75,0),0 0 18px rgba(255,61,75,.95)}}
+.signal-details-person-marker.is-me img,.signal-details-person-marker.is-me>i{border-color:#dff9ff;animation:signal-user-pulse 1.8s ease-out infinite}
+.signal-details-destination-marker{right:auto;bottom:auto;display:grid;justify-items:center;gap:5px;transform:translate(-50%,-50%);padding:0;border:0;background:transparent;box-shadow:none;color:#fff}
+.signal-details-destination-marker>i{display:block;width:18px;height:18px;border:3px solid #fff;border-radius:50%;background:#ff3d4b;animation:signal-destination-pulse 2s ease-out infinite}
+.signal-details-destination-marker>b{padding:4px 7px;border:1px solid rgba(255,80,92,.45);border-radius:999px;background:rgba(27,5,10,.92);color:#ff9ca4;font-size:7px;letter-spacing:.08em;white-space:nowrap;box-shadow:0 5px 15px rgba(0,0,0,.4)}

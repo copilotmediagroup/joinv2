@@ -65,9 +65,11 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     const south = Math.min(...points.map((point) => point.latitude)) - latPad, north = Math.max(...points.map((point) => point.latitude)) + latPad
     const west = Math.min(...points.map((point) => point.longitude)) - lngPad, east = Math.max(...points.map((point) => point.longitude)) + lngPad
     const project = (latitude: number, longitude: number) => ({ left: ((longitude-west)/(east-west))*100, top: (1-(latitude-south)/(north-south))*100 })
+    const destination = project(lat, lng)
     return {
       url: `https://www.openstreetmap.org/export/embed.html?bbox=${west}%2C${south}%2C${east}%2C${north}&amp;layer=mapnik&amp;marker=${lat}%2C${lng}`,
       people: people.map((person) => ({ ...person, ...project(person.latitude, person.longitude) })),
+      destination,
     }
   }, [plan, userPosition, liveLocations])
 
@@ -102,7 +104,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     {error && <div className="signal-details-error" role="alert">{error}</div>}
     <section className="signal-details-journey">
       <header><span><Radio size={14}/> LIVE ROUTE</span><strong>{userPosition ? 'YOU → DESTINATION' : 'DESTINATION READY'}</strong></header>
-      {venueMap && <div className="signal-details-map-wrap"><iframe title="Signal destination map" src={venueMap.url} loading="lazy" referrerPolicy="no-referrer" />{venueMap.people.map((person) => { const member = members.find((m) => m.userId === person.userId); return <span key={person.userId} className={`signal-details-person-marker ${person.isMe ? 'is-me' : ''}`} style={{ left: `${person.left}%`, top: `${person.top}%` }}>{member?.avatarUrl ? <img src={member.avatarUrl} alt=""/> : <i/>}<b>{person.isMe ? 'YOU' : person.displayName}</b></span> })}<span className="signal-details-destination-marker"><MapPin size={13}/><b>DESTINATION</b></span></div>}
+      {venueMap && <div className="signal-details-map-wrap"><iframe title="Signal destination map" src={venueMap.url} loading="lazy" referrerPolicy="no-referrer" />{venueMap.people.map((person) => { const member = members.find((m) => m.userId === person.userId); return <span key={person.userId} className={`signal-details-person-marker ${person.isMe ? 'is-me' : ''}`} style={{ left: `${person.left}%`, top: `${person.top}%` }}>{member?.avatarUrl ? <img src={member.avatarUrl} alt=""/> : <i/>}<b>{person.isMe ? 'YOU' : person.displayName}</b></span> })}<span className="signal-details-destination-marker" style={{ left: `${venueMap.destination.left}%`, top: `${venueMap.destination.top}%` }}><i/><b>DESTINATION</b></span></div>}
       <div className="signal-details-destination-strip"><MapPin size={18}/><span><small>MEET HERE</small><strong>{plan?.currentVenueName ?? 'Meetup venue'}</strong><em>{plan?.currentVenueAddress ?? ''}</em></span>{destinationUrl && <a href={destinationUrl} target="_blank" rel="noreferrer"><Navigation size={15}/> DIRECTIONS</a>}</div>
     </section>
     <section className="signal-details-group">
