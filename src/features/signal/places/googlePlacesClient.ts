@@ -223,13 +223,36 @@ export function subscribeToSignalVenueRound(
   signalGroupId: string,
   onInvalidate: () => void,
 ): () => void {
+  let stopped = false
+  let reconciliationTimer: ReturnType<typeof window.setTimeout> | null = null
+
+  const scheduleReconciliation = () => {
+    if (stopped || reconciliationTimer !== null) return
+    reconciliationTimer = window.setTimeout(() => {
+      reconciliationTimer = null
+      if (stopped) return
+      onInvalidate()
+      scheduleReconciliation()
+    }, 2500)
+  }
+
   const channel = supabase
     .channel(`signal-venue:${signalGroupId}`)
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'signal_venue_rounds',
       filter: `signal_group_id=eq.${signalGroupId}`,
     }, onInvalidate)
-    .subscribe()
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') onInvalidate()
+    })
 
-  return () => { void supabase.removeChannel(channel) }
+  // Realtime is the fast path; bounded authoritative reads prevent a missed
+  // round event from stranding one member on an obsolete coordination screen.
+  scheduleReconciliation()
+
+  return () => {
+    stopped = true
+    if (reconciliationTimer !== null) window.clearTimeout(reconciliationTimer)
+    void supabase.removeChannel(channel)
+  }
 }

@@ -108,15 +108,38 @@ export function subscribeToSignalTimeRound(
   signalGroupId: string,
   onInvalidate: () => void,
 ): () => void {
+  let stopped = false
+  let reconciliationTimer: ReturnType<typeof window.setTimeout> | null = null
+
+  const scheduleReconciliation = () => {
+    if (stopped || reconciliationTimer !== null) return
+    reconciliationTimer = window.setTimeout(() => {
+      reconciliationTimer = null
+      if (stopped) return
+      onInvalidate()
+      scheduleReconciliation()
+    }, 2500)
+  }
+
   const channel = supabase
     .channel(`signal-time:${signalGroupId}`)
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'signal_time_rounds',
       filter: `signal_group_id=eq.${signalGroupId}`,
     }, onInvalidate)
-    .subscribe()
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') onInvalidate()
+    })
 
-  return () => { void supabase.removeChannel(channel) }
+  // Time lock is server-owned. Reconcile while this stage is mounted so a
+  // dropped websocket event cannot require a manual browser reload.
+  scheduleReconciliation()
+
+  return () => {
+    stopped = true
+    if (reconciliationTimer !== null) window.clearTimeout(reconciliationTimer)
+    void supabase.removeChannel(channel)
+  }
 }
 
 export type SignalVenueRecoveryReason =
