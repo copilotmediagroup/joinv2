@@ -387,6 +387,26 @@ export function subscribeToSignalRealtime(
   let channel: RealtimeChannel | null = null
   let refreshRunning = false
   let refreshQueued = false
+  let reconciliationTimer: ReturnType<typeof setTimeout> | null = null
+
+  const clearReconciliationTimer = () => {
+    if (reconciliationTimer !== null) {
+      clearTimeout(reconciliationTimer)
+      reconciliationTimer = null
+    }
+  }
+
+  const scheduleFormationReconciliation = (snapshot: SignalSnapshot) => {
+    clearReconciliationTimer()
+    if (stopped || !['forming', 'confirming'].includes(snapshot.group.state)) return
+    // Realtime is the fast invalidation path, but websocket delivery is not durable.
+    // While a group is still forming, perform a bounded authoritative reread so a
+    // missed INSERT/UPDATE cannot strand one participant behind the server state.
+    reconciliationTimer = setTimeout(() => {
+      reconciliationTimer = null
+      void runRefresh()
+    }, 2500)
+  }
 
   const emitConnectionState = (
     state: SignalRealtimeConnectionState,
@@ -420,6 +440,7 @@ export function subscribeToSignalRealtime(
 
         if (!stopped) {
           listener.onSnapshot(snapshot)
+          scheduleFormationReconciliation(snapshot)
         }
       } while (
         !stopped &&
@@ -534,6 +555,7 @@ export function subscribeToSignalRealtime(
       if (stopped) return
 
       stopped = true
+      clearReconciliationTimer()
 
       const activeChannel = channel
       channel = null
