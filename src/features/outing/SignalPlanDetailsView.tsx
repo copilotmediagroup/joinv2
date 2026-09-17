@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Clock3, MapPin, Navigation, Users, Zap } from 'lucide-react'
+import { ChevronDown, Clock3, MapPin, Navigation, Radio, Users, Zap } from 'lucide-react'
 import PlanGovernancePanel from '../plan/PlanGovernancePanel'
 import { getMyPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
 import { getMyPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
@@ -18,6 +18,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const [members, setMembers] = useState<PlanMemberIdentity[]>([])
   const [error, setError] = useState<string | null>(null)
   const [userPosition, setUserPosition] = useState<{ latitude: number; longitude: number } | null>(null)
+  const [planOptionsOpen, setPlanOptionsOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -79,22 +80,34 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     return new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date)
   }, [plan])
 
+  const locationStatus = userPosition ? 'LOCATION LIVE' : 'LOCATION WAITING'
+
   return <section className="signal-details-shell">
     <header className="signal-details-hero">
-      <span><Zap size={15} fill="currentColor" /> SIGNAL LIVE · DETAILS</span>
-      <h1>{plan?.activityName ?? plan?.title ?? 'YOUR SIGNAL'}</h1>
-      <div className="signal-details-summary"><span><Clock3 size={14}/>{meetupTime}</span><span><Users size={14}/>{members.length} going</span></div>
+      <div className="signal-details-live-line"><span><i /> LIVE SIGNAL</span><em>{locationStatus}</em></div>
+      <div className="signal-details-hero-copy">
+        <span className="signal-details-kicker"><Zap size={14} fill="currentColor" /> YOUR NIGHT IS SET</span>
+        <h1>{plan?.currentVenueName ?? plan?.activityName ?? plan?.title ?? 'YOUR SIGNAL'}</h1>
+        <p>{plan?.currentVenueAddress ?? [plan?.cityName, plan?.stateCode].filter(Boolean).join(', ')}</p>
+      </div>
+      <div className="signal-details-summary">
+        <span><Clock3 size={15}/><strong>{meetupTime}</strong></span>
+        <span><Users size={15}/><strong>{members.length} going</strong></span>
+      </div>
     </header>
     {error && <div className="signal-details-error" role="alert">{error}</div>}
-    <section className="signal-details-map-card">
-      <div><MapPin size={18}/><span><small>DESTINATION</small><strong>{plan?.currentVenueName ?? 'Meetup venue'}</strong><em>{plan?.currentVenueAddress ?? ''}</em></span></div>
-      {venueMap && <div className="signal-details-map-wrap"><iframe title="Signal destination map" src={venueMap.url} loading="lazy" referrerPolicy="no-referrer" />{venueMap.userLeft != null && venueMap.userTop != null && <span className="signal-details-you-marker" style={{ left: `${venueMap.userLeft}%`, top: `${venueMap.userTop}%` }}><i/>YOU</span>}<span className="signal-details-destination-key"><MapPin size={12}/> DESTINATION</span></div>}
-      {destinationUrl && <a href={destinationUrl} target="_blank" rel="noreferrer"><Navigation size={15}/> DIRECTIONS</a>}
+    <section className="signal-details-journey">
+      <header><span><Radio size={14}/> LIVE ROUTE</span><strong>{userPosition ? 'YOU → DESTINATION' : 'DESTINATION READY'}</strong></header>
+      {venueMap && <div className="signal-details-map-wrap"><iframe title="Signal destination map" src={venueMap.url} loading="lazy" referrerPolicy="no-referrer" />{venueMap.userLeft != null && venueMap.userTop != null && <span className="signal-details-you-marker" style={{ left: `${venueMap.userLeft}%`, top: `${venueMap.userTop}%` }}><i/>YOU</span>}<span className="signal-details-destination-marker"><MapPin size={13}/><b>DESTINATION</b></span></div>}
+      <div className="signal-details-destination-strip"><MapPin size={18}/><span><small>MEET HERE</small><strong>{plan?.currentVenueName ?? 'Meetup venue'}</strong><em>{plan?.currentVenueAddress ?? ''}</em></span>{destinationUrl && <a href={destinationUrl} target="_blank" rel="noreferrer"><Navigation size={15}/> DIRECTIONS</a>}</div>
     </section>
     <section className="signal-details-group">
-      <header><span><Users size={15}/> YOUR GROUP</span><strong>{members.length} IN</strong></header>
-      <div>{members.map((m) => <span key={m.userId}>{m.avatarUrl ? <img src={m.avatarUrl} alt=""/> : <i>{m.displayName.slice(0,1).toUpperCase()}</i>}<small>{m.isMe ? 'YOU' : m.displayName}</small></span>)}</div>
+      <header><span><Users size={15}/> YOUR PEOPLE</span><strong>{members.length} LOCKED IN</strong></header>
+      <div>{members.map((m) => <span key={m.userId}>{m.avatarUrl ? <img src={m.avatarUrl} alt=""/> : <i>{m.displayName.slice(0,1).toUpperCase()}</i>}<small>{m.isMe ? 'YOU' : m.displayName}</small><em>IN</em></span>)}</div>
     </section>
-    <PlanGovernancePanel planId={planId} onCheckedIn={onCheckedIn} onLeftPlan={() => onPlanEnded()} />
+    <div className={`signal-details-controls ${planOptionsOpen ? 'options-open' : ''}`}>
+      <PlanGovernancePanel planId={planId} onCheckedIn={onCheckedIn} onLeftPlan={() => onPlanEnded()} />
+    </div>
+    <button type="button" className={`signal-details-options-toggle ${planOptionsOpen ? 'open' : ''}`} onClick={() => setPlanOptionsOpen((open) => !open)}><span>PLAN OPTIONS</span><ChevronDown size={16}/></button>
   </section>
 }
