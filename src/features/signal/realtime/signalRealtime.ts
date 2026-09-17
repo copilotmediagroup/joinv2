@@ -396,12 +396,13 @@ export function subscribeToSignalRealtime(
     }
   }
 
-  const scheduleFormationReconciliation = (snapshot: SignalSnapshot) => {
+  const scheduleJourneyReconciliation = (snapshot: SignalSnapshot) => {
     clearReconciliationTimer()
-    if (stopped || !['forming', 'confirming'].includes(snapshot.group.state)) return
+    if (stopped || ['active_outing', 'completed'].includes(snapshot.group.state)) return
     // Realtime is the fast invalidation path, but websocket delivery is not durable.
-    // While a group is still forming, perform a bounded authoritative reread so a
-    // missed INSERT/UPDATE cannot strand one participant behind the server state.
+    // Keep reconciling the server-owned journey through formation AND coordination.
+    // Otherwise a missed signal_groups journey_stage update can strand every member
+    // on FINDING THE PLACE until a full browser reload performs the missing read.
     reconciliationTimer = setTimeout(() => {
       reconciliationTimer = null
       void runRefresh()
@@ -440,7 +441,7 @@ export function subscribeToSignalRealtime(
 
         if (!stopped) {
           listener.onSnapshot(snapshot)
-          scheduleFormationReconciliation(snapshot)
+          scheduleJourneyReconciliation(snapshot)
         }
       } while (
         !stopped &&
