@@ -74,6 +74,8 @@ export type PlanGovernanceSnapshot = {
   currentVenueId: string | null
   currentVenueName: string | null
   currentVenueAddress: string | null
+  currentVenueLatitude: number | null
+  currentVenueLongitude: number | null
   conversationId: string | null
   changeFreezeAt: string | null
   joinRequest: PlanJoinRequestSnapshot | null

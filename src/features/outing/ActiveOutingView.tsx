@@ -73,10 +73,27 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
     }
   }, [refresh])
 
+  const destinationUrl = useMemo(() => {
+    if (!plan) return null
+    const destination = [plan.currentVenueName, plan.currentVenueAddress, plan.cityName, plan.stateCode].filter(Boolean).join(', ')
+    return destination ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination)}` : null
+  }, [plan])
+
   const selectedLabel = useMemo(() => {
     if (files.length === 0) return 'Nothing selected yet'
     return `${files.length} ${files.length === 1 ? 'item' : 'items'} ready`
   }, [files])
+
+  const venueMapUrl = useMemo(() => {
+    if (!plan) return null
+    if (plan.currentVenueLatitude == null || plan.currentVenueLongitude == null) return null
+    const latitude = Number(plan.currentVenueLatitude)
+    const longitude = Number(plan.currentVenueLongitude)
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null
+    const delta = 0.012
+    const bbox = [longitude - delta, latitude - delta, longitude + delta, latitude + delta].join('%2C')
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&amp;layer=mapnik&amp;marker=${latitude}%2C${longitude}`
+  }, [plan])
 
   const acceptFiles = (incoming: FileList | null) => {
     if (!incoming) return
@@ -140,6 +157,10 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
       </header>
 
       <section className="active-outing-roster">
+        <div className="active-outing-section-heading"><strong>MEETUP DETAILS</strong><span>DESTINATION</span></div>
+        <div className="active-outing-detail-row"><MapPin size={15} /><span><strong>{plan?.currentVenueName || 'Meetup venue'}</strong><small>{plan?.currentVenueAddress || plan?.cityName || ''}</small></span></div>
+        {venueMapUrl && <iframe className="active-outing-map-frame" title={`${plan?.currentVenueName || 'Meetup'} map`} src={venueMapUrl} loading="lazy" referrerPolicy="no-referrer" />}
+        {destinationUrl && <a className="active-outing-destination-link" href={destinationUrl} target="_blank" rel="noreferrer"><MapPin size={15} /> OPEN DIRECTIONS</a>}
         <div className="active-outing-section-heading"><strong>YOUR GROUP</strong><span>{members.length} MEMBERS</span></div>
         <div className="active-outing-members">
           {members.map((member) => (
