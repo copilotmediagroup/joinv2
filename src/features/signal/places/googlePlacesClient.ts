@@ -92,6 +92,13 @@ export async function submitMySignalLocation(signalGroupId: string): Promise<boo
   return false
 }
 
+export class SignalNoUsableVenueError extends Error {
+  constructor() {
+    super('No open venue has a usable meetup time in this Signal window')
+    this.name = 'SignalNoUsableVenueError'
+  }
+}
+
 export async function fetchSignalPlaces(
   request: SignalPlacesRequest,
 ): Promise<SignalPlacesResponse> {
@@ -103,6 +110,7 @@ export async function fetchSignalPlaces(
   if (error) {
     const message = await getFunctionErrorMessage(error)
     if (message.includes('group_location_pending')) throw new SignalGroupLocationPendingError()
+    if (message.includes('No open venue has a usable meetup time in this Signal window')) throw new SignalNoUsableVenueError()
     if (message.includes('signal_stage_mismatch:')) throw new SignalStageMismatchError(message.split('signal_stage_mismatch:')[1]?.trim() || 'unknown')
     throw new Error(message)
   }

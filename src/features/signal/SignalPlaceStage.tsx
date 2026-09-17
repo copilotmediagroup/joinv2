@@ -12,6 +12,7 @@ import {
   castSignalVenueVote,
   fetchSignalPlaces,
   SignalGroupLocationPendingError,
+  SignalNoUsableVenueError,
   submitMySignalLocation,
   reconcileSignalVenueRound,
   restartDeadlockedSignalVenueVote,
@@ -73,6 +74,7 @@ export default function SignalPlaceStage({
   const [snapshot, setSnapshot] = useState<SignalPlacesResponse | null>(null)
   const [placesLoading, setPlacesLoading] = useState(true)
   const [placesError, setPlacesError] = useState<string | null>(null)
+  const [noUsableVenue, setNoUsableVenue] = useState(false)
   const [voteSubmitting, setVoteSubmitting] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const notifiedWinnerId = useRef<string | null>(null)
@@ -113,9 +115,12 @@ export default function SignalPlaceStage({
         })
       }
       setSnapshot(next)
+      setNoUsableVenue(next.places.length === 0)
       setPlacesError(null)
       setSecondsLeft(secondsUntil(next.round.closesAt))
     } catch (error) {
+      const terminalVenueFailure = error instanceof SignalNoUsableVenueError
+      setNoUsableVenue(terminalVenueFailure)
       setPlacesError(
         toUserFacingError(error, 'Unable to load places right now.'),
       )
@@ -318,7 +323,7 @@ export default function SignalPlaceStage({
         </p>
       )}
 
-      {snapshot && places.length === 0 && (
+      {noUsableVenue && (
         <div className="signal-place-empty-exit" role="status">
           <p>There isn't a usable place for this Signal right now.</p>
           {onLeaveSignal && (
