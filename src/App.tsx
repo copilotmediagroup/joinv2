@@ -2487,6 +2487,8 @@ function App() {
                         <SignalPlaceStage
                           signalGroupId={authoritativeSignalGroupId}
                           signalLabel={journeyPresentation.title}
+                          onLeaveSignal={() => { void handleLeaveSignal() }}
+                          leavingSignal={withdrawalSubmitting}
                           onVenueLocked={(venue) => {
                             setLockedSignalVenue(venue)
                             setVenueConfirmationClock(Date.now())

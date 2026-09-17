@@ -31,6 +31,8 @@ const GROUP_LOCATION_WAIT_MS = 2500
 type SignalPlaceStageProps = {
   signalGroupId: string
   signalLabel: string
+  onLeaveSignal?: () => void
+  leavingSignal?: boolean
   onVenueLocked?: (venue: {
     placeId: string
     name: string
@@ -64,6 +66,8 @@ function venueModeLabel(band: SignalPlace['venueTimeBand']): string | null {
 export default function SignalPlaceStage({
   signalGroupId,
   signalLabel,
+  onLeaveSignal,
+  leavingSignal = false,
   onVenueLocked,
 }: SignalPlaceStageProps) {
   const [snapshot, setSnapshot] = useState<SignalPlacesResponse | null>(null)
@@ -312,6 +316,17 @@ export default function SignalPlaceStage({
         <p className="signal-place-ranking-copy" role="alert">
           {placesError}
         </p>
+      )}
+
+      {snapshot && places.length === 0 && (
+        <div className="signal-place-empty-exit" role="status">
+          <p>There isn't a usable place for this Signal right now.</p>
+          {onLeaveSignal && (
+            <button type="button" onClick={onLeaveSignal} disabled={leavingSignal}>
+              {leavingSignal ? 'ENDING SIGNAL…' : 'END SIGNAL · BACK TO DISCOVER'}
+            </button>
+          )}
+        </div>
       )}
 
       {round?.state === 'deadlocked' && (
