@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { signalCoordinationPolicy } from '../_shared/signalCoordinationPolicy.ts'
+import { buildVenueTimeCandidates } from '../_shared/signalVenueAvailability.ts'
 
 type RequestBody = { signalGroupId: string }
 type DomainClient = ReturnType<typeof createClient>
@@ -19,7 +20,6 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
-const WEEK_MINUTES = 7 * 24 * 60
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -38,41 +38,6 @@ function hostedKey(name: string): string | null {
     const parsed = JSON.parse(raw)
     return parsed && typeof parsed.default === 'string' ? parsed.default : null
   } catch { return null }
-}
-function alignVenueTime(epochMs: number, offsetMinutes: number, alignmentMinutes: number): number {
-  const localMs = epochMs + offsetMinutes * 60_000
-  const step = alignmentMinutes * 60_000
-  return Math.ceil(localMs / step) * step - offsetMinutes * 60_000
-}
-function venueWeekMinute(epochMs: number, offsetMinutes: number): number {
-  const local = new Date(epochMs + offsetMinutes * 60_000)
-  return local.getUTCDay() * 1440 + local.getUTCHours() * 60 + local.getUTCMinutes()
-}
-function fitsOpeningHours(
-  epochMs: number,
-  offsetMinutes: number,
-  periods: NonNullable<NonNullable<VenuePayload['openingHours']>['periods']>,
-  durationMinutes: number,
-  closingBufferMinutes: number,
-) {
-  const candidate = venueWeekMinute(epochMs, offsetMinutes)
-  const requiredEnd = candidate + durationMinutes + closingBufferMinutes
-
-  return periods.some((period) => {
-    if (!period.open) return false
-    const open = (period.open.day ?? 0) * 1440 + (period.open.hour ?? 0) * 60 + (period.open.minute ?? 0)
-    let close: number
-    if (!period.close) {
-      close = open + WEEK_MINUTES
-    } else {
-      close = (period.close.day ?? 0) * 1440 + (period.close.hour ?? 0) * 60 + (period.close.minute ?? 0)
-      if (close <= open) close += WEEK_MINUTES
-    }
-    return (
-      (candidate >= open && requiredEnd <= close) ||
-      (candidate + WEEK_MINUTES >= open && requiredEnd + WEEK_MINUTES <= close)
-    )
-  })
 }
 function labelTime(epochMs: number, offsetMinutes: number) {
   const local = new Date(epochMs + offsetMinutes * 60_000)
@@ -95,19 +60,9 @@ function buildOptions(
   if (!Number.isFinite(signalStart) || !Number.isFinite(signalEnd)) return []
 
   const policy = signalCoordinationPolicy(venue.activitySlug, venue.venueTimeBand)
-  const earliest = alignVenueTime(
-    Math.max(signalStart, Date.now() + policy.leadMinutes * 60_000),
-    offset,
-    policy.alignmentMinutes,
+  const candidates = buildVenueTimeCandidates(
+    signalStart, signalEnd, offset, periods, policy, Date.now(),
   )
-  const latest = signalEnd - policy.durationMinutes * 60_000
-  const candidates: number[] = []
-
-  for (let candidate = earliest; candidate <= latest; candidate += policy.alignmentMinutes * 60_000) {
-    if (fitsOpeningHours(
-      candidate, offset, periods, policy.durationMinutes, policy.closingBufferMinutes,
-    )) candidates.push(candidate)
-  }
 
   let chosen = candidates
   if (candidates.length > 3) {

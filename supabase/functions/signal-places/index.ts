@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { signalCoordinationPolicy, type SignalVenueTimeBand } from '../_shared/signalCoordinationPolicy.ts'
+import { buildVenueTimeCandidates, minutesUntilCurrentClose } from '../_shared/signalVenueAvailability.ts'
 
 type RequestBody = { signalGroupId: string; limit?: number; allowCityFallback?: boolean }
 type DomainClient = ReturnType<typeof createClient>
@@ -88,61 +89,7 @@ function fairTravelScore(averageMiles: number, maxMiles: number) {
   const farthestPenalty = maxMiles > 15 ? 24 : maxMiles > 12 ? 18 : maxMiles > 10 ? 12 : maxMiles > 8 ? 7 : maxMiles > 6 ? 3 : 0
   return averageScore - farthestPenalty
 }
-const WEEK_MINUTES = 7 * 24 * 60
-
-function venueWeekMinute(epochMs: number, offsetMinutes: number): number {
-  const local = new Date(epochMs + offsetMinutes * 60_000)
-  return local.getUTCDay() * 1440 + local.getUTCHours() * 60 + local.getUTCMinutes()
-}
-
-function periodContainsWindow(
-  pointWeekMinute: number,
-  durationMinutes: number,
-  openWeekMinute: number,
-  closeWeekMinute: number,
-): boolean {
-  let close = closeWeekMinute
-  if (close <= openWeekMinute) close += WEEK_MINUTES
-  for (const point of [pointWeekMinute, pointWeekMinute + WEEK_MINUTES]) {
-    for (const open of [openWeekMinute, openWeekMinute + WEEK_MINUTES]) {
-      const normalizedClose = close + (open - openWeekMinute)
-      if (point >= open && point + durationMinutes <= normalizedClose) return true
-    }
-  }
-  return false
-}
-
-// Guard the subtle midnight/week-boundary behavior that previously rejected
-// valid late-night venues after midnight.
-if (!periodContainsWindow(1500, 35, 1200, 1560) ||
-    !periodContainsWindow(60, 35, 6 * 1440 + 1200, 120) ||
-    periodContainsWindow(130, 35, 6 * 1440 + 1200, 120)) {
-  throw new Error('signal-places opening-hours invariant failed')
-}
-
-function minutesUntilCurrentClose(place: { currentOpeningHours?: { periods?: Array<{ open?: { day?: number; hour?: number; minute?: number } | null; close?: { day?: number; hour?: number; minute?: number } | null }> } | null; utcOffsetMinutes?: number | null }, epochMs = Date.now()): number | null {
-  const offset = typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null
-  const periods = place.currentOpeningHours?.periods
-  if (offset === null || !Array.isArray(periods) || periods.length === 0) return null
-  const nowMinute = venueWeekMinute(epochMs, offset)
-  for (const period of periods) {
-    if (!period.open) continue
-    const open = (period.open.day ?? 0) * 1440 + (period.open.hour ?? 0) * 60 + (period.open.minute ?? 0)
-    let close = period.close
-      ? (period.close.day ?? 0) * 1440 + (period.close.hour ?? 0) * 60 + (period.close.minute ?? 0)
-      : open + WEEK_MINUTES
-    if (close <= open) close += WEEK_MINUTES
-    for (const point of [nowMinute, nowMinute + WEEK_MINUTES]) {
-      for (const normalizedOpen of [open, open + WEEK_MINUTES]) {
-        const normalizedClose = close + (normalizedOpen - open)
-        if (point >= normalizedOpen && point < normalizedClose) {
-          return normalizedClose - point
-        }
-      }
-    }
-  }
-  return null
-}function cityLocalHour(timeZone: string, epochMs = Date.now()): number {
+function cityLocalHour(timeZone: string, epochMs = Date.now()): number {
   const hour = new Intl.DateTimeFormat('en-US', {
     timeZone,
     hour: '2-digit',
@@ -243,54 +190,6 @@ function supplementalSearchIntents(slug: string, band: VenueTimeBand): string[] 
 
 function includesAny(text: string, terms: string[]) {
   return terms.some((term) => text.includes(term))
-}
-
-function alignVenueTime(epochMs: number, offsetMinutes: number, alignmentMinutes: number): number {
-  const localMs = epochMs + offsetMinutes * 60_000
-  const step = alignmentMinutes * 60_000
-  return Math.ceil(localMs / step) * step - offsetMinutes * 60_000
-}
-
-function hasUsableSignalSlot(
-  signalStartsAt: number,
-  signalEndsAt: number,
-  place: {
-    currentOpeningHours?: { periods?: Array<{ open?: { day?: number; hour?: number; minute?: number } | null; close?: { day?: number; hour?: number; minute?: number } | null }> } | null
-    utcOffsetMinutes?: number | null
-  },
-  policy: CoordinationPolicy,
-  nowEpoch = Date.now(),
-): boolean {
-  const offset = typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null
-  const periods = place.currentOpeningHours?.periods
-  if (offset === null || !Array.isArray(periods) || periods.length === 0) return false
-
-  const earliest = alignVenueTime(
-    Math.max(signalStartsAt, nowEpoch + policy.leadMinutes * 60_000),
-    offset,
-    policy.alignmentMinutes,
-  )
-  const latest = signalEndsAt - policy.durationMinutes * 60_000
-  if (earliest > latest) return false
-
-  for (let candidate = earliest; candidate <= latest; candidate += policy.alignmentMinutes * 60_000) {
-    const candidateWeekMinute = venueWeekMinute(candidate, offset)
-    const fits = periods.some((period) => {
-      if (!period.open) return false
-      const open = (period.open.day ?? 0) * 1440 + (period.open.hour ?? 0) * 60 + (period.open.minute ?? 0)
-      const close = period.close
-        ? (period.close.day ?? 0) * 1440 + (period.close.hour ?? 0) * 60 + (period.close.minute ?? 0)
-        : open + WEEK_MINUTES
-      return periodContainsWindow(
-        candidateWeekMinute,
-        policy.durationMinutes + policy.closingBufferMinutes,
-        open,
-        close,
-      )
-    })
-    if (fits) return true
-  }
-  return false
 }
 
 function minimumUsableOpenMinutes(slug: string, localHour: number) {
@@ -723,13 +622,18 @@ Deno.serve(async (request: Request) => {
         const ratingCount = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0
         const openNow = typeof place.currentOpeningHours?.openNow === 'boolean'
           ? place.currentOpeningHours.openNow : null
-        const openMinutesRemaining = openNow === true ? minutesUntilCurrentClose(place, nowEpoch) : null
-        const supportsSignalWindow = hasUsableSignalSlot(
-          signalStartsAt, effectiveSignalEndsAt, place, venuePolicy, nowEpoch,
-        )
-        const hasMinimumOpenTime = openNow === true
-          ? openMinutesRemaining !== null && openMinutesRemaining >= minimumOpenMinutes
-          : openNow === false ? false : supportsSignalWindow
+        const openingPeriods = Array.isArray(place.currentOpeningHours?.periods) ? place.currentOpeningHours.periods : []
+        const utcOffsetMinutes = typeof place.utcOffsetMinutes === 'number' ? place.utcOffsetMinutes : null
+        const openMinutesRemaining = openNow === true && utcOffsetMinutes !== null
+          ? minutesUntilCurrentClose(openingPeriods, utcOffsetMinutes, nowEpoch) : null
+        const supportsSignalWindow = utcOffsetMinutes !== null && buildVenueTimeCandidates(
+          signalStartsAt, effectiveSignalEndsAt, utcOffsetMinutes, openingPeriods, venuePolicy, nowEpoch,
+        ).length > 0
+        // openNow is authoritative only when this Signal is coordinating for right now.
+        // Future Signals must be judged against the requested occurrence window, not the venue's present state.
+        const hasMinimumOpenTime = requireOpenNow
+          ? openNow === true && openMinutesRemaining !== null && openMinutesRemaining >= minimumOpenMinutes
+          : supportsSignalWindow
         const category = place.primaryType ?? activity.slug
         const photo = place.photos?.[0] ?? null
         const photoName = typeof photo?.name === 'string' ? photo.name : null
