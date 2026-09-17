@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { signalCoordinationPolicy, type SignalVenueTimeBand } from '../_shared/signalCoordinationPolicy.ts'
 
 type RequestBody = { signalGroupId: string; limit?: number; allowCityFallback?: boolean }
 type DomainClient = ReturnType<typeof createClient>
@@ -150,7 +151,7 @@ function minutesUntilCurrentClose(place: { currentOpeningHours?: { periods?: Arr
   return Number(hour)
 }
 
-type VenueTimeBand = 'morning' | 'daytime' | 'evening' | 'late_night'
+type VenueTimeBand = SignalVenueTimeBand
 
 const LATE_NIGHT_MINIMUM_OPEN_MINUTES = 45
 const LATE_NIGHT_WINDOW_FLOOR_MINUTES = 90
@@ -242,25 +243,6 @@ function supplementalSearchIntents(slug: string, band: VenueTimeBand): string[] 
 
 function includesAny(text: string, terms: string[]) {
   return terms.some((term) => text.includes(term))
-}
-
-type CoordinationPolicy = {
-  leadMinutes: number
-  durationMinutes: number
-  closingBufferMinutes: number
-  alignmentMinutes: number
-}
-
-function coordinationPolicy(slug: string, band: VenueTimeBand): CoordinationPolicy {
-  if (band === 'late_night') {
-    // Late-night Signals are spontaneous. Do not reject a genuinely open venue
-    // merely because less than a full hour remains before its posted close.
-    return { leadMinutes: 10, durationMinutes: 30, closingBufferMinutes: 5, alignmentMinutes: 15 }
-  }
-  if (slug === 'sports' || slug === 'creative') {
-    return { leadMinutes: 20, durationMinutes: 90, closingBufferMinutes: 15, alignmentMinutes: 30 }
-  }
-  return { leadMinutes: 20, durationMinutes: 75, closingBufferMinutes: 15, alignmentMinutes: 15 }
 }
 
 function alignVenueTime(epochMs: number, offsetMinutes: number, alignmentMinutes: number): number {
@@ -680,7 +662,7 @@ Deno.serve(async (request: Request) => {
     const query = searchIntent
     const venueTimeBand = timeBandFor(localHour)
     const minimumOpenMinutes = minimumUsableOpenMinutes(activity.slug, localHour)
-    const venuePolicy = coordinationPolicy(activity.slug, venueTimeBand)
+    const venuePolicy = signalCoordinationPolicy(activity.slug, venueTimeBand)
     // Late-night intent can legitimately continue across midnight. Extend only that
     // active coordination horizon; daytime/evening Signals retain their persisted window.
     const effectiveSignalEndsAt = venueTimeBand === 'late_night'

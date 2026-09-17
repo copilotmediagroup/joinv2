@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { signalCoordinationPolicy } from '../_shared/signalCoordinationPolicy.ts'
 
 type RequestBody = { signalGroupId: string }
 type DomainClient = ReturnType<typeof createClient>
@@ -19,23 +20,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 const WEEK_MINUTES = 7 * 24 * 60
-
-type CoordinationPolicy = {
-  leadMinutes: number
-  durationMinutes: number
-  closingBufferMinutes: number
-  alignmentMinutes: number
-}
-
-function coordinationPolicy(venue: VenuePayload): CoordinationPolicy {
-  if (venue.venueTimeBand === 'late_night') {
-    return { leadMinutes: 15, durationMinutes: 60, closingBufferMinutes: 5, alignmentMinutes: 15 }
-  }
-  if (venue.activitySlug === 'sports' || venue.activitySlug === 'creative') {
-    return { leadMinutes: 20, durationMinutes: 90, closingBufferMinutes: 15, alignmentMinutes: 30 }
-  }
-  return { leadMinutes: 20, durationMinutes: 75, closingBufferMinutes: 15, alignmentMinutes: 15 }
-}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -110,7 +94,7 @@ function buildOptions(
   const signalEnd = new Date(endsAt).getTime()
   if (!Number.isFinite(signalStart) || !Number.isFinite(signalEnd)) return []
 
-  const policy = coordinationPolicy(venue)
+  const policy = signalCoordinationPolicy(venue.activitySlug, venue.venueTimeBand)
   const earliest = alignVenueTime(
     Math.max(signalStart, Date.now() + policy.leadMinutes * 60_000),
     offset,

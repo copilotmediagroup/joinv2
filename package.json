@@ -8,8 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "verify": "npm run verify:contracts && npm run lint && npm run build",
-    "verify:contracts": "node scripts/verify-contracts.mjs"
+    "verify": "npm run verify:contracts && npm run verify:signal-policy && npm run lint && npm run build",
+    "verify:contracts": "node scripts/verify-contracts.mjs",
+    "verify:signal-policy": "node scripts/verify-signal-coordination-policy.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
