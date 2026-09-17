@@ -23,7 +23,6 @@ import {
 import {
   subscribeToPlanMessagesRealtime,
 } from './messagingRealtime'
-import PlanGovernancePanel from '../plan/PlanGovernancePanel'
 import {
   getMyPlanMembers,
   subscribeToPlanMembers,
@@ -38,8 +37,6 @@ type MessagesViewProps = {
   initialPlanId?: string | null
   initialDirectConversationId?: string | null
   lockedPlanId?: string | null
-  onPlanEnded?: (reason: 'left' | 'ended' | 'safety') => void
-  onPlanCheckedIn?: (planId: string) => void
 }
 
 function mergePlanConversations(
@@ -77,8 +74,6 @@ export default function MessagesView({
   initialPlanId = null,
   initialDirectConversationId = null,
   lockedPlanId = null,
-  onPlanEnded,
-  onPlanCheckedIn,
 }: MessagesViewProps) {
   const [conversations, setConversations] =
     useState<PlanConversation[]>([])
@@ -369,53 +364,6 @@ export default function MessagesView({
           </div>
         )}
 
-        {selectedConversation && planMembers.length > 0 && (
-          <section className="messages-plan-roster">
-            <div className="messages-plan-roster-heading">
-              <strong>GROUP MEMBERS</strong>
-              <span>{planMembers.length} IN PLAN</span>
-            </div>
-            <div className="messages-plan-members" aria-label="Plan members">
-            {planMembers.slice(0, 8).map((member) => (
-              <div className="messages-plan-member" key={member.userId}>
-                {member.avatarUrl ? (
-                  <img src={member.avatarUrl} alt="" />
-                ) : (
-                  <span aria-hidden="true">
-                    {member.displayName.slice(0, 1).toUpperCase()}
-                  </span>
-                )}
-                <small>{member.isMe ? 'YOU' : member.displayName}</small>
-              </div>
-            ))}
-              {planMembers.length > 8 && (
-                <strong>+{planMembers.length - 8}</strong>
-              )}
-            </div>
-          </section>
-        )}
-
-        {selectedConversation && (
-          <div className="messages-plan-controls">
-          <PlanGovernancePanel
-            planId={selectedConversation.planId}
-            onCheckedIn={onPlanCheckedIn}
-            onLeftPlan={(reason) => {
-              setMessages([])
-              setPlanMembers([])
-              setError(null)
-              setConversations((current) =>
-                current.filter(
-                  (conversation) =>
-                    conversation.planId !== selectedConversation.planId,
-                ),
-              )
-              setSelectedConversationId(null)
-              onPlanEnded?.(reason)
-            }}
-          />
-          </div>
-        )}
 
         <div className="messages-chat-section">
           <div className="messages-chat-heading">
