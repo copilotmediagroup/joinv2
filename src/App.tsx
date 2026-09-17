@@ -412,6 +412,8 @@ function App() {
     useState<string | null>(null)
   const [activeSignalResume, setActiveSignalResume] =
     useState<SignalResumeResult | null>(null)
+  const lastRealtimeJourneyVersionRef = React.useRef<string | null>(null)
+  const lastRealtimeGroupIdRef = React.useRef<string | null>(null)
   const [activeOutingPlanId, setActiveOutingPlanId] =
     useState<string | null>(null)
   const [planExitNotice, setPlanExitNotice] =
@@ -721,6 +723,7 @@ function App() {
 
   const {
     snapshot: signalRealtimeSnapshot,
+    journeyAuthorityVersion: signalJourneyAuthorityVersion,
     loading: signalRealtimeLoading,
     error: signalRealtimeError,
     connectionState: signalRealtimeConnectionState,
@@ -782,10 +785,63 @@ function App() {
   }, [authoritativeRoomStage, lockedSignalVenue, restoreActiveSignal, signalThreshold])
 
   useEffect(() => {
-    if (!signalRealtimeTarget?.signalGroupId) return
-    const timer = window.setInterval(() => { void restoreActiveSignal(false) }, 5000)
-    return () => window.clearInterval(timer)
-  }, [authoritativeGroupState, restoreActiveSignal, signalRealtimeTarget?.signalGroupId])
+    const targetGroupId = signalRealtimeTarget?.signalGroupId ?? null
+    if (!signalRealtimeSnapshot || !targetGroupId) {
+      lastRealtimeJourneyVersionRef.current = null
+      lastRealtimeGroupIdRef.current = null
+      return
+    }
+
+    if (lastRealtimeGroupIdRef.current !== targetGroupId) {
+      lastRealtimeGroupIdRef.current = targetGroupId
+      lastRealtimeJourneyVersionRef.current = null
+    }
+
+    const journeyVersion = [
+      signalRealtimeSnapshot.group.id,
+      signalRealtimeSnapshot.group.state,
+      signalRealtimeSnapshot.group.journeyStage,
+      signalRealtimeSnapshot.group.updatedAt,
+    ].join(':')
+
+    if (lastRealtimeJourneyVersionRef.current === null) {
+      lastRealtimeJourneyVersionRef.current = journeyVersion
+      if (
+        signalRealtimeSnapshot.group.journeyStage === 'plan' ||
+        signalRealtimeSnapshot.group.journeyStage === 'active_outing' ||
+        signalRealtimeSnapshot.group.state === 'active_outing'
+      ) {
+        window.setTimeout(() => { void restoreActiveSignal(false) }, 0)
+      }
+      return
+    }
+    if (lastRealtimeJourneyVersionRef.current === journeyVersion) return
+
+    const previousJourneyVersion = lastRealtimeJourneyVersionRef.current
+    lastRealtimeJourneyVersionRef.current = journeyVersion
+    if (
+      previousJourneyVersion !== journeyVersion &&
+      (
+        signalRealtimeSnapshot.group.journeyStage === 'plan' ||
+        signalRealtimeSnapshot.group.journeyStage === 'active_outing' ||
+        signalRealtimeSnapshot.group.state === 'active_outing'
+      )
+    ) {
+      void restoreActiveSignal(false)
+    }
+  }, [
+    restoreActiveSignal,
+    signalRealtimeSnapshot,
+    signalRealtimeTarget?.signalGroupId,
+  ])
+
+  useEffect(() => {
+    if (signalJourneyAuthorityVersion === 0) return
+    // A Plan-domain event means Signal rows are no longer sufficient authority.
+    // Re-read the canonical journey handoff for this participant immediately.
+    const timer = window.setTimeout(() => { void restoreActiveSignal(false) }, 0)
+    return () => window.clearTimeout(timer)
+  }, [restoreActiveSignal, signalJourneyAuthorityVersion])
 
   const signalParticipantRosterVersion =
     signalRealtimeSnapshot?.memberships

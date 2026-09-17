@@ -124,6 +124,7 @@ export type SignalRealtimeConnectionState =
 
 export type SignalRealtimeListener = {
   onSnapshot: (snapshot: SignalSnapshot) => void
+  onJourneyAuthorityInvalidated?: () => void
   onError?: (error: Error) => void
   onConnectionStateChange?: (
     state: SignalRealtimeConnectionState,

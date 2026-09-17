@@ -489,6 +489,23 @@ export function subscribeToSignalRealtime(
         void runRefresh()
       },
     )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'plans',
+        filter:
+          `originating_signal_group_id=eq.${target.signalGroupId}`,
+      },
+      () => {
+        // Plan creation/update is a journey-boundary invalidation. The Plan
+        // domain is authoritative after conversion, so consumers must re-read
+        // the canonical resume RPC rather than infer Plan state from Signal rows.
+        listener.onJourneyAuthorityInvalidated?.()
+        void runRefresh()
+      },
+    )
     .subscribe((status) => {
       const normalized =
         normalizeConnectionState(status)
