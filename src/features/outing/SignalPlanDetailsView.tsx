@@ -5,6 +5,8 @@ import { getMyPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGo
 import { getMyPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
 import { toUserFacingError } from '../../lib/userFacingError'
 import { getMyPlanMemberLocations, setMyPlanLocation, type PlanLiveLocation } from './planLiveLocationClient'
+import SignalLiveMap from './SignalLiveMap'
+import { getSignalRoute, type SignalRoute } from './signalRouteClient'
 import './SignalPlanDetailsView.css'
 
 type Props = {
@@ -21,6 +23,9 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const [userPosition, setUserPosition] = useState<{ latitude: number; longitude: number } | null>(null)
   const [liveLocations, setLiveLocations] = useState<PlanLiveLocation[]>([])
   const [planOptionsOpen, setPlanOptionsOpen] = useState(false)
+  const [route, setRoute] = useState<SignalRoute | null>(null)
+  const [routeLoading, setRouteLoading] = useState(false)
+  const [routeError, setRouteError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -53,31 +58,20 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     return () => { navigator.geolocation.clearWatch(watchId); window.clearInterval(refreshId) }
   }, [planId])
 
-  const venueMap = useMemo(() => {
+  const destination = useMemo(() => {
     if (!plan || plan.currentVenueLatitude == null || plan.currentVenueLongitude == null) return null
-    const lat = Number(plan.currentVenueLatitude), lng = Number(plan.currentVenueLongitude)
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
-    const people = liveLocations.length > 0 ? liveLocations : (userPosition ? [{ userId: 'me', displayName: 'YOU', latitude: userPosition.latitude, longitude: userPosition.longitude, accuracyMeters: null, capturedAt: '', isMe: true }] : [])
-    const points = [{ latitude: lat, longitude: lng }, ...people]
-    const latSpan = Math.max(...points.map((point) => point.latitude)) - Math.min(...points.map((point) => point.latitude))
-    const lngSpan = Math.max(...points.map((point) => point.longitude)) - Math.min(...points.map((point) => point.longitude))
-    const latPad = Math.max(0.006, latSpan * 0.28), lngPad = Math.max(0.006, lngSpan * 0.28)
-    const south = Math.min(...points.map((point) => point.latitude)) - latPad, north = Math.max(...points.map((point) => point.latitude)) + latPad
-    const west = Math.min(...points.map((point) => point.longitude)) - lngPad, east = Math.max(...points.map((point) => point.longitude)) + lngPad
-    const project = (latitude: number, longitude: number) => ({ left: ((longitude-west)/(east-west))*100, top: (1-(latitude-south)/(north-south))*100 })
-    const destination = project(lat, lng)
-    return {
-      url: `https://www.openstreetmap.org/export/embed.html?bbox=${west}%2C${south}%2C${east}%2C${north}&amp;layer=mapnik&amp;marker=${lat}%2C${lng}`,
-      people: people.map((person) => ({ ...person, ...project(person.latitude, person.longitude) })),
-      destination,
-    }
-  }, [plan, userPosition, liveLocations])
-
-  const destinationUrl = useMemo(() => {
-    if (!plan) return null
-    const q = [plan.currentVenueName, plan.currentVenueAddress, plan.cityName, plan.stateCode].filter(Boolean).join(', ')
-    return q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : null
+    const latitude = Number(plan.currentVenueLatitude), longitude = Number(plan.currentVenueLongitude)
+    return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude } : null
   }, [plan])
+
+  const showDirections = async () => {
+    if (!userPosition || routeLoading) return
+    setRouteLoading(true)
+    setRouteError(null)
+    try { setRoute(await getSignalRoute(planId, userPosition.latitude, userPosition.longitude)) }
+    catch { setRouteError('Unable to load live directions right now.') }
+    finally { setRouteLoading(false) }
+  }
 
   const meetupTime = useMemo(() => {
     if (!plan?.scheduledStartsAt) return 'Time being finalized'
@@ -104,8 +98,9 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     {error && <div className="signal-details-error" role="alert">{error}</div>}
     <section className="signal-details-journey">
       <header><span><Radio size={14}/> LIVE ROUTE</span><strong>{userPosition ? 'YOU → DESTINATION' : 'DESTINATION READY'}</strong></header>
-      {venueMap && <div className="signal-details-map-wrap"><iframe title="Signal destination map" src={venueMap.url} loading="lazy" referrerPolicy="no-referrer" />{venueMap.people.map((person) => { const member = members.find((m) => m.userId === person.userId); return <span key={person.userId} className={`signal-details-person-marker ${person.isMe ? 'is-me' : ''}`} style={{ left: `${person.left}%`, top: `${person.top}%` }}>{member?.avatarUrl ? <img src={member.avatarUrl} alt=""/> : <i/>}<b>{person.isMe ? 'YOU' : person.displayName}</b></span> })}<span className="signal-details-destination-marker" style={{ left: `${venueMap.destination.left}%`, top: `${venueMap.destination.top}%` }}><i/><b>DESTINATION</b></span></div>}
-      <div className="signal-details-destination-strip"><MapPin size={18}/><span><small>MEET HERE</small><strong>{plan?.currentVenueName ?? 'Meetup venue'}</strong><em>{plan?.currentVenueAddress ?? ''}</em></span>{destinationUrl && <a href={destinationUrl} target="_blank" rel="noreferrer"><Navigation size={15}/> DIRECTIONS</a>}</div>
+      {destination && <div className="signal-details-map-wrap"><SignalLiveMap destination={destination} userPosition={userPosition} people={liveLocations} route={route} /></div>}
+      <div className="signal-details-destination-strip"><MapPin size={18}/><span><small>MEET HERE</small><strong>{plan?.currentVenueName ?? 'Meetup venue'}</strong><em>{plan?.currentVenueAddress ?? ''}</em></span><button type="button" onClick={() => void showDirections()} disabled={!userPosition || routeLoading}><Navigation size={15}/>{routeLoading ? ' ROUTING…' : route ? ' ROUTE LIVE' : ' DIRECTIONS'}</button></div>
+      {routeError && <div className="signal-details-route-error">{routeError}</div>}
     </section>
     <section className="signal-details-group">
       <header><span><Users size={15}/> YOUR PEOPLE</span><strong>{members.length} LOCKED IN</strong></header>
