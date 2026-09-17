@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { MapPin, MessageCircle, Navigation, Users, Zap } from 'lucide-react'
+import { Clock3, MapPin, Navigation, Users, Zap } from 'lucide-react'
 import PlanGovernancePanel from '../plan/PlanGovernancePanel'
 import { getMyPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
 import { getMyPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
@@ -13,7 +13,7 @@ type Props = {
   onPlanEnded: () => void
 }
 
-export default function SignalPlanDetailsView({ planId, onOpenChat, onCheckedIn, onPlanEnded }: Props) {
+export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded }: Props) {
   const [plan, setPlan] = useState<PlanGovernanceSnapshot | null>(null)
   const [members, setMembers] = useState<PlanMemberIdentity[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -47,11 +47,18 @@ export default function SignalPlanDetailsView({ planId, onOpenChat, onCheckedIn,
     return q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : null
   }, [plan])
 
+  const meetupTime = useMemo(() => {
+    if (!plan?.scheduledStartsAt) return 'Time being finalized'
+    const date = new Date(plan.scheduledStartsAt)
+    if (Number.isNaN(date.getTime())) return 'Time being finalized'
+    return new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(date)
+  }, [plan])
+
   return <section className="signal-details-shell">
     <header className="signal-details-hero">
       <span><Zap size={15} fill="currentColor" /> SIGNAL LIVE · DETAILS</span>
       <h1>{plan?.activityName ?? plan?.title ?? 'YOUR SIGNAL'}</h1>
-      <p>Your destination and group stay here until you check in.</p>
+      <div className="signal-details-summary"><span><Clock3 size={14}/>{meetupTime}</span><span><Users size={14}/>{members.length} going</span></div>
     </header>
     {error && <div className="signal-details-error" role="alert">{error}</div>}
     <section className="signal-details-map-card">
@@ -64,6 +71,5 @@ export default function SignalPlanDetailsView({ planId, onOpenChat, onCheckedIn,
       <div>{members.map((m) => <span key={m.userId}>{m.avatarUrl ? <img src={m.avatarUrl} alt=""/> : <i>{m.displayName.slice(0,1).toUpperCase()}</i>}<small>{m.isMe ? 'YOU' : m.displayName}</small></span>)}</div>
     </section>
     <PlanGovernancePanel planId={planId} onCheckedIn={onCheckedIn} onLeftPlan={() => onPlanEnded()} />
-    <button className="signal-details-chat" type="button" onClick={() => onOpenChat(planId)}><MessageCircle size={17}/> OPEN GROUP CHAT</button>
   </section>
 }
