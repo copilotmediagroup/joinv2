@@ -80,6 +80,9 @@ const ModerationView = React.lazy(
 const ActiveOutingView = React.lazy(
   () => import('./features/outing/ActiveOutingView'),
 )
+const SignalPlanDetailsView = React.lazy(
+  () => import('./features/outing/SignalPlanDetailsView'),
+)
 const SignalPlaceStage = React.lazy(
   () => import('./features/signal/SignalPlaceStage'),
 )
@@ -544,14 +547,13 @@ function App() {
 
   const restoreActiveSignal = useCallback(async (openJourney = false) => {
     try {
-      // Resume the canonical Signal journey before considering attendance.
-      // A checked-in attendance row must never bypass the explicit PLAN SET handoff;
-      // Active Outing becomes the primary surface only after the journey authority
-      // itself has advanced to active_outing.
+      // Resolve the canonical journey and this member's attendance independently.
+      // A matching checked-in attendance row is the sole authority for live outing;
+      // opening Plan details must never impersonate arrival.
       const resume = await getMyActiveSignalResume()
       setActiveSignalResume(resume)
       const outing = await getMyActiveSignalOuting().catch(() => null)
-      if (outing && resume?.groupState === 'active_outing' && resume.signalStage !== 'plan') {
+      if (outing && resume?.planId === outing.planId) {
         setActiveOutingPlanId(outing.planId)
         setActivePlanId(outing.planId)
         setPlanExitNotice(null)
@@ -608,14 +610,10 @@ function App() {
         setServerJourneyStage('plan')
         setLockedSignalVenue(resume.lockedVenue)
         if (openJourney) {
-          if (resume.planDetailsOpened) {
-            setActiveOutingPlanId(resume.planId)
-            setBored(false)
-            setSignalThreshold(false)
-          } else {
-            setBored(true)
-            setSignalThreshold(true)
-          }
+          // Details-opened and checked-in are separate server facts. Attendance
+          // alone owns entry to the live outing surface.
+          setBored(!resume.planDetailsOpened)
+          setSignalThreshold(!resume.planDetailsOpened)
           setActiveSurface('discover')
         }
         setFormationError(null)
@@ -992,7 +990,8 @@ function App() {
     setMessageDirectConversationId(null)
     setNotificationsOpen(false)
     setSignalThreshold(false)
-    setActiveOutingPlanId(planId)
+    setActiveOutingPlanId(null)
+    setActiveSignalResume((current) => current && current.planId === planId ? { ...current, planDetailsOpened: true } : current)
     setActiveSurface('discover')
   }
 
@@ -1522,7 +1521,7 @@ function App() {
         <NotificationPanel
           userId={currentUser.userId}
           onUnreadCountChange={setNotificationUnreadCount}
-          onOpenPlan={handleOpenPlanChat}
+          onOpenPlan={() => { setNotificationsOpen(false); void restoreActiveSignal(true) }}
           onOpenSignal={handleOpenSignalNotification}
           onHistorical={handleHistoricalNotification}
         />
@@ -1545,6 +1544,20 @@ function App() {
             void Promise.all([refreshActivity(), refreshDiscovery(), restoreActiveSignal(false)])
           }}
         />
+      ) : activePlanId && activeSignalResume?.planDetailsOpened && activeSurface !== 'messages' ? (
+        <SignalPlanDetailsView
+          planId={activePlanId}
+          onOpenChat={handleOpenPlanChat}
+          onCheckedIn={() => { void restoreActiveSignal(true) }}
+          onPlanEnded={() => {
+            setActiveSignalResume(null)
+            setActivePlanId(null)
+            setActiveOutingPlanId(null)
+            setMessagePlanId(null)
+            setActiveSurface('discover')
+            void Promise.all([refreshActivity(), refreshDiscovery()])
+          }}
+        />
       ) : activeSurface === 'activity' ? (
         <ActivityView
           items={activityItems}
@@ -1563,11 +1576,8 @@ function App() {
           initialPlanId={messagePlanId}
           initialDirectConversationId={messageDirectConversationId}
           lockedPlanId={activePlanId}
-          onPlanCheckedIn={(planId) => {
-            setActiveOutingPlanId(planId)
-            setActivePlanId(planId)
-            setMessagePlanId(planId)
-            setActiveSurface('discover')
+          onPlanCheckedIn={() => {
+            void restoreActiveSignal(true)
           }}
           onPlanEnded={(reason) => {
             setActiveSignalResume(null)
