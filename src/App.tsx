@@ -404,8 +404,6 @@ function App() {
 
   const [lockedSignalVenue, setLockedSignalVenue] =
     useState<LockedSignalVenue | null>(null)
-  const [venueConfirmationUntil, setVenueConfirmationUntil] = useState(0)
-  const [venueConfirmationClock, setVenueConfirmationClock] = useState(0)
 
   const [messagePlanId, setMessagePlanId] =
     useState<string | null>(null)
@@ -764,17 +762,7 @@ function App() {
         ? 'places'
         : 'arrival'
 
-  const presentationRoomStage: 'arrival' | 'places' | 'time' =
-    authoritativeRoomStage === 'time' && venueConfirmationUntil > venueConfirmationClock
-      ? 'places'
-      : authoritativeRoomStage
-
-  useEffect(() => {
-    if (venueConfirmationUntil <= 0) return
-    const remaining = venueConfirmationUntil - Date.now()
-    const timer = window.setTimeout(() => setVenueConfirmationClock(Date.now()), Math.max(0, remaining))
-    return () => window.clearTimeout(timer)
-  }, [venueConfirmationUntil])
+  const presentationRoomStage: 'arrival' | 'places' | 'time' = authoritativeRoomStage
 
   useEffect(() => {
     if (!signalThreshold || authoritativeRoomStage !== 'time' || lockedSignalVenue) return
@@ -2491,8 +2479,6 @@ function App() {
                           leavingSignal={withdrawalSubmitting}
                           onVenueLocked={(venue) => {
                             setLockedSignalVenue(venue)
-                            setVenueConfirmationClock(Date.now())
-                            setVenueConfirmationUntil(Date.now() + 3000)
                             void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'time')
                               .then((stage) => { setServerJourneyStage(stage) })
                               .catch(() => void restoreActiveSignal(false))
