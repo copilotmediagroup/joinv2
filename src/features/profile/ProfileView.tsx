@@ -40,6 +40,7 @@ import {
 import SignalPreferencesPanel from './SignalPreferencesPanel'
 import BlockedPeoplePanel from '../safety/BlockedPeoplePanel'
 import MyConnectionsPanel from './MyConnectionsPanel'
+import ProfileSignalLife from './ProfileSignalLife'
 import './ProfileView.css'
 import { toUserFacingError } from '../../lib/userFacingError'
 
@@ -1304,6 +1305,11 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
             </div>
           </>
         ) : null}
+
+        <div className="profile-view-divider" />
+        <div className="profile-view-section profile-view-signal-life-section">
+          <ProfileSignalLife />
+        </div>
 
         <div className="profile-view-divider" />
         <div className="profile-view-section">
