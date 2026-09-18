@@ -3,6 +3,7 @@ import { ChevronDown, Clock3, MapPin, Navigation, Radio, Users, Zap } from 'luci
 import PlanGovernancePanel from '../plan/PlanGovernancePanel'
 import { getMyPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
 import { getMyPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
+import { checkInToMyPlan, getMyPlanAttendanceStatus, type PlanAttendanceStatus } from '../plan/planAttendanceClient'
 import { toUserFacingError } from '../../lib/userFacingError'
 import { getMyPlanMemberLocations, setMyPlanLocation, type PlanLiveLocation } from './planLiveLocationClient'
 import SignalLiveMap from './SignalLiveMap'
@@ -19,6 +20,8 @@ type Props = {
 export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded }: Props) {
   const [plan, setPlan] = useState<PlanGovernanceSnapshot | null>(null)
   const [members, setMembers] = useState<PlanMemberIdentity[]>([])
+  const [attendance, setAttendance] = useState<PlanAttendanceStatus | null>(null)
+  const [attendanceBusy, setAttendanceBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [userPosition, setUserPosition] = useState<{ latitude: number; longitude: number } | null>(null)
   const [liveLocations, setLiveLocations] = useState<PlanLiveLocation[]>([])
@@ -29,11 +32,12 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([getMyPlanGovernance(planId), getMyPlanMembers(planId)])
-      .then(([nextPlan, nextMembers]) => {
+    void Promise.all([getMyPlanGovernance(planId), getMyPlanMembers(planId), getMyPlanAttendanceStatus(planId)])
+      .then(([nextPlan, nextMembers, nextAttendance]) => {
         if (cancelled) return
         setPlan(nextPlan)
         setMembers(nextMembers)
+        setAttendance(nextAttendance)
         setError(null)
       })
       .catch((loadError) => {
@@ -57,6 +61,20 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     )
     return () => { navigator.geolocation.clearWatch(watchId); window.clearInterval(refreshId) }
   }, [planId])
+
+  useEffect(() => {
+    if (!attendance?.windowOpensAt || !attendance.windowClosesAt || attendance.checkedIn) return
+    const timer = window.setInterval(() => { void getMyPlanAttendanceStatus(planId).then(setAttendance).catch(() => undefined) }, 5000)
+    return () => window.clearInterval(timer)
+  }, [attendance?.checkedIn, attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
+
+  const checkIn = async () => {
+    if (attendanceBusy || !attendance?.canCheckIn) return
+    setAttendanceBusy(true); setError(null)
+    try { const next = await checkInToMyPlan(planId); setAttendance(next); if (next.checkedIn) onCheckedIn(planId) }
+    catch (e) { setError(toUserFacingError(e, 'Unable to check you in right now. Please try again.')) }
+    finally { setAttendanceBusy(false) }
+  }
 
   const destination = useMemo(() => {
     if (!plan || plan.currentVenueLatitude == null || plan.currentVenueLongitude == null) return null
@@ -120,6 +138,15 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     <section className="signal-details-group">
       <header><span><Users size={15}/> YOUR PEOPLE</span><strong>{members.length} LOCKED IN</strong></header>
       <div>{members.map((m) => <span key={m.userId}>{m.avatarUrl ? <img src={m.avatarUrl} alt=""/> : <i>{m.displayName.slice(0,1).toUpperCase()}</i>}<small>{m.isMe ? 'YOU' : m.displayName}</small><em>IN</em></span>)}</div>
+    </section>
+    <section className="signal-details-arrival">
+      {attendance?.checkedIn ? (
+        <div className="signal-details-arrival-checked"><MapPin size={17}/><span><small>YOU'RE HERE</small><strong>{attendance.checkedInCount}/{attendance.activeMemberCount} checked in</strong></span></div>
+      ) : attendance?.canCheckIn ? (
+        <button type="button" disabled={attendanceBusy} onClick={() => { void checkIn() }}><MapPin size={18}/><span><strong>{attendanceBusy ? 'CHECKING YOU IN…' : "I'M HERE"}</strong><small>Check in and enter Live Signal</small></span></button>
+      ) : attendance?.windowOpensAt && new Date(attendance.windowOpensAt).getTime() > new Date(attendance.serverNow).getTime() ? (
+        <div className="signal-details-arrival-wait"><Clock3 size={17}/><span><small>MEETUP CHECK-IN</small><strong>Opens 30 minutes before.</strong></span></div>
+      ) : null}
     </section>
     <div className={`signal-details-controls ${planOptionsOpen ? 'options-open' : ''}`}>
       <PlanGovernancePanel planId={planId} onCheckedIn={onCheckedIn} onLeftPlan={() => onPlanEnded()} />
