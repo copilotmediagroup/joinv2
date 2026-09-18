@@ -111,8 +111,8 @@ export async function updateMyProfile(
     throw new Error('Avatar is required.')
   }
 
-  if (bio !== null && bio.length > 300) {
-    throw new Error('Bio must be 300 characters or fewer.')
+  if (bio !== null && bio.length > 120) {
+    throw new Error('Bio must be 120 characters or fewer.')
   }
 
   let lastError: unknown = null
@@ -556,8 +556,8 @@ export async function saveMyProfileWithIdentityGallery(
     throw new Error('Avatar is required.')
   }
 
-  if (bio !== null && bio.length > 300) {
-    throw new Error('Bio must be 300 characters or fewer.')
+  if (bio !== null && bio.length > 120) {
+    throw new Error('Bio must be 120 characters or fewer.')
   }
 
   if (

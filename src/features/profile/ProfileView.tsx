@@ -44,7 +44,7 @@ import ProfileSignalLife from './ProfileSignalLife'
 import './ProfileView.css'
 import { toUserFacingError } from '../../lib/userFacingError'
 
-const BIO_MAX_LENGTH = 300
+const BIO_MAX_LENGTH = 120
 const MAX_ADDITIONAL_PHOTOS = 5
 
 type DraftProfile = {
@@ -1034,6 +1034,15 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
                 </div>
               </>
             )}
+
+            <div className="profile-view-identity-bio">
+              {editing ? (
+                <>
+                  <textarea value={draft.bio} maxLength={BIO_MAX_LENGTH} rows={2} placeholder="A quick line about you." onChange={(event) => setDraft({ ...draft, bio: event.target.value })} disabled={saving} />
+                  <small>{draft.bio.length}/{BIO_MAX_LENGTH}</small>
+                </>
+              ) : <p>{profile.bio ?? 'Add a short bio.'}</p>}
+            </div>
           </div>
         </div>
 
@@ -1045,8 +1054,12 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
           </div>
         ) : null}
 
-        <div className="profile-view-divider" />
+        <div className="profile-view-section profile-view-signal-life-section">
+          <ProfileSignalLife />
+        </div>
 
+        {editing ? (<>
+        <div className="profile-view-divider" />
         <div className="profile-view-section profile-view-gallery-section">
           <div className="profile-view-section-heading">
             <div>
@@ -1240,61 +1253,14 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
             onChange={handleGallerySelection}
           />
         </div>
+        </>) : null}
 
-        <div className="profile-view-divider" />
-
-        <div className="profile-view-section">
-          <div className="profile-view-section-heading">
-            <div>
-              <span>ABOUT YOU</span>
-              <h3>Bio</h3>
-            </div>
-
-            {editing ? (
-              <span className="profile-view-character-count">
-                {draft.bio.length}/{BIO_MAX_LENGTH}
-              </span>
-            ) : null}
+        {editing ? (<>
+          <div className="profile-view-divider" />
+          <div className="profile-view-section profile-view-private-matching">
+            <SignalPreferencesPanel />
           </div>
-
-          {editing ? (
-            <textarea
-              className="profile-view-bio-input"
-              value={draft.bio}
-              maxLength={BIO_MAX_LENGTH}
-              rows={5}
-              placeholder="A quick line about your energy, what you're into, or the kind of night you're usually down for."
-              onChange={(event) =>
-                setDraft({
-                  ...draft,
-                  bio: event.target.value,
-                })
-              }
-              disabled={saving}
-            />
-          ) : (
-            <p
-              className={
-                profile.bio
-                  ? 'profile-view-bio'
-                  : 'profile-view-bio profile-view-bio-empty'
-              }
-            >
-              {profile.bio ??
-                'Add a short bio so people get a feel for your energy.'}
-            </p>
-          )}
-        </div>
-
-        <div className="profile-view-divider" />
-        <div className="profile-view-section">
-          <SignalPreferencesPanel />
-        </div>
-
-        <div className="profile-view-divider" />
-        <div className="profile-view-section profile-view-signal-life-section">
-          <ProfileSignalLife />
-        </div>
+        </>) : null}
 
         <div className="profile-view-divider" />
         <div className="profile-view-section">
