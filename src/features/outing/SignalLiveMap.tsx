@@ -19,13 +19,12 @@ const redIcon = divIcon({ className: 'signal-live-map-icon', html: '<span class=
 function Camera({ destination, userPosition, route }: { destination: Point; userPosition: Point | null; route: SignalRoute | null }) {
   const map = useMap()
   useEffect(() => {
-    const routePoints = route?.points ?? []
-    if (routePoints.length > 1) {
-      map.fitBounds(latLngBounds(routePoints), { padding: [42, 42], maxZoom: 17, animate: true })
-      return
-    }
     if (userPosition) {
-      map.fitBounds(latLngBounds([[userPosition.latitude, userPosition.longitude], [destination.latitude, destination.longitude]]), { padding: [55, 55], maxZoom: 17, animate: true })
+      const bounds = latLngBounds([[userPosition.latitude, userPosition.longitude], [destination.latitude, destination.longitude]])
+      const distanceMeters = map.distance([userPosition.latitude, userPosition.longitude], [destination.latitude, destination.longitude])
+      const proximityZoom = distanceMeters < 250 ? 18 : distanceMeters < 750 ? 17 : distanceMeters < 2000 ? 16 : distanceMeters < 5000 ? 14 : distanceMeters < 15000 ? 12 : 10
+      const boundsZoom = map.getBoundsZoom(bounds, false)
+      map.fitBounds(bounds, { padding: [70, 70], maxZoom: Math.min(18, Math.max(proximityZoom, boundsZoom)), animate: true })
       return
     }
     map.setView([destination.latitude, destination.longitude], 15, { animate: true })
