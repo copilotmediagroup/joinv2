@@ -135,7 +135,7 @@ begin
  with ranked as (
  select sm.id moment_id,sm.plan_id,sm.caption,sm.published_at,sm.author_user_id,
  coalesce(up.display_name,'SIGNAL member') author_display_name,up.avatar_path author_avatar_path,
- a.name activity_name,c.name city_name,s.code state_code,nullif(btrim(p.current_venue_name),'') venue_name,
+ a.name activity_name,c.name city_name,s.code state_code,nullif(btrim(v.name),'') venue_name,
  (select count(*)::integer from public.plan_memberships pm where pm.plan_id=p.id and pm.membership_state in ('active','completed')) participant_count,
  coalesce(p.city_id=v_home_city_id,false) is_local,
  (select count(*)::integer from public.signal_moment_signals ms where ms.moment_id=sm.id) signal_count,
@@ -147,6 +147,7 @@ begin
  from public.signal_moments sm join public.plans p on p.id=sm.plan_id
  join public.activities a on a.id=p.activity_id join public.cities c on c.id=p.city_id
  join public.states s on s.id=c.state_id join public.user_profiles up on up.user_id=sm.author_user_id
+ left join public.venues v on v.id=p.current_venue_id
  where sm.state='published' and not public.users_have_block_relation(v_user_id,sm.author_user_id)
  )
  select r.moment_id,r.plan_id,r.caption,r.published_at,r.author_user_id,r.author_display_name,
