@@ -929,6 +929,11 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
       </header>
 
       <div className="profile-view-card">
+        {!editing ? (
+          <button type="button" className="profile-view-edit-button profile-view-edit-overlay" onClick={beginEditing}>
+            <Pencil size={14} aria-hidden="true" /> Edit
+          </button>
+        ) : null}
         <div className="profile-view-identity">
           <div className="profile-view-avatar-shell">
             <button
@@ -1280,7 +1285,7 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
 
         {signalHistory ? (
           <>
-            <div className="profile-view-divider" />
+            <div className="profile-view-divider profile-view-desktop-divider" />
             <div className="profile-view-section profile-view-signal-history">
               <div className="profile-view-section-heading">
                 <div>
@@ -1319,27 +1324,6 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
         <div className="profile-view-divider" />
         <div className="profile-view-section">
           <BlockedPeoplePanel />
-        </div>
-
-        <div className="profile-view-facts">
-          <div>
-            <span>HOME CITY</span>
-            <strong>{profileLocation(profile)}</strong>
-          </div>
-
-          <div>
-            <span>AGE</span>
-            <strong>{age ?? '—'}</strong>
-          </div>
-
-          <div>
-            <span>PROFILE</span>
-            <strong>
-              {profile.completionState === 'complete'
-                ? 'Ready'
-                : profile.completionState}
-            </strong>
-          </div>
         </div>
 
         {error ? (

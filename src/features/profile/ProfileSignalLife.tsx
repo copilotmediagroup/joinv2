@@ -24,7 +24,7 @@ export default function ProfileSignalLife() {
 
   return <section className="profile-signal-life">
     <header className="profile-signal-life-head">
-      <div><span>⚡ SIGNAL LIFE</span><h3>Where you've actually been.</h3><p>Only moments you captured through real SIGNALs live here.</p></div>
+      <div><span>⚡ SIGNAL LIFE</span><h3>Your Signal Life</h3><p>Real nights. Real places. Your story.</p></div>
       <strong>{tiles.length}<small>MOMENTS</small></strong>
     </header>
 
