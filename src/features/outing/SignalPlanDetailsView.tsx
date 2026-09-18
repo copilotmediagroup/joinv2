@@ -145,8 +145,10 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       ) : attendance?.canCheckIn ? (
         <button type="button" disabled={attendanceBusy} onClick={() => { void checkIn() }}><MapPin size={18}/><span><strong>{attendanceBusy ? 'CHECKING YOU IN…' : "I'M HERE"}</strong><small>Check in and enter Live Signal</small></span></button>
       ) : attendance?.windowOpensAt && new Date(attendance.windowOpensAt).getTime() > new Date(attendance.serverNow).getTime() ? (
-        <div className="signal-details-arrival-wait"><Clock3 size={17}/><span><small>MEETUP CHECK-IN</small><strong>Opens 30 minutes before.</strong></span></div>
-      ) : null}
+        <button type="button" className="signal-details-arrival-early" disabled aria-disabled="true"><MapPin size={18}/><span><strong>I'M HERE</strong><small>Check-in opens 30 minutes before meetup</small></span><Clock3 size={16}/></button>
+      ) : (
+        <button type="button" className="signal-details-arrival-unavailable" disabled aria-disabled="true"><MapPin size={18}/><span><strong>I'M HERE</strong><small>Check-in isn't available right now</small></span></button>
+      )}
     </section>
     <div className={`signal-details-controls ${planOptionsOpen ? 'options-open' : ''}`}>
       <PlanGovernancePanel planId={planId} onCheckedIn={onCheckedIn} onLeftPlan={() => onPlanEnded()} />
