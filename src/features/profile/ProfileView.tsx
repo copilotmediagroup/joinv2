@@ -1037,6 +1037,14 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
           </div>
         </div>
 
+        {signalHistory ? (
+          <div className="profile-view-clout" aria-label="Signal history">
+            <div><strong>{signalHistory.signalsJoined}</strong><span>Signals</span></div>
+            <div><strong>{signalHistory.completedMeetups}</strong><span>Meetups</span></div>
+            <div><strong>{signalHistory.verifiedShowUps}</strong><span>Show-ups</span></div>
+          </div>
+        ) : null}
+
         <div className="profile-view-divider" />
 
         <div className="profile-view-section profile-view-gallery-section">
@@ -1282,34 +1290,6 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
         <div className="profile-view-section">
           <SignalPreferencesPanel />
         </div>
-
-        {signalHistory ? (
-          <>
-            <div className="profile-view-divider profile-view-desktop-divider" />
-            <div className="profile-view-section profile-view-signal-history">
-              <div className="profile-view-section-heading">
-                <div>
-                  <span>SIGNAL HISTORY</span>
-                  <h3>Built by showing up</h3>
-                </div>
-              </div>
-              <div className="profile-view-history-grid">
-                <div>
-                  <strong>{signalHistory.signalsJoined}</strong>
-                  <span>SIGNALS</span>
-                </div>
-                <div>
-                  <strong>{signalHistory.completedMeetups}</strong>
-                  <span>MEETUPS</span>
-                </div>
-                <div>
-                  <strong>{signalHistory.verifiedShowUps}</strong>
-                  <span>VERIFIED SHOW-UPS</span>
-                </div>
-              </div>
-            </div>
-          </>
-        ) : null}
 
         <div className="profile-view-divider" />
         <div className="profile-view-section profile-view-signal-life-section">
