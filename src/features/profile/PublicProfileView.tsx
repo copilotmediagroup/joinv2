@@ -66,8 +66,8 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
     </div>
 
     <section className="public-profile-connections">
-      <header><div><span>CONNECTIONS</span><h3>People SIGNAL introduced them to</h3></div><strong>{connections.length}</strong></header>
-      {connections.length ? <div className="public-profile-connection-row">{connections.map((connection) => <button type="button" key={connection.userId} onClick={() => onOpenProfile?.(connection.userId)}><span>{connection.avatarUrl ? <img src={connection.avatarUrl} alt=""/> : connection.displayName.slice(0,1).toUpperCase()}</span><small>{connection.displayName}</small></button>)}</div> : <p>No SIGNAL connections yet.</p>}
+      <header><div><span>⚡ SIGNAL CIRCLE</span><h3>Connections</h3><p>People {profile.displayName} actually met through SIGNAL.</p></div><strong>{connections.length}<small>CONNECTED</small></strong></header>
+      {connections.length ? <div className="public-profile-connection-row">{connections.map((connection) => <button type="button" key={connection.userId} onClick={() => onOpenProfile?.(connection.userId)}><span className="public-profile-connection-avatar">{connection.avatarUrl ? <img src={connection.avatarUrl} alt=""/> : connection.displayName.slice(0,1).toUpperCase()}<i /></span><strong>{connection.displayName}</strong><small>SIGNAL CONNECTION</small></button>)}</div> : <p>No SIGNAL connections yet.</p>}
     </section>
 
     {selected ? <div className="profile-signal-life-viewer" role="dialog" aria-modal="true" onClick={() => setSelected(null)}><article onClick={(event) => event.stopPropagation()}>
