@@ -4,6 +4,7 @@ export type SignalRoute = {
   points: Array<[number, number]>
   distanceMeters: number | null
   durationSeconds: number | null
+  calculatedAt: number
 }
 
 function decodePolyline(encoded: string): Array<[number, number]> {
@@ -32,5 +33,6 @@ export async function getSignalRoute(planId: string, latitude: number, longitude
     points: decodePolyline(data.encodedPolyline),
     distanceMeters: Number.isFinite(Number(data.distanceMeters)) ? Number(data.distanceMeters) : null,
     durationSeconds: Number.isFinite(duration) ? duration : null,
+    calculatedAt: Date.now(),
   }
 }

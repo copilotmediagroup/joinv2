@@ -65,6 +65,11 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   }, [plan])
 
   const showDirections = async () => {
+    if (route) {
+      setRoute(null)
+      setRouteError(null)
+      return
+    }
     if (!userPosition || routeLoading) return
     setRouteLoading(true)
     setRouteError(null)
@@ -72,6 +77,15 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     catch { setRouteError('Unable to load live directions right now.') }
     finally { setRouteLoading(false) }
   }
+
+  useEffect(() => {
+    if (!route || !userPosition) return
+    const refreshRoute = () => void getSignalRoute(planId, userPosition.latitude, userPosition.longitude)
+      .then(setRoute)
+      .catch(() => undefined)
+    const refreshId = window.setInterval(refreshRoute, 15_000)
+    return () => window.clearInterval(refreshId)
+  }, [planId, route, userPosition])
 
   const meetupTime = useMemo(() => {
     if (!plan?.scheduledStartsAt) return 'Time being finalized'
@@ -99,7 +113,8 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     <section className="signal-details-journey">
       <header><span><Radio size={14}/> LIVE ROUTE</span><strong>{userPosition ? 'YOU → DESTINATION' : 'DESTINATION READY'}</strong></header>
       {destination && <div className="signal-details-map-wrap"><SignalLiveMap destination={destination} userPosition={userPosition} people={liveLocations} route={route} /></div>}
-      <div className="signal-details-destination-strip"><MapPin size={18}/><span><small>MEET HERE</small><strong>{plan?.currentVenueName ?? 'Meetup venue'}</strong><em>{plan?.currentVenueAddress ?? ''}</em></span><button type="button" onClick={() => void showDirections()} disabled={!userPosition || routeLoading}><Navigation size={15}/>{routeLoading ? ' ROUTING…' : route ? ' ROUTE LIVE' : ' DIRECTIONS'}</button></div>
+      <div className="signal-details-destination-strip"><MapPin size={18}/><span><small>MEET HERE</small><strong>{plan?.currentVenueName ?? 'Meetup venue'}</strong><em>{plan?.currentVenueAddress ?? ''}</em></span><button type="button" onClick={() => void showDirections()} disabled={!userPosition || routeLoading}><Navigation size={15}/>{routeLoading ? ' ROUTING…' : route ? ' HIDE ROUTE' : ' DIRECTIONS'}</button></div>
+      {route && <div className="signal-details-route-stats"><span><small>DISTANCE</small><strong>{route.distanceMeters == null ? '—' : `${(route.distanceMeters / 1609.344).toFixed(route.distanceMeters < 16093 ? 1 : 0)} MI`}</strong></span><span><small>DRIVE</small><strong>{route.durationSeconds == null ? '—' : `${Math.max(1, Math.round(route.durationSeconds / 60))} MIN`}</strong></span><span><small>ETA</small><strong>{route.durationSeconds == null ? '—' : new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(new Date(route.calculatedAt + route.durationSeconds * 1000))}</strong></span></div>}
       {routeError && <div className="signal-details-route-error">{routeError}</div>}
     </section>
     <section className="signal-details-group">
