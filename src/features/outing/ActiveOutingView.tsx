@@ -84,7 +84,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
     try {
       await publishSignalMoment({ planId, caption, files })
       setFiles([]); setCaption('')
-      setNotice('Saved to this SIGNAL. It will publish to Moments when the outing ends.')
+      setNotice('Published to Activity · Signal Moments.')
     } catch (saveError) {
       setError(toUserFacingError(saveError, 'Unable to save this Moment right now.'))
     } finally { setSaving(false) }
