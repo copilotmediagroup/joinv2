@@ -129,7 +129,7 @@ function profileAge(profile: MyProfile): number | null {
   return age >= 0 ? age : null
 }
 
-export default function ProfileView({ onOpenDirectConversation }: { onOpenDirectConversation?: (conversationId: string) => void }) {
+export default function ProfileView({ onOpenDirectConversation, onOpenProfile }: { onOpenDirectConversation?: (conversationId: string) => void; onOpenProfile?: (userId: string) => void }) {
   const updateCurrentUser = useUpdateSignalCurrentUser()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const galleryInputRef = useRef<HTMLInputElement | null>(null)
@@ -1264,7 +1264,7 @@ export default function ProfileView({ onOpenDirectConversation }: { onOpenDirect
 
         <div className="profile-view-divider" />
         <div className="profile-view-section">
-          <MyConnectionsPanel onOpenDirectConversation={onOpenDirectConversation} />
+          <MyConnectionsPanel onOpenDirectConversation={onOpenDirectConversation} onOpenProfile={onOpenProfile} />
         </div>
 
         <div className="profile-view-divider" />

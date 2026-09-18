@@ -74,6 +74,9 @@ const MessagesView = React.lazy(
 const ProfileView = React.lazy(
   () => import('./features/profile/ProfileView'),
 )
+const PublicProfileView = React.lazy(
+  () => import('./features/profile/PublicProfileView'),
+)
 const ModerationView = React.lazy(
   () => import('./features/admin/ModerationView'),
 )
@@ -332,7 +335,8 @@ function App() {
     useState<string | null>(null)
 
   const [activeSurface, setActiveSurface] =
-    useState<'discover' | 'activity' | 'messages' | 'profile' | 'admin'>('discover')
+    useState<'discover' | 'activity' | 'messages' | 'profile' | 'public-profile' | 'admin'>('discover')
+  const [publicProfileUserId, setPublicProfileUserId] = useState<string | null>(null)
   const [liveCaptureMode, setLiveCaptureMode] =
     useState<'camera' | 'upload' | null>(null)
   const [activityItems, setActivityItems] =
@@ -1583,7 +1587,9 @@ function App() {
           lockedPlanId={activePlanId}
         />
       ) : activeSurface === 'profile' ? (
-        <ProfileView onOpenDirectConversation={(conversationId) => { setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') }} />
+        <ProfileView onOpenDirectConversation={(conversationId) => { setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') }} onOpenProfile={(userId) => { setPublicProfileUserId(userId); setActiveSurface('public-profile') }} />
+      ) : activeSurface === 'public-profile' && publicProfileUserId ? (
+        <PublicProfileView userId={publicProfileUserId} onBack={() => { setPublicProfileUserId(null); setActiveSurface('profile') }} />
       ) : activeSurface === 'admin' && canReviewModeration ? (
         <ModerationView canEnforce={adminCapabilities.includes('moderation.enforce')} />
       ) : (
