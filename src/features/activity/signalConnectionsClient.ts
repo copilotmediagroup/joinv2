@@ -169,3 +169,17 @@ export async function disconnectMySignalConnection(connectionId: string): Promis
 
   throw new Error(lastMessage)
 }
+
+export function subscribeToSignalConnections(userId: string, onInvalidate: () => void): () => void {
+  let refreshTimer: number | null = null
+  const schedule = () => {
+    if (refreshTimer !== null) window.clearTimeout(refreshTimer)
+    refreshTimer = window.setTimeout(onInvalidate, 80)
+  }
+  const low = supabase.channel(`signal-connections-low:${userId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'signal_connections', filter: `user_low_id=eq.${userId}` }, schedule).subscribe()
+  const high = supabase.channel(`signal-connections-high:${userId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'signal_connections', filter: `user_high_id=eq.${userId}` }, schedule).subscribe()
+  return () => {
+    if (refreshTimer !== null) window.clearTimeout(refreshTimer)
+    void supabase.removeChannel(low); void supabase.removeChannel(high)
+  }
+}

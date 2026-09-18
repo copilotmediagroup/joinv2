@@ -1,14 +1,17 @@
 import { Check, UserPlus, Users, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { toUserFacingError } from '../../lib/userFacingError'
+import { useSignalCurrentUser } from '../onboarding/components/signalCurrentUserContext'
 import {
   getCompletedPlanConnections,
   requestSignalConnection,
   respondToSignalConnection,
+  subscribeToSignalConnections,
   type SignalConnectionPerson,
 } from './signalConnectionsClient'
 
 export default function StayConnectedPanel({ planId }: { planId: string }) {
+  const currentUser = useSignalCurrentUser()
   const [people, setPeople] = useState<SignalConnectionPerson[]>([])
   const [loading, setLoading] = useState(true)
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
@@ -29,6 +32,13 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
     let active = true
     queueMicrotask(() => { if (active) void refresh() })
     return () => { active = false }
+  }, [refresh])
+
+  useEffect(() => subscribeToSignalConnections(currentUser.userId, () => { void refresh() }), [currentUser.userId, refresh])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => { void refresh() }, 5000)
+    return () => window.clearInterval(timer)
   }, [refresh])
 
   const connect = async (person: SignalConnectionPerson) => {
@@ -60,7 +70,7 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
   }
 
   if (loading) return <section className="stay-connected-panel"><span>Loading people from this Signal…</span></section>
-  if (people.length === 0) return null
+  if (people.length === 0) return <section className="stay-connected-panel"><div className="stay-connected-head"><span><Users size={14} /> STAY CONNECTED</span><small>People appear here after they finish this Signal too.</small></div></section>
 
   return (
     <section className="stay-connected-panel">

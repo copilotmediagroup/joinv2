@@ -62,7 +62,7 @@ begin
     done.completed_at,done.experience_rating,
     (select count(*)::integer from public.plan_memberships pm
      where pm.plan_id=p.id and pm.membership_state in ('active','completed')),
-    (p.state='completed'::public.plan_state and exists(select 1 from public.plan_memberships mine where mine.plan_id=p.id and mine.user_id=v_user_id and mine.membership_state='completed'::public.plan_membership_state))
+    true
   from public.plan_member_outing_completions done
   join public.plans p on p.id=done.plan_id
   join public.activities a on a.id=p.activity_id
