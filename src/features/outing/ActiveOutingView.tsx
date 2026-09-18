@@ -11,7 +11,7 @@ import './ActiveOutingView.css'
 type Props = {
   planId: string
   onOpenChat: (planId: string) => void
-  onOutingEnded: (reason: 'ended' | 'safety') => void
+  onOutingEnded: (reason: 'completed' | 'ended' | 'safety') => void
   captureMode?: 'camera' | 'upload' | null
   onCaptureModeHandled?: () => void
 }
@@ -93,7 +93,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   const finishOuting = async () => {
     if (ending) return
     setEnding(true); setError(null)
-    try { await finishMyPlanOuting(planId); onOutingEnded('ended') }
+    try { await finishMyPlanOuting(planId); onOutingEnded('completed') }
     catch (endError) { setError(toUserFacingError(endError, 'Unable to end your Signal right now.')) }
     finally { setEnding(false) }
   }
@@ -139,7 +139,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
 
       <section className="active-outing-capture">
         <div className="active-outing-section-heading"><strong>CAPTURE THE MOMENT</strong><span>LIVE ONLY</span></div>
-        <p>Take something from tonight with you. Photos and videos publish to Moments after the Signal ends.</p>
+        <p>Take something from tonight with you. Photos and videos publish to Activity · Signal Moments while your Signal is live.</p>
         <div className="active-outing-capture-actions">
           <label className="active-outing-capture-button primary"><Camera size={18}/><span><strong>TAKE PHOTO / VIDEO</strong><small>Open your camera</small></span>
             <input id={cameraInputId} type="file" accept="image/*,video/*" capture="environment" onChange={(event) => { acceptFiles(event.target.files); event.currentTarget.value = '' }}/>

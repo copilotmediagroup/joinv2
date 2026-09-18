@@ -80,6 +80,9 @@ const ModerationView = React.lazy(
 const ActiveOutingView = React.lazy(
   () => import('./features/outing/ActiveOutingView'),
 )
+const SignalCompletionView = React.lazy(
+  () => import('./features/outing/SignalCompletionView'),
+)
 const SignalPlanDetailsView = React.lazy(
   () => import('./features/outing/SignalPlanDetailsView'),
 )
@@ -419,6 +422,7 @@ function App() {
     useState<string | null>(null)
   const [planExitNotice, setPlanExitNotice] =
     useState<string | null>(null)
+  const [completionPlanId, setCompletionPlanId] = useState<string | null>(null)
   const [momentComposerPlanId, setMomentComposerPlanId] =
     useState<string | null>(null)
   const [stayConnectedPlanId, setStayConnectedPlanId] =
@@ -1516,19 +1520,32 @@ function App() {
       )}
 
       <React.Suspense fallback={<div className="surface-loading">Loading…</div>}>
-      {activeOutingPlanId && activeSurface !== 'messages' ? (
+      {completionPlanId ? (
+        <SignalCompletionView planId={completionPlanId} onDone={() => {
+          setCompletionPlanId(null)
+          setActiveSurface('activity')
+          setPlanExitNotice('SIGNAL complete. Your night is now part of Activity.')
+          void Promise.all([refreshActivity(), refreshDiscovery()])
+        }} />
+      ) : activeOutingPlanId && activeSurface !== 'messages' ? (
         <ActiveOutingView
           planId={activeOutingPlanId}
           captureMode={liveCaptureMode}
           onCaptureModeHandled={() => setLiveCaptureMode(null)}
           onOpenChat={handleOpenPlanChat}
           onOutingEnded={(reason) => {
+            const finishedPlanId = activeOutingPlanId
             setActiveSignalResume(null)
             setActiveOutingPlanId(null)
             setActivePlanId(null)
             setMessagePlanId(null)
-            setActiveSurface('discover')
-            setPlanExitNotice(reason === 'safety' ? 'You left the live outing.' : 'Your live SIGNAL has ended. Hope you had a good time.')
+            if (reason === 'completed' && finishedPlanId) {
+              setCompletionPlanId(finishedPlanId)
+              setPlanExitNotice(null)
+            } else {
+              setActiveSurface('discover')
+              setPlanExitNotice(reason === 'safety' ? 'You left the live outing.' : 'Your live SIGNAL has ended.')
+            }
             void Promise.all([refreshActivity(), refreshDiscovery(), restoreActiveSignal(false)])
           }}
         />
