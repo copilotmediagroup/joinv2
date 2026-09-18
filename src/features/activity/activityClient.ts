@@ -154,7 +154,6 @@ function parseActivityRow(
   if (itemType === 'plan') {
     if (
       !planId ||
-      signalGroupId ||
       signalIntentId
     ) {
       throw new Error(
