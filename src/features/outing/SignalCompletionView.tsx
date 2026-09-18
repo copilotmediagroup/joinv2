@@ -4,6 +4,7 @@ import StayConnectedPanel from '../activity/StayConnectedPanel'
 import { getMySignalCompletion, submitSignalCompletionFeedback, type SignalCompletion, type SignalCompletionRating } from './signalCompletionClient'
 import { toUserFacingError } from '../../lib/userFacingError'
 import './SignalCompletionView.css'
+import '../activity/ActivityView.css'
 
 type Props = { planId: string; onDone: () => void }
 
@@ -56,8 +57,8 @@ export default function SignalCompletionView({ planId, onDone }: Props) {
     </section>
 
     <section className="signal-complete-connect">
-      <div><small>PEOPLE YOU MET</small><h2>Stay connected.</h2><p>Connections become available when the shared Signal is complete.</p></div>
-      {summary.connectionsAvailable ? <StayConnectedPanel planId={planId}/> : <div className="signal-complete-connect-wait">Connections unlock here when the shared Signal closes for the group.</div>}
+      <div><small>PEOPLE YOU MET</small><h2>Stay connected.</h2><p>You can send a connection request as soon as you finish. They can respond whenever they're ready.</p></div>
+      {summary.connectionsAvailable ? <StayConnectedPanel planId={planId}/> : null}
     </section>
 
     {error ? <p className="signal-complete-error" role="alert">{error}</p> : null}
