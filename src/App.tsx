@@ -1589,7 +1589,7 @@ function App() {
       ) : activeSurface === 'profile' ? (
         <ProfileView onOpenDirectConversation={(conversationId) => { setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') }} onOpenProfile={(userId) => { setPublicProfileUserId(userId); setActiveSurface('public-profile') }} />
       ) : activeSurface === 'public-profile' && publicProfileUserId ? (
-        <PublicProfileView userId={publicProfileUserId} onBack={() => { setPublicProfileUserId(null); setActiveSurface('profile') }} />
+        <PublicProfileView userId={publicProfileUserId} onBack={() => { setPublicProfileUserId(null); setActiveSurface('profile') }} onOpenProfile={(userId) => { setPublicProfileUserId(userId); setActiveSurface('public-profile') }} />
       ) : activeSurface === 'admin' && canReviewModeration ? (
         <ModerationView canEnforce={adminCapabilities.includes('moderation.enforce')} />
       ) : (

@@ -1,25 +1,27 @@
 import { ArrowLeft, MapPin, MessageCircle, Play, Zap } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { getPublicProfileMoments, getPublicSignalProfile, type PublicProfileMoment, type PublicSignalProfile } from './publicProfileClient'
+import { getPublicProfileConnections, getPublicProfileMoments, getPublicSignalProfile, type PublicProfileConnection, type PublicProfileMoment, type PublicSignalProfile } from './publicProfileClient'
 import UserSafetyActions from '../safety/UserSafetyActions'
 import './ProfileView.css'
 
 type Tile = { moment: PublicProfileMoment; mediaIndex: number }
 
-export default function PublicProfileView({ userId, onBack, onMessage }: {
+export default function PublicProfileView({ userId, onBack, onMessage, onOpenProfile }: {
   userId: string
   onBack: () => void
   onMessage?: () => void
+  onOpenProfile?: (userId: string) => void
 }) {
   const [profile, setProfile] = useState<PublicSignalProfile | null>(null)
   const [moments, setMoments] = useState<PublicProfileMoment[]>([])
+  const [connections, setConnections] = useState<PublicProfileConnection[]>([])
   const [selected, setSelected] = useState<Tile | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
-    void Promise.all([getPublicSignalProfile(userId), getPublicProfileMoments(userId)])
-      .then(([nextProfile, nextMoments]) => { if (active) { setProfile(nextProfile); setMoments(nextMoments) } })
+    void Promise.all([getPublicSignalProfile(userId), getPublicProfileMoments(userId), getPublicProfileConnections(userId)])
+      .then(([nextProfile, nextMoments, nextConnections]) => { if (active) { setProfile(nextProfile); setMoments(nextMoments); setConnections(nextConnections) } })
       .catch((loadError) => { if (active) setError(loadError instanceof Error ? loadError.message : 'Unable to load profile') })
     return () => { active = false }
   }, [userId])
@@ -62,6 +64,11 @@ export default function PublicProfileView({ userId, onBack, onMessage }: {
         })}
       </div> : <div className="profile-signal-life-empty"><Zap size={22}/><strong>No published Signal Moments yet.</strong></div>}
     </div>
+
+    <section className="public-profile-connections">
+      <header><div><span>CONNECTIONS</span><h3>People SIGNAL introduced them to</h3></div><strong>{connections.length}</strong></header>
+      {connections.length ? <div className="public-profile-connection-row">{connections.map((connection) => <button type="button" key={connection.userId} onClick={() => onOpenProfile?.(connection.userId)}><span>{connection.avatarUrl ? <img src={connection.avatarUrl} alt=""/> : connection.displayName.slice(0,1).toUpperCase()}</span><small>{connection.displayName}</small></button>)}</div> : <p>No SIGNAL connections yet.</p>}
+    </section>
 
     {selected ? <div className="profile-signal-life-viewer" role="dialog" aria-modal="true" onClick={() => setSelected(null)}><article onClick={(event) => event.stopPropagation()}>
       <button type="button" className="profile-signal-viewer-close" onClick={() => setSelected(null)}>×</button>

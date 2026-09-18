@@ -79,3 +79,25 @@ export async function getPublicProfileMoments(userId: string): Promise<PublicPro
     }
   }))
 }
+
+export type PublicProfileConnection = {
+  userId: string
+  displayName: string
+  avatarUrl: string | null
+  connectedAt: string
+}
+
+export async function getPublicProfileConnections(userId: string): Promise<PublicProfileConnection[]> {
+  const { data, error } = await supabase.rpc('get_signal_public_profile_connections', { p_user_id: userId, p_limit: 24 })
+  if (error) throw new Error(error.message || 'Unable to load connections')
+  if (!Array.isArray(data)) throw new Error('Invalid public connections response')
+  return Promise.all((data as Record<string, unknown>[]).map(async (row) => {
+    const avatarPath = optionalText(row.avatar_path)
+    return {
+      userId: text(row.user_id, 'user_id'),
+      displayName: text(row.display_name, 'display_name'),
+      avatarUrl: avatarPath ? await createProfileAvatarSignedUrl(avatarPath).catch(() => null) : null,
+      connectedAt: text(row.connected_at, 'connected_at'),
+    }
+  }))
+}
