@@ -5,30 +5,26 @@ import {
   MapPin,
   RefreshCw,
   Radio,
-  Upload,
   Users,
   Video,
-  X,
   Zap,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ActivityItem } from './activityClient'
 import {
   deleteMySignalMoment,
-  getMySignalMomentEligiblePlans,
   getSignalMomentsPage,
   SIGNAL_MOMENT_PAGE_SIZE,
-  publishSignalMoment,
   reportSignalMoment,
   subscribeToSignalMoments,
   type SignalMoment,
-  type SignalMomentEligiblePlan,
   type SignalMomentReportReason,
 } from './signalMomentsClient'
 import './ActivityView.css'
 import { toUserFacingError } from '../../lib/userFacingError'
 import StayConnectedPanel from './StayConnectedPanel'
+import { addMomentComment, deleteMyMomentComment, getMomentComments, toggleMomentSignal, type SignalMomentComment } from './signalMomentSocialClient'
 
 type ActivityViewProps = {
   items: ActivityItem[]
@@ -152,6 +148,37 @@ function CurrentActivityCard({
   const [reporting, setReporting] = useState(false)
   const [reportStatus, setReportStatus] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [signaled, setSignaled] = useState(moment.didSignal)
+  const [signalCount, setSignalCount] = useState(moment.signalCount)
+  const [commentCount, setCommentCount] = useState(moment.commentCount)
+  const [comments, setComments] = useState<SignalMomentComment[]>([])
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [commentBody, setCommentBody] = useState('')
+  const [replyTo, setReplyTo] = useState<SignalMomentComment | null>(null)
+  const [socialBusy, setSocialBusy] = useState(false)
+
+  const loadComments = async () => {
+    const next = await getMomentComments(moment.momentId)
+    setComments(next); setCommentCount(next.length)
+  }
+
+  const handleSignal = async () => {
+    if (socialBusy) return
+    setSocialBusy(true)
+    try {
+      const next = await toggleMomentSignal(moment.momentId)
+      setSignaled(next.signaled); setSignalCount(next.signalCount)
+    } finally { setSocialBusy(false) }
+  }
+
+  const handleComment = async () => {
+    if (socialBusy || !commentBody.trim()) return
+    setSocialBusy(true)
+    try {
+      await addMomentComment(moment.momentId, commentBody, replyTo?.commentId ?? null)
+      setCommentBody(''); setReplyTo(null); await loadComments()
+    } finally { setSocialBusy(false) }
+  }
 
   const handleDelete = async () => {
     if (!window.confirm('Delete this Signal Moment?')) return
@@ -205,7 +232,7 @@ function CurrentActivityCard({
           )}
           <div>
             <strong>{moment.authorDisplayName}</strong>
-            <small>{moment.activityName} · {formatMomentTime(moment.publishedAt)}</small>
+            <small>{moment.activityName} · {moment.cityName}, {moment.stateCode}{moment.venueName ? ' · ' + moment.venueName : ''}</small><small>{formatMomentTime(moment.publishedAt)}</small>
           </div>
         </div>
         <div className="signal-moment-head-actions">
@@ -264,125 +291,23 @@ function CurrentActivityCard({
       <div className="signal-moment-body">
         {moment.caption ? <p>{moment.caption}</p> : null}
         <div className="signal-moment-proof">
-          <span><MapPin size={13} /> {moment.cityName}, {moment.stateCode}</span>
+          <span><MapPin size={13} /> {moment.cityName}, {moment.stateCode}{moment.venueName ? ' · ' + moment.venueName : ''}</span>
           <span><Users size={13} /> {moment.participantCount} met through SIGNAL</span>
         </div>
+        <div className="signal-moment-social">
+          <button type="button" className={signaled ? 'is-signaled' : ''} disabled={socialBusy} onClick={() => void handleSignal()}><Zap size={17} fill={signaled ? 'currentColor' : 'none'}/> <strong>{signalCount}</strong> SIGNAL{signalCount === 1 ? '' : 'S'}</button>
+          <button type="button" onClick={() => { const next=!commentsOpen; setCommentsOpen(next); if(next) void loadComments() }}><span>◯</span> <strong>{commentCount}</strong> COMMENT{commentCount === 1 ? '' : 'S'}</button>
+        </div>
+        {commentsOpen ? <div className="signal-moment-comments">
+          {comments.map((comment) => <div key={comment.commentId} className={comment.parentCommentId ? 'signal-moment-comment is-reply' : 'signal-moment-comment'}>
+            {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt=""/> : <i>{comment.authorDisplayName.slice(0,1)}</i>}
+            <div><p><strong>{comment.authorDisplayName}</strong> {comment.body}</p><span><button type="button" onClick={() => setReplyTo(comment.parentCommentId ? comments.find((item) => item.commentId === comment.parentCommentId) ?? comment : comment)}>REPLY</button>{comment.isMine ? <button type="button" onClick={async () => { await deleteMyMomentComment(comment.commentId); await loadComments() }}>DELETE</button> : null}</span></div>
+          </div>)}
+          {replyTo ? <div className="signal-moment-replying">Replying to {replyTo.authorDisplayName}<button type="button" onClick={() => setReplyTo(null)}>×</button></div> : null}
+          <div className="signal-moment-comment-compose"><input maxLength={1000} value={commentBody} placeholder={replyTo ? 'Reply to ' + replyTo.authorDisplayName + '…' : 'Add a comment…'} onChange={(e) => setCommentBody(e.target.value)} onKeyDown={(e) => { if(e.key==='Enter') void handleComment() }}/><button type="button" disabled={socialBusy || !commentBody.trim()} onClick={() => void handleComment()}>POST</button></div>
+        </div> : null}
       </div>
     </motion.article>
-  )
-}
-
-function ShareMomentPanel({
-  eligiblePlans,
-  preferredPlanId,
-  onPublished,
-  onClose,
-}: {
-  eligiblePlans: SignalMomentEligiblePlan[]
-  preferredPlanId?: string | null
-  onPublished: () => Promise<void>
-  onClose: () => void
-}) {
-  const [planId, setPlanId] = useState(() =>
-    eligiblePlans.find((plan) => plan.planId === preferredPlanId)?.planId ??
-    eligiblePlans[0]?.planId ??
-    '',
-  )
-  const [caption, setCaption] = useState('')
-  const [files, setFiles] = useState<File[]>([])
-  const [publishing, setPublishing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const selectedPlan = useMemo(
-    () => eligiblePlans.find((plan) => plan.planId === planId) ?? eligiblePlans[0] ?? null,
-    [eligiblePlans, planId],
-  )
-
-  const handlePublish = async () => {
-    if (!selectedPlan || files.length === 0) return
-    setPublishing(true)
-    setError(null)
-    try {
-      await publishSignalMoment({
-        planId: selectedPlan.planId,
-        caption,
-        files,
-      })
-      await onPublished()
-      onClose()
-    } catch (publishError) {
-      setError(
-        toUserFacingError(publishError, 'Unable to publish this Signal Moment right now.'),
-      )
-    } finally {
-      setPublishing(false)
-    }
-  }
-
-  return (
-    <div className="signal-moment-composer">
-      <div className="signal-moment-composer-head">
-        <div>
-          <span>SHARE A MOMENT</span>
-          <strong>Show what actually happened.</strong>
-        </div>
-        <button type="button" onClick={onClose} aria-label="Close Share a Moment">
-          <X size={17} />
-        </button>
-      </div>      <label className="signal-moment-field">
-        <span>OUTING</span>
-        <select
-          value={selectedPlan?.planId ?? ''}
-          onChange={(event) => setPlanId(event.target.value)}
-        >
-          {eligiblePlans.map((plan) => (
-            <option key={plan.planId} value={plan.planId}>
-              {plan.activityName} · {plan.cityName}, {plan.stateCode}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="signal-moment-upload">
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
-          multiple
-          onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, 6))}
-        />
-        <span className="signal-moment-upload-icon">
-          {files.some((file) => file.type.startsWith('video/')) ? <Video size={22} /> : <Camera size={22} />}
-        </span>
-        <strong>{files.length > 0 ? `${files.length} selected` : 'Add photos or video'}</strong>
-        <small>Up to 6 files · 100 MB each</small>
-      </label>
-
-      {files.length > 0 ? (
-        <div className="signal-moment-file-list">
-          {files.map((file) => <span key={`${file.name}-${file.size}`}>{file.name}</span>)}
-        </div>
-      ) : null}      <label className="signal-moment-field">
-        <span>CAPTION</span>
-        <textarea
-          value={caption}
-          maxLength={500}
-          placeholder="What made this one worth remembering?"
-          onChange={(event) => setCaption(event.target.value)}
-        />
-      </label>
-
-      {error ? <div className="signal-moment-error">{error}</div> : null}
-
-      <button
-        type="button"
-        className="signal-moment-publish"
-        disabled={!selectedPlan || files.length === 0 || publishing}
-        onClick={() => void handlePublish()}
-      >
-        <Upload size={15} />
-        {publishing ? 'PUBLISHING…' : 'PUBLISH MOMENT'}
-      </button>
-    </div>
   )
 }
 
@@ -395,16 +320,13 @@ export default function ActivityView({
   currentUserId,
   momentComposerPlanId = null,
   stayConnectedPlanId = null,
-  onMomentComposerHandled,
 }: ActivityViewProps) {
   const currentItem = items[0] ?? null
   const [moments, setMoments] = useState<SignalMoment[]>([])
-  const [eligiblePlans, setEligiblePlans] = useState<SignalMomentEligiblePlan[]>([])
   const [momentsLoading, setMomentsLoading] = useState(true)
   const [momentsLoadingMore, setMomentsLoadingMore] = useState(false)
   const [hasMoreMoments, setHasMoreMoments] = useState(false)
   const [momentsError, setMomentsError] = useState<string | null>(null)
-  const [composerOpen, setComposerOpen] = useState(false)
   const momentRealtimeTimerRef = useRef<number | null>(null)
 
   const refreshMomentFeed = useCallback(async () => {
@@ -423,13 +345,9 @@ export default function ActivityView({
     setMomentsLoading(true)
     setMomentsError(null)
     try {
-      const [nextMoments, nextEligiblePlans] = await Promise.all([
-        getSignalMomentsPage(),
-        getMySignalMomentEligiblePlans(),
-      ])
+      const nextMoments = await getSignalMomentsPage()
       setMoments(nextMoments)
       setHasMoreMoments(nextMoments.length === SIGNAL_MOMENT_PAGE_SIZE)
-      setEligiblePlans(nextEligiblePlans)
     } catch (loadError) {
       setMomentsError(
         toUserFacingError(loadError, 'Unable to load Signal Moments right now.'),
@@ -444,15 +362,10 @@ export default function ActivityView({
 
     const loadInitialMoments = async () => {
       try {
-        const [nextMoments, nextEligiblePlans] = await Promise.all([
-          getSignalMomentsPage(),
-          getMySignalMomentEligiblePlans(),
-        ])
-
+        const nextMoments = await getSignalMomentsPage()
         if (!cancelled) {
           setMoments(nextMoments)
           setHasMoreMoments(nextMoments.length === SIGNAL_MOMENT_PAGE_SIZE)
-          setEligiblePlans(nextEligiblePlans)
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -514,13 +427,7 @@ export default function ActivityView({
     }
   }
 
-  const completionPromptPlan = momentComposerPlanId
-    ? eligiblePlans.find((plan) => plan.planId === momentComposerPlanId) ?? null
-    : null
-  const composerVisible = composerOpen || completionPromptPlan !== null
-  const connectionPlan = stayConnectedPlanId
-    ? eligiblePlans.find((plan) => plan.planId === stayConnectedPlanId) ?? null
-    : completionPromptPlan ?? eligiblePlans[0] ?? null
+  const connectionPlanId = stayConnectedPlanId ?? momentComposerPlanId ?? null
 
   return (
     <section className="activity-view">
@@ -589,26 +496,9 @@ export default function ActivityView({
             <h2>People actually went.</h2>
             <p>Photos and videos from real groupings that happened through SIGNAL.</p>
           </div>
-          {eligiblePlans.length > 0 && !composerVisible ? (
-            <button type="button" className="share-moment-button" onClick={() => setComposerOpen(true)}>
-              <Camera size={15} /> SHARE A MOMENT
-            </button>
-          ) : null}
-        </div>        {composerVisible ? (
-          <ShareMomentPanel
-            eligiblePlans={eligiblePlans}
-            preferredPlanId={completionPromptPlan?.planId ?? null}
-            onPublished={refreshMoments}
-            onClose={() => {
-              setComposerOpen(false)
-              onMomentComposerHandled?.()
-            }}
-          />
-        ) : null}
+        </div>
 
-        {connectionPlan ? (
-          <StayConnectedPanel key={connectionPlan.planId} planId={connectionPlan.planId} />
-        ) : null}
+        {connectionPlanId ? <StayConnectedPanel key={connectionPlanId} planId={connectionPlanId} /> : null}
 
         {momentsError ? (
           <div className="signal-moment-feed-status signal-moment-feed-error">

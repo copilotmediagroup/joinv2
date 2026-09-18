@@ -32,7 +32,11 @@ export type SignalMoment = {
   activityName: string
   cityName: string
   stateCode: string
+  venueName: string | null
   participantCount: number
+  signalCount: number
+  commentCount: number
+  didSignal: boolean
   isLocal: boolean
   media: SignalMomentMedia[]
 }
@@ -72,7 +76,11 @@ type MomentRpcRow = {
   activity_name: unknown
   city_name: unknown
   state_code: unknown
+  venue_name: unknown
   participant_count: unknown
+  signal_count: unknown
+  comment_count: unknown
+  did_signal: unknown
   is_local: unknown
   media: unknown
 }
@@ -171,7 +179,11 @@ export async function getSignalMomentsPage(
       activityName: requireString(row.activity_name, 'activity_name'),
       cityName: requireString(row.city_name, 'city_name'),
       stateCode: requireString(row.state_code, 'state_code'),
+      venueName: row.venue_name === null ? null : requireString(row.venue_name, 'venue_name'),
       participantCount: requireNumber(row.participant_count, 'participant_count'),
+      signalCount: requireNumber(row.signal_count, 'signal_count'),
+      commentCount: requireNumber(row.comment_count, 'comment_count'),
+      didSignal: requireBoolean(row.did_signal, 'did_signal'),
       isLocal: requireBoolean(row.is_local, 'is_local'),
       media: await signMomentMedia(parseMedia(row.media)),
     }
