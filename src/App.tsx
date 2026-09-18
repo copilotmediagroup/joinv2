@@ -1528,7 +1528,7 @@ function App() {
             setActivePlanId(null)
             setMessagePlanId(null)
             setActiveSurface('discover')
-            setPlanExitNotice(reason === 'safety' ? 'You left the live outing.' : 'This SIGNAL outing has ended.')
+            setPlanExitNotice(reason === 'safety' ? 'You left the live outing.' : 'Your live SIGNAL has ended. Hope you had a good time.')
             void Promise.all([refreshActivity(), refreshDiscovery(), restoreActiveSignal(false)])
           }}
         />

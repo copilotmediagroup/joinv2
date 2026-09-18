@@ -41,3 +41,8 @@ export async function getMyActiveSignalOuting(): Promise<ActiveSignalOuting | nu
     checkedInAt,
   }
 }
+
+export async function finishMyPlanOuting(planId: string): Promise<void> {
+  const { error } = await supabase.rpc('finish_my_plan_outing', { p_plan_id: planId })
+  if (error) throw new Error(error.message || 'Unable to end your live Signal.')
+}
