@@ -169,7 +169,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       )}
     </section>
     <div className={`signal-details-controls ${planOptionsOpen ? 'options-open' : ''}`}>
-      <PlanGovernancePanel planId={planId} onCheckedIn={onCheckedIn} onLeftPlan={() => onPlanEnded()} />
+      {planOptionsOpen ? <PlanGovernancePanel planId={planId} onCheckedIn={onCheckedIn} onLeftPlan={() => onPlanEnded()} /> : null}
     </div>
     <button type="button" className={`signal-details-options-toggle ${planOptionsOpen ? 'open' : ''}`} onClick={() => setPlanOptionsOpen((open) => !open)}><span>PLAN OPTIONS</span><ChevronDown size={16}/></button>
   </section>
