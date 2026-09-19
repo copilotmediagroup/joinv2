@@ -124,12 +124,21 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
     const now = Date.now()
     if (now < opensAt || now > closesAt) return
 
-    const timer = window.setInterval(() => {
+    const refreshAttendance = () => {
+      if (document.visibilityState !== 'visible') return
       void getMyPlanAttendanceStatus(planId)
         .then(setAttendance)
         .catch(() => undefined)
-    }, 5000)
-    return () => window.clearInterval(timer)
+    }
+    const timer = window.setInterval(refreshAttendance, 10_000)
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshAttendance()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
   }, [attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
 
   const checkIn = async () => {
