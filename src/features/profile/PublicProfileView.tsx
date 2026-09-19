@@ -16,6 +16,7 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
   const [moments, setMoments] = useState<PublicProfileMoment[]>([])
   const [connections, setConnections] = useState<PublicProfileConnection[]>([])
   const [selected, setSelected] = useState<Tile | null>(null)
+  const [connectionsOpen, setConnectionsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
         <div><h2>{profile.displayName}</h2>{profile.age !== null ? <span>{profile.age}</span> : null}</div>
         {(profile.cityName || profile.stateCode) ? <small><MapPin size={12}/>{[profile.cityName, profile.stateCode].filter(Boolean).join(', ')}</small> : null}
         {profile.bio ? <p>{profile.bio}</p> : null}
+        <button type="button" className="public-profile-connections-link" onClick={() => setConnectionsOpen(true)}>{connections.length} {connections.length === 1 ? 'Connection' : 'Connections'}</button>
       </div>
       <UserSafetyActions userId={profile.userId} displayName={profile.displayName} onBlocked={onBack}/>
     </header>
@@ -65,10 +67,10 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
       </div> : <div className="profile-signal-life-empty"><Zap size={22}/><strong>No published Signal Moments yet.</strong></div>}
     </div>
 
-    <section className="public-profile-connections">
-      <header><div><span>⚡ SIGNAL CIRCLE</span><h3>Connections</h3><p>People {profile.displayName} actually met through SIGNAL.</p></div><strong>{connections.length}<small>CONNECTED</small></strong></header>
-      {connections.length ? <div className="public-profile-connection-row">{connections.map((connection) => <button type="button" key={connection.userId} onClick={() => onOpenProfile?.(connection.userId)}><span className="public-profile-connection-avatar">{connection.avatarUrl ? <img src={connection.avatarUrl} alt=""/> : connection.displayName.slice(0,1).toUpperCase()}<i /></span><strong>{connection.displayName}</strong><small>SIGNAL CONNECTION</small></button>)}</div> : <p>No SIGNAL connections yet.</p>}
-    </section>
+    {connectionsOpen ? <div className="public-profile-connections-dialog" role="dialog" aria-modal="true" aria-label={`${profile.displayName} connections`} onClick={() => setConnectionsOpen(false)}><article onClick={(event) => event.stopPropagation()}>
+      <header><div><span>⚡ SIGNAL CONNECTIONS</span><h3>{profile.displayName}'s Connections</h3><p>People they actually met through SIGNAL.</p></div><button type="button" aria-label="Close connections" onClick={() => setConnectionsOpen(false)}>×</button></header>
+      <div className="public-profile-connections-dialog-list">{connections.length ? connections.map((connection) => <button type="button" key={connection.userId} onClick={() => { setConnectionsOpen(false); onOpenProfile?.(connection.userId) }}><span>{connection.avatarUrl ? <img src={connection.avatarUrl} alt=""/> : connection.displayName.slice(0,1).toUpperCase()}<i/></span><div><strong>{connection.displayName}</strong><small>SIGNAL CONNECTION</small></div><b>›</b></button>) : <p>No SIGNAL connections yet.</p>}</div>
+    </article></div> : null}
 
     {selected ? <div className="profile-signal-life-viewer" role="dialog" aria-modal="true" onClick={() => setSelected(null)}><article onClick={(event) => event.stopPropagation()}>
       <button type="button" className="profile-signal-viewer-close" onClick={() => setSelected(null)}>×</button>
