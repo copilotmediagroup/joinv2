@@ -442,6 +442,7 @@ function App() {
     useState<SignalResumeResult | null>(null)
   const lastRealtimeJourneyVersionRef = React.useRef<string | null>(null)
   const lastRealtimeGroupIdRef = React.useRef<string | null>(null)
+  const journeyRestorePromiseRef = React.useRef<Promise<void> | null>(null)
   const [activeOutingPlanId, setActiveOutingPlanId] =
     useState<string | null>(null)
   const [planExitNotice, setPlanExitNotice] =
@@ -572,8 +573,12 @@ function App() {
     }
   }, [])
 
-  const restoreActiveSignal = useCallback(async (openJourney = false) => {
-    try {
+  const restoreActiveSignal = useCallback((openJourney = false) => {
+    const inFlight = journeyRestorePromiseRef.current
+    if (inFlight) return inFlight
+
+    const restore = (async () => {
+      try {
       // Resolve the canonical journey and this member's attendance independently.
       // A matching checked-in attendance row is the sole authority for live outing;
       // opening Plan details must never impersonate arrival.
@@ -690,9 +695,18 @@ function App() {
       setMessagePlanId(null)
       // A converted Plan remains on the explicit PLAN SET handoff. Chat is a
       // user action; reconciliation/focus/realtime must never auto-open it.
-    } catch {
-      // Discovery remains available if resume authority is temporarily unavailable.
-    }
+      } catch {
+        // Discovery remains available if resume authority is temporarily unavailable.
+      }
+    })()
+
+    journeyRestorePromiseRef.current = restore
+    void restore.finally(() => {
+      if (journeyRestorePromiseRef.current === restore) {
+        journeyRestorePromiseRef.current = null
+      }
+    })
+    return restore
   }, [])
 
   useEffect(() => {
