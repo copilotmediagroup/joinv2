@@ -8,10 +8,11 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "verify": "npm run verify:contracts && npm run verify:signal-policy && npm run verify:signal-availability && npm run lint && npm run build",
+    "verify": "npm run verify:contracts && npm run verify:concurrency && npm run verify:signal-policy && npm run verify:signal-availability && npm run lint && npm run build",
     "verify:contracts": "node scripts/verify-contracts.mjs",
     "verify:signal-policy": "node scripts/verify-signal-coordination-policy.mjs",
-    "verify:signal-availability": "node scripts/verify-signal-venue-availability.mjs"
+    "verify:signal-availability": "node scripts/verify-signal-venue-availability.mjs",
+    "verify:concurrency": "node scripts/verify-concurrency-contracts.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.109.0",
