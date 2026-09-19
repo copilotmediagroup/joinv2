@@ -4607,8 +4607,10 @@ button:disabled,
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: currentColor;
-  color: #0b0d12;
+  background: #ff334f;
+  color: #fff;
+  border: 2px solid #0b0d12;
+  box-shadow: 0 0 10px rgba(255,51,79,.55);
   font-size: 9px;
   font-weight: 900;
   line-height: 1;

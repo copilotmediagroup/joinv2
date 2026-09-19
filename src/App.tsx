@@ -21,6 +21,7 @@ import { toUserFacingError } from './lib/userFacingError'
 import { getMyAdminCapabilities } from './features/admin/adminClient'
 import { signOutCurrentUser } from './features/auth/authClient'
 import NotificationPanel from './features/notifications/NotificationPanel'
+import { getMyUnreadNotificationCount, subscribeToMyNotifications } from './features/notifications/notificationClient'
 import {
   getMyActivity,
   type ActivityItem,
@@ -349,6 +350,19 @@ function App() {
     useState(false)
   const [notificationUnreadCount, setNotificationUnreadCount] =
     useState(0)
+
+  useEffect(() => {
+    let active = true
+    const refreshUnread = async () => {
+      try {
+        const count = await getMyUnreadNotificationCount()
+        if (active) setNotificationUnreadCount(count)
+      } catch { /* Panel remains the user-facing error surface. */ }
+    }
+    void refreshUnread()
+    const unsubscribe = subscribeToMyNotifications(currentUser.userId, () => { void refreshUnread() })
+    return () => { active = false; unsubscribe() }
+  }, [currentUser.userId])
   const [adminCapabilities, setAdminCapabilities] = useState<string[]>([])
 
   const canReviewModeration = adminCapabilities.includes('moderation.review')

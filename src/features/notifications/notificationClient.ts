@@ -45,6 +45,16 @@ function mapRow(row: NotificationRow): SignalNotification {
   }
 }
 
+export async function getMyUnreadNotificationCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('state', 'unread')
+
+  if (error) throw new Error(error.message || 'Unable to load unread notification count')
+  return count ?? 0
+}
+
 export async function getMyNotifications(limit = 30): Promise<SignalNotification[]> {
   const { data, error } = await supabase
     .from('notifications')
