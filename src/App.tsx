@@ -21,6 +21,7 @@ import { toUserFacingError } from './lib/userFacingError'
 import { getMyAdminCapabilities } from './features/admin/adminClient'
 import { signOutCurrentUser } from './features/auth/authClient'
 import NotificationPanel from './features/notifications/NotificationPanel'
+import { getOrCreateDirectConversationWithUser } from './features/messaging/directMessagingClient'
 import { getMyUnreadNotificationCount, subscribeToMyNotifications } from './features/notifications/notificationClient'
 import {
   getMyActivity,
@@ -1617,7 +1618,7 @@ function App() {
       ) : activeSurface === 'profile' ? (
         <ProfileView onOpenDirectConversation={(conversationId) => { setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') }} onOpenProfile={(userId) => { setPublicProfileUserId(userId); setActiveSurface('public-profile') }} />
       ) : activeSurface === 'public-profile' && publicProfileUserId ? (
-        <PublicProfileView userId={publicProfileUserId} onBack={() => { setPublicProfileUserId(null); setActiveSurface('profile') }} onOpenProfile={(userId) => { setPublicProfileUserId(userId); setActiveSurface('public-profile') }} />
+        <PublicProfileView userId={publicProfileUserId} onBack={() => { setPublicProfileUserId(null); setActiveSurface('profile') }} onOpenProfile={(userId) => { setPublicProfileUserId(userId); setActiveSurface('public-profile') }} onMessage={async () => { const conversationId = await getOrCreateDirectConversationWithUser(publicProfileUserId); setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') }} />
       ) : activeSurface === 'admin' && canReviewModeration ? (
         <ModerationView canEnforce={adminCapabilities.includes('moderation.enforce')} />
       ) : (

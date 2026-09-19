@@ -71,6 +71,24 @@ export async function getMyDirectThread(conversationId: string): Promise<DirectT
   return row ? parseDirectThread(row as Record<string, unknown>) : null
 }
 
+export async function getOrCreateDirectConversationWithUser(otherUserId: string): Promise<string> {
+  let lastMessage = 'Unable to open direct message'
+  for (let attempt = 0; attempt < DIRECT_SEND_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), DIRECT_SEND_TIMEOUT_MS)
+    try {
+      const { data, error, status } = await supabase
+        .rpc('get_or_create_my_direct_conversation_with_user', { p_other_user_id: otherUserId })
+        .abortSignal(controller.signal)
+      if (!error) return req(data, 'conversation_id')
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= DIRECT_SEND_MAX_ATTEMPTS) break
+    } finally { window.clearTimeout(timeoutId) }
+    await new Promise((resolve) => window.setTimeout(resolve, DIRECT_SEND_RETRY_DELAY_MS))
+  }
+  throw new Error(lastMessage)
+}
+
 export async function getOrCreateDirectConversation(connectionId: string): Promise<string> {
   let lastMessage = 'Unable to open direct message'
 
