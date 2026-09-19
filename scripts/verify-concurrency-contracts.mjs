@@ -37,6 +37,7 @@ const finishOutingSerialization = await read('supabase/migrations/20260919233936
 const attendanceLifecycle = await read('supabase/migrations/0079_plan_attendance_lifecycle.sql')
 const idempotentPlanDeparture = await read('supabase/migrations/0076_idempotent_plan_departure.sql')
 const venueRecoveryAuthority = await read('supabase/migrations/20260916152500_rewind_signal_journey_on_venue_recovery.sql')
+const joinGovernanceLockOrder = await read('supabase/migrations/20260919234221_canonicalize_plan_join_lock_order.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -73,6 +74,7 @@ requireMatch('DONE HERE lifecycle serialization', finishOutingSerialization, /fi
 requireMatch('check-in lifecycle serialization', attendanceLifecycle, /check_in_to_my_plan[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_memberships[\s\S]*?for update[\s\S]*?on conflict \(plan_id,user_id\)[\s\S]*?do nothing/i, 'check-in must lock Plan then membership and dedupe one self-report per member')
 requireMatch('leave Plan lifecycle serialization', idempotentPlanDeparture, /leave_my_plan[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_memberships[\s\S]*?for update[\s\S]*?membership_state <> 'active'[\s\S]*?return true/i, 'leave must share Plan-to-membership lock order and converge repeated requests')
 requireMatch('venue recovery group serialization', venueRecoveryAuthority, /recover_my_signal_venue[\s\S]*?signal_groups[\s\S]*?for update[\s\S]*?signal_venue_exclusions[\s\S]*?on conflict\(signal_group_id,place_id\) do update/i, 'venue recovery must serialize on the Signal group and idempotently own exclusions')
+requireMatch('join governance canonical lock order', joinGovernanceLockOrder, /reconcile_plan_join_request[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_join_requests[\s\S]*?for update[\s\S]*?vote_on_plan_join_request[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_join_requests[\s\S]*?for update/i, 'join voting and reconciliation must lock Plan before request to match request/leave paths')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
