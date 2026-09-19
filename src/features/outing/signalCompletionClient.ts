@@ -1,5 +1,9 @@
 import { supabase } from '../../lib/supabaseClient'
 
+const COMPLETION_MUTATION_MAX_ATTEMPTS = 2
+const COMPLETION_MUTATION_RETRY_DELAY_MS = 250
+const COMPLETION_MUTATION_TIMEOUT_MS = 12_000
+
 export type SignalCompletionRating = 'good' | 'okay' | 'bad'
 
 export type SignalCompletion = {
@@ -49,9 +53,33 @@ export async function submitSignalCompletionFeedback(
   planId: string,
   rating: SignalCompletionRating,
 ): Promise<void> {
-  const { error } = await supabase.rpc('submit_my_signal_completion_feedback', {
-    p_plan_id: planId,
-    p_rating: rating,
-  })
-  if (error) throw new Error(error.message || 'Unable to save Signal feedback.')
+  let lastMessage = 'Unable to save Signal feedback.'
+
+  for (let attempt = 0; attempt < COMPLETION_MUTATION_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), COMPLETION_MUTATION_TIMEOUT_MS)
+
+    try {
+      const { data, error, status } = await supabase
+        .rpc('submit_my_signal_completion_feedback', {
+          p_plan_id: planId,
+          p_rating: rating,
+        })
+        .abortSignal(controller.signal)
+
+      if (!error) {
+        if (data !== true) throw new Error('Signal feedback returned an invalid response.')
+        return
+      }
+
+      lastMessage = error.message || lastMessage
+      if (!(status === 0 || status >= 500) || attempt + 1 >= COMPLETION_MUTATION_MAX_ATTEMPTS) break
+    } finally {
+      window.clearTimeout(timeoutId)
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, COMPLETION_MUTATION_RETRY_DELAY_MS))
+  }
+
+  throw new Error(lastMessage)
 }
