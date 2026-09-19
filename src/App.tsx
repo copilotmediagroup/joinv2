@@ -1611,6 +1611,7 @@ function App() {
       ) : activeSurface === 'messages' ? (
         <MessagesView
           currentUserId={currentUser.userId}
+          currentUserAvatarUrl={currentUserAvatarUrl}
           initialPlanId={messagePlanId}
           initialDirectConversationId={messageDirectConversationId}
           lockedPlanId={activePlanId}

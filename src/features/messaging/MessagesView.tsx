@@ -34,6 +34,7 @@ import DirectMessagesPanel from './DirectMessagesPanel'
 
 type MessagesViewProps = {
   currentUserId: string
+  currentUserAvatarUrl?: string | null
   initialPlanId?: string | null
   initialDirectConversationId?: string | null
   lockedPlanId?: string | null
@@ -71,6 +72,7 @@ function formatMessageTime(
 
 export default function MessagesView({
   currentUserId,
+  currentUserAvatarUrl = null,
   initialPlanId = null,
   initialDirectConversationId = null,
   lockedPlanId = null,
@@ -499,7 +501,7 @@ export default function MessagesView({
         </div>
       )}
 
-      <DirectMessagesPanel currentUserId={currentUserId} initialConversationId={initialDirectConversationId} />
+      <DirectMessagesPanel currentUserId={currentUserId} currentUserAvatarUrl={currentUserAvatarUrl} initialConversationId={initialDirectConversationId} />
 
       <div className="messages-conversation-list">
         {loadingConversations ? (

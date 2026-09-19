@@ -208,3 +208,48 @@ export function subscribeToDirectMessages(conversationId: string, onChange: () =
     if (channel) { void supabase.removeChannel(channel); channel = null }
   }
 }
+
+export type DirectTypingSubscription = {
+  setTyping: (typing: boolean) => void
+  stop: () => void
+}
+
+export function subscribeToDirectTyping(
+  conversationId: string,
+  currentUserId: string,
+  onOtherUserTyping: (typing: boolean) => void,
+): DirectTypingSubscription {
+  let stopped = false
+  let subscribed = false
+  let pendingTyping = false
+  const channel = supabase.channel(`direct-typing:${conversationId}`)
+    .on('broadcast', { event: 'typing' }, ({ payload }) => {
+      if (stopped || !payload || payload.userId === currentUserId) return
+      if (typeof payload.typing === 'boolean') onOtherUserTyping(payload.typing)
+    })
+    .subscribe((status) => {
+      subscribed = status === 'SUBSCRIBED'
+      if (subscribed && pendingTyping) {
+        void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing: true } })
+      }
+    })
+
+  const setTyping = (typing: boolean) => {
+    if (stopped) return
+    pendingTyping = typing
+    if (!subscribed) return
+    void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing } })
+  }
+
+  return {
+    setTyping,
+    stop: () => {
+      if (stopped) return
+      stopped = true
+      if (subscribed && pendingTyping) {
+        void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing: false } })
+      }
+      void supabase.removeChannel(channel)
+    },
+  }
+}

@@ -729,3 +729,10 @@
   .direct-thread .messages-bubble { width: 88%; max-width: 88%; }
   .direct-thread > .user-safety-actions .user-safety-buttons > button { min-height: 28px; padding: 0 9px; font-size: 7px; }
 }
+.direct-typing-indicator { min-height: 20px; display: flex; align-items: center; gap: 7px; padding: 0 8px; color: rgba(255,255,255,.46); font-size: 9px; opacity: 0; transition: opacity 140ms ease; }
+.direct-typing-indicator.is-visible { opacity: 1; }
+.direct-typing-indicator > span { display: inline-flex; align-items: center; gap: 3px; }
+.direct-typing-indicator i { width: 4px; height: 4px; border-radius: 50%; background: #62c7ff; animation: directTypingPulse 1s infinite ease-in-out; }
+.direct-typing-indicator i:nth-child(2) { animation-delay: .14s; }
+.direct-typing-indicator i:nth-child(3) { animation-delay: .28s; }
+@keyframes directTypingPulse { 0%,60%,100% { opacity:.3; transform:translateY(0) } 30% { opacity:1; transform:translateY(-2px) } }

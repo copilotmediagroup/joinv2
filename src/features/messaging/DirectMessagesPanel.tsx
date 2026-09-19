@@ -1,5 +1,5 @@
 import { ArrowLeft, MessageCircle, Send } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
   DIRECT_THREAD_PAGE_SIZE,
@@ -9,6 +9,7 @@ import {
   markMyDirectConversationRead,
   sendMyDirectMessage,
   subscribeToDirectMessages,
+  subscribeToDirectTyping,
   type DirectMessage,
   type DirectThread,
 } from './directMessagingClient'
@@ -33,9 +34,11 @@ function mergeThreads(current: DirectThread[], incoming: DirectThread[]): Direct
 }
 export default function DirectMessagesPanel({
   currentUserId,
+  currentUserAvatarUrl = null,
   initialConversationId = null,
 }: {
   currentUserId: string
+  currentUserAvatarUrl?: string | null
   initialConversationId?: string | null
 }) {
   const [threads, setThreads] = useState<DirectThread[]>([])
@@ -47,6 +50,8 @@ export default function DirectMessagesPanel({
   const [hasMore, setHasMore] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [otherUserTyping, setOtherUserTyping] = useState(false)
+  const typingPublisherRef = useRef<((typing: boolean) => void) | null>(null)
 
   const selected = useMemo(
     () => threads.find((thread) => thread.conversationId === selectedId) ?? null,
@@ -125,6 +130,18 @@ export default function DirectMessagesPanel({
     return () => { active = false; stop() }
   }, [refreshMessages, selectedId])
 
+  useEffect(() => {
+    if (!selectedId) return
+    let idleTimer: ReturnType<typeof setTimeout> | null = null
+    const typing = subscribeToDirectTyping(selectedId, currentUserId, (active) => {
+      setOtherUserTyping(active)
+      if (idleTimer) clearTimeout(idleTimer)
+      if (active) idleTimer = setTimeout(() => setOtherUserTyping(false), 3000)
+    })
+    typingPublisherRef.current = typing.setTyping
+    return () => { if (idleTimer) clearTimeout(idleTimer); typing.stop(); typingPublisherRef.current = null }
+  }, [currentUserId, selectedId])
+
   const send = async (event: FormEvent) => {
     event.preventDefault()
     if (!selectedId || sending || !draft.trim()) return
@@ -132,6 +149,7 @@ export default function DirectMessagesPanel({
     setError(null)
     try {
       await sendMyDirectMessage(selectedId, draft)
+      typingPublisherRef.current?.(false)
       setDraft('')
       await refreshMessages()
     } catch (sendError) {
@@ -143,7 +161,7 @@ export default function DirectMessagesPanel({
   if (selectedId) {
     return <section className="direct-thread">
       <header>
-        <button type="button" onClick={() => { setSelectedId(null); setMessages([]) }}>
+        <button type="button" onClick={() => { setSelectedId(null); setMessages([]); setOtherUserTyping(false) }}>
           <ArrowLeft size={16}/> DIRECT
         </button>
         <div>
@@ -174,7 +192,7 @@ export default function DirectMessagesPanel({
             const sent = stamp(message.sentAt)
             return <>
               <div className="direct-message-author">
-                <span className="direct-message-avatar">{!mine && selected?.avatarUrl ? <img src={selected.avatarUrl} alt=""/> : <span>{mine ? 'YOU' : (selected?.displayName ?? 'S').slice(0, 1).toUpperCase()}</span>}</span>
+                <span className="direct-message-avatar">{mine && currentUserAvatarUrl ? <img src={currentUserAvatarUrl} alt=""/> : !mine && selected?.avatarUrl ? <img src={selected.avatarUrl} alt=""/> : <span>{mine ? 'YOU' : (selected?.displayName ?? 'S').slice(0, 1).toUpperCase()}</span>}</span>
                 <div><strong>{mine ? 'You' : selected?.displayName ?? 'Connection'}</strong><small>{sent.date} · {sent.time}</small></div>
               </div>
               <p>{message.body}</p>
@@ -182,12 +200,19 @@ export default function DirectMessagesPanel({
           })()}
         </article>)}
       </div>
+      <div className={`direct-typing-indicator ${otherUserTyping ? 'is-visible' : ''}`} aria-live="polite">
+        {otherUserTyping ? <><span><i/><i/><i/></span>{selected?.displayName ?? 'Connection'} is typing…</> : null}
+      </div>
       <form className="messages-compose" onSubmit={send}>
         <input
           value={draft}
           maxLength={4000}
           placeholder={`Message ${selected?.displayName ?? 'connection'}...`}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value
+            setDraft(next)
+            typingPublisherRef.current?.(next.trim().length > 0)
+          }}
           disabled={sending}
         />
         <button type="submit" disabled={sending || !draft.trim()}><Send size={17}/></button>
@@ -209,7 +234,7 @@ export default function DirectMessagesPanel({
           type="button"
           className="direct-thread-row"
           key={thread.conversationId}
-          onClick={() => setSelectedId(thread.conversationId)}
+          onClick={() => { setOtherUserTyping(false); setSelectedId(thread.conversationId) }}
         >
           {thread.avatarUrl ? <img src={thread.avatarUrl} alt=""/>
             : <span>{thread.displayName.slice(0, 1).toUpperCase()}</span>}
