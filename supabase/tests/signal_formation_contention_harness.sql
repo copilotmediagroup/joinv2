@@ -5,12 +5,14 @@
 begin;
 
 create temporary table signal_load_test_results (
-  user_id uuid primary key,
+  user_id uuid not null,
+  attempt_no integer not null check (attempt_no > 0),
   hard_key text not null,
   signal_intent_id uuid,
   signal_group_id uuid,
   elapsed_ms numeric not null,
-  error_text text
+  error_text text,
+  primary key (user_id,attempt_no)
 ) on commit drop;
 
 -- Runner timing contract:
@@ -57,10 +59,19 @@ with crossed_user as (
 )
 select 1 / case when count(*)=0 then 1 else 0 end from crossed_user;
 
--- Invariant 4: retries for one fixture user must resolve to one assignment.
-select 1 / case when count(*)=count(distinct user_id) then 1 else 0 end
-from signal_load_test_results
-where error_text is null;
+-- Invariant 4: successful retries for one fixture user must resolve to
+-- the same authoritative intent and group, never a second assignment.
+with retry_identity as (
+  select
+    user_id,
+    count(distinct signal_intent_id) filter (where error_text is null) as intent_count,
+    count(distinct signal_group_id) filter (where error_text is null) as group_count
+  from signal_load_test_results
+  group by user_id
+)
+select 1 / case when count(*)=0 then 1 else 0 end
+from retry_identity
+where intent_count > 1 or group_count > 1;
 
 -- Report contract for the external concurrent runner:
 -- throughput, success/failure count, p50/p95/p99/max elapsed_ms,
