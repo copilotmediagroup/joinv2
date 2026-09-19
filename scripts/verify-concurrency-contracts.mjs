@@ -17,6 +17,7 @@ const notifications = await read('supabase/migrations/0037_signal_notifications_
 const singleJourney = await read('supabase/migrations/0071_signal_single_live_journey_and_plan_resume.sql')
 const planChange = await read('supabase/migrations/20260914053000_idempotent_plan_change_proposals.sql')
 const moderation = await read('supabase/migrations/20260914212500_retry_safe_moderation_claims.sql')
+const internalTimeReconcilerAcl = await read('supabase/migrations/20260919051852_restore_internal_time_reconciler_acl.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -32,6 +33,7 @@ requireMatch('legacy non-idempotent sends retired', messageRetirement, /Legacy n
 requireMatch('notification user dedupe key', notifications, /notifications_user_dedupe_key/i, 'replayed domain events must not duplicate user notifications')
 requireMatch('plan change client idempotency', planChange, /plan_change_proposals_proposer_client_key/i, 'double clicks/retries must not create duplicate proposals')
 requireMatch('moderation concurrent claim isolation', moderation, /for update skip locked/i, 'concurrent workers must not claim the same moderation work')
+requireMatch('internal time reconciler browser ACL', internalTimeReconcilerAcl, /revoke all[\s\S]*?reconcile_signal_time_round\(uuid\)[\s\S]*?from public, anon, authenticated;[\s\S]*?grant execute[\s\S]*?to service_role;/i, 'internal reconciler must not be directly callable by browser roles')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
