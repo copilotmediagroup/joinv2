@@ -36,11 +36,6 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
 
   useEffect(() => subscribeToSignalConnections(currentUser.userId, () => { void refresh() }), [currentUser.userId, refresh])
 
-  useEffect(() => {
-    const timer = window.setInterval(() => { void refresh() }, 5000)
-    return () => window.clearInterval(timer)
-  }, [refresh])
-
   const connect = async (person: SignalConnectionPerson) => {
     if (busyUserId) return
     setBusyUserId(person.userId)
