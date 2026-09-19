@@ -30,6 +30,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const [routeLoading, setRouteLoading] = useState(false)
   const [routeError, setRouteError] = useState<string | null>(null)
   const lastLocationPublishRef = useRef<{ latitude: number; longitude: number; at: number } | null>(null)
+  const lastRouteOriginRef = useRef<{ latitude: number; longitude: number } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -122,18 +123,33 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     if (!userPosition || routeLoading) return
     setRouteLoading(true)
     setRouteError(null)
-    try { setRoute(await getSignalRoute(planId, userPosition.latitude, userPosition.longitude)) }
+    try {
+      setRoute(await getSignalRoute(planId, userPosition.latitude, userPosition.longitude))
+      lastRouteOriginRef.current = userPosition
+    }
     catch { setRouteError('Unable to load live directions right now.') }
     finally { setRouteLoading(false) }
   }
 
   useEffect(() => {
     if (!route || !userPosition) return
-    const refreshRoute = () => void getSignalRoute(planId, userPosition.latitude, userPosition.longitude)
-      .then(setRoute)
-      .catch(() => undefined)
-    const refreshId = window.setInterval(refreshRoute, 15_000)
-    return () => window.clearInterval(refreshId)
+    const previous = lastRouteOriginRef.current
+    if (previous) {
+      const movedEnough = Math.abs(userPosition.latitude - previous.latitude) >= 0.0005
+        || Math.abs(userPosition.longitude - previous.longitude) >= 0.0005
+      if (!movedEnough) return
+    }
+
+    const refreshId = window.setTimeout(() => {
+      if (document.visibilityState !== 'visible') return
+      void getSignalRoute(planId, userPosition.latitude, userPosition.longitude)
+        .then((nextRoute) => {
+          setRoute(nextRoute)
+          lastRouteOriginRef.current = userPosition
+        })
+        .catch(() => undefined)
+    }, 1_500)
+    return () => window.clearTimeout(refreshId)
   }, [planId, route, userPosition])
 
   const meetupTime = useMemo(() => {
