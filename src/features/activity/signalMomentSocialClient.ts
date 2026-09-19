@@ -39,10 +39,25 @@ export async function toggleMomentSignal(momentId: string) {
 }
 
 export async function addMomentComment(momentId: string, body: string, parentCommentId: string | null = null) {
-  const { error } = await supabase.rpc('add_signal_moment_comment', {
-    p_moment_id: momentId, p_body: body, p_parent_comment_id: parentCommentId,
-  })
-  if (error) throw new Error(error.message || 'Unable to add comment.')
+  const clientCommentId = crypto.randomUUID()
+  let lastError: unknown = null
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const { error } = await supabase.rpc('add_signal_moment_comment', {
+      p_moment_id: momentId,
+      p_body: body,
+      p_parent_comment_id: parentCommentId,
+      p_client_comment_id: clientCommentId,
+    })
+    if (!error) return
+    lastError = error
+    if (attempt === 0) await new Promise((resolve) => window.setTimeout(resolve, 250))
+  }
+
+  const message = lastError && typeof lastError === 'object' && 'message' in lastError
+    ? String(lastError.message)
+    : 'Unable to add comment.'
+  throw new Error(message)
 }
 
 export async function deleteMyMomentComment(commentId: string) {

@@ -29,6 +29,7 @@ const directConversationAuthority = await read('supabase/migrations/0084_connect
 const blockPairSerialization = await read('supabase/migrations/20260919190832_serialize_block_private_pair_teardown.sql')
 const disconnectPairSerialization = await read('supabase/migrations/20260919191155_serialize_signal_disconnect_pair.sql')
 const momentReactionSerialization = await read('supabase/migrations/20260919231921_serialize_signal_moment_reaction_toggle.sql')
+const momentCommentIdempotency = await read('supabase/migrations/20260919232803_idempotent_signal_moment_comments.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -56,6 +57,7 @@ requireMatch('direct conversation first-create serialization', directConversatio
 requireMatch('block private-pair lock order', blockPairSerialization, /signal_connection_pair_v1[\s\S]*?signal_connections[\s\S]*?for update[\s\S]*?direct_conversations[\s\S]*?for update[\s\S]*?insert into public\.user_blocks/i, 'block teardown must serialize pair creation and lock connection before conversation to avoid request/open-thread deadlocks')
 requireMatch('disconnect private-pair serialization', disconnectPairSerialization, /signal_connection_pair_v1[\s\S]*?signal_connections[\s\S]*?for update[\s\S]*?delete from public\.signal_connections/i, 'disconnect must share pair serialization with request/block before deleting relationship state')
 requireMatch('moment reaction toggle serialization', momentReactionSerialization, /signal_moment_signal_v1[\s\S]*?if exists[\s\S]*?signal_moment_signals[\s\S]*?delete from public\.signal_moment_signals[\s\S]*?else[\s\S]*?insert into public\.signal_moment_signals/i, 'same user/moment toggle calls must serialize before the read-modify-write branch')
+requireMatch('moment comment retry dedupe', momentCommentIdempotency, /client_comment_id[\s\S]*?unique index[\s\S]*?author_user_id,client_comment_id[\s\S]*?for update[\s\S]*?on conflict \(author_user_id,client_comment_id\)/i, 'Moment comments must dedupe transport retries and serialize replies against parent deletion')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
