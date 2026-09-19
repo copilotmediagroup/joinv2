@@ -33,6 +33,10 @@ const momentCommentIdempotency = await read('supabase/migrations/20260919232803_
 const momentCaptureSerialization = await read('supabase/migrations/20260919233042_serialize_signal_moment_capture.sql')
 const coordinationSubmissions = await read('supabase/migrations/20260914154500_retry_safe_signal_coordination_submissions.sql')
 const deterministicCoordination = await read('supabase/migrations/20260915020500_deterministic_coordination_fallback.sql')
+const finishOutingSerialization = await read('supabase/migrations/20260919233936_serialize_finish_my_plan_outing.sql')
+const attendanceLifecycle = await read('supabase/migrations/0079_plan_attendance_lifecycle.sql')
+const idempotentPlanDeparture = await read('supabase/migrations/0076_idempotent_plan_departure.sql')
+const venueRecoveryAuthority = await read('supabase/migrations/20260916152500_rewind_signal_journey_on_venue_recovery.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -65,6 +69,10 @@ requireMatch('moment first-capture serialization', momentCaptureSerialization, /
 requireMatch('venue vote round serialization', coordinationSubmissions, /cast_my_signal_venue_vote[\s\S]*?signal_groups[\s\S]*?for update[\s\S]*?signal_venue_rounds[\s\S]*?for update[\s\S]*?on conflict \(round_id, user_id\)/i, 'venue votes must serialize on group/round authority and upsert one vote per user')
 requireMatch('time submission round serialization', coordinationSubmissions, /submit_my_signal_time_availability[\s\S]*?signal_groups[\s\S]*?for update[\s\S]*?signal_time_rounds[\s\S]*?for update[\s\S]*?on conflict \(round_id, user_id, option_id\)/i, 'time availability must serialize on group/round authority and upsert one row per user/option')
 requireMatch('deterministic coordination fallback', deterministicCoordination, /reconcile_signal_venue_round[\s\S]*?source_rank asc[\s\S]*?reconcile_signal_time_round[\s\S]*?preferred[\s\S]*?starts_at asc/i, 'venue/time timeout fallback must remain deterministic')
+requireMatch('DONE HERE lifecycle serialization', finishOutingSerialization, /finish_my_plan_outing[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_memberships[\s\S]*?for update[\s\S]*?plan_member_outing_completions[\s\S]*?on conflict\(plan_id,user_id\) do nothing/i, 'DONE HERE must lock Plan then membership and remain one-row retry-idempotent')
+requireMatch('check-in lifecycle serialization', attendanceLifecycle, /check_in_to_my_plan[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_memberships[\s\S]*?for update[\s\S]*?on conflict \(plan_id,user_id\)[\s\S]*?do nothing/i, 'check-in must lock Plan then membership and dedupe one self-report per member')
+requireMatch('leave Plan lifecycle serialization', idempotentPlanDeparture, /leave_my_plan[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_memberships[\s\S]*?for update[\s\S]*?membership_state <> 'active'[\s\S]*?return true/i, 'leave must share Plan-to-membership lock order and converge repeated requests')
+requireMatch('venue recovery group serialization', venueRecoveryAuthority, /recover_my_signal_venue[\s\S]*?signal_groups[\s\S]*?for update[\s\S]*?signal_venue_exclusions[\s\S]*?on conflict\(signal_group_id,place_id\) do update/i, 'venue recovery must serialize on the Signal group and idempotently own exclusions')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
