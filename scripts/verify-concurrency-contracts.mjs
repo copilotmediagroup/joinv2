@@ -40,6 +40,7 @@ const venueRecoveryAuthority = await read('supabase/migrations/20260916152500_re
 const joinGovernanceLockOrder = await read('supabase/migrations/20260919234221_canonicalize_plan_join_lock_order.sql')
 const changeGovernanceLockOrder = await read('supabase/migrations/20260919234422_canonicalize_plan_change_lock_order.sql')
 const replacementClaimLockOrder = await read('supabase/migrations/20260919235242_preserve_replacement_claim_skip_locked.sql')
+const livePlanMembershipInvariant = await read('supabase/migrations/20260919235502_serialize_live_plan_user_admission.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -79,6 +80,7 @@ requireMatch('venue recovery group serialization', venueRecoveryAuthority, /reco
 requireMatch('join governance canonical lock order', joinGovernanceLockOrder, /reconcile_plan_join_request[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_join_requests[\s\S]*?for update[\s\S]*?vote_on_plan_join_request[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_join_requests[\s\S]*?for update/i, 'join voting and reconciliation must lock Plan before request to match request/leave paths')
 requireMatch('change governance canonical lock order', changeGovernanceLockOrder, /reconcile_plan_change_proposal[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_change_proposals[\s\S]*?for update[\s\S]*?vote_on_plan_change[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_change_proposals[\s\S]*?for update/i, 'Plan-change voting and reconciliation must lock Plan before proposal to match proposal creation')
 requireMatch('replacement claim user and lifecycle serialization', replacementClaimLockOrder, /plan_replacement_user_v1[\s\S]*?for update of p skip locked[\s\S]*?from public\.plan_replacement_windows[\s\S]*?for update of prw[\s\S]*?reconcile_plan_replacement_window/i, 'replacement claims must serialize first claims per user, SKIP LOCKED on Plan, then lock the replacement window')
+requireMatch('single live Plan membership invariant', livePlanMembershipInvariant, /live_plan_membership_user_v1[\s\S]*?plan_memberships[\s\S]*?plan_id<>new\.plan_id[\s\S]*?state not in[\s\S]*?user_already_has_live_plan[\s\S]*?before insert or update of membership_state/i, 'all active Plan admissions must serialize per user and reject a second nonterminal Plan membership')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
