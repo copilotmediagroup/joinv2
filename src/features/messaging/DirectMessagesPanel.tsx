@@ -14,10 +14,15 @@ import {
 } from './directMessagingClient'
 import UserSafetyActions from '../safety/UserSafetyActions'
 
-function time(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(date)
+function stamp(value: string): { date: string; time: string } {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return { date: '', time: '' }
+  const today = new Date()
+  const sameDay = parsed.getFullYear() === today.getFullYear() && parsed.getMonth() === today.getMonth() && parsed.getDate() === today.getDate()
+  return {
+    date: sameDay ? 'Today' : new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: parsed.getFullYear() === today.getFullYear() ? undefined : 'numeric' }).format(parsed),
+    time: new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).format(parsed),
+  }
 }
 
 function mergeThreads(current: DirectThread[], incoming: DirectThread[]): DirectThread[] {
@@ -164,8 +169,17 @@ export default function DirectMessagesPanel({
           key={message.messageId}
           className={message.senderUserId === currentUserId ? 'messages-bubble messages-bubble-mine' : 'messages-bubble'}
         >
-          <small>{message.senderUserId === currentUserId ? 'YOU' : selected?.displayName ?? 'CONNECTION'}</small>
-          <p>{message.body}</p><time>{time(message.sentAt)}</time>
+          {(() => {
+            const mine = message.senderUserId === currentUserId
+            const sent = stamp(message.sentAt)
+            return <>
+              <div className="direct-message-author">
+                <span className="direct-message-avatar">{!mine && selected?.avatarUrl ? <img src={selected.avatarUrl} alt=""/> : <span>{mine ? 'YOU' : (selected?.displayName ?? 'S').slice(0, 1).toUpperCase()}</span>}</span>
+                <div><strong>{mine ? 'You' : selected?.displayName ?? 'Connection'}</strong><small>{sent.date} · {sent.time}</small></div>
+              </div>
+              <p>{message.body}</p>
+            </>
+          })()}
         </article>)}
       </div>
       <form className="messages-compose" onSubmit={send}>

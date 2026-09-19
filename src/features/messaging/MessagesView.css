@@ -690,3 +690,42 @@
   .messages-compose input, .messages-compose button { height: 48px; }
   .messages-compose button { width: 48px; }
 }
+
+/* Direct inbox: use the same premium safety treatment as public profiles. */
+.direct-thread > .user-safety-actions { justify-self: start; }
+.direct-thread > .user-safety-actions .user-safety-buttons { display: flex; gap: 6px; }
+.direct-thread > .user-safety-actions .user-safety-buttons > button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  min-height: 29px; padding: 0 10px; border: 1px solid rgba(104,218,255,.55);
+  border-radius: 7px; background: linear-gradient(180deg,#159fe9,#0876c8);
+  box-shadow: 0 5px 15px rgba(0,133,220,.18); color: #fff;
+  font-size: 8px; font-weight: 950; letter-spacing: .04em; cursor: pointer;
+}
+.direct-thread > .user-safety-actions .user-safety-buttons > button:hover {
+  background: linear-gradient(180deg,#24b5ff,#0b83db); border-color: #83e6ff;
+}
+
+/* Direct messages are identity cards: avatar + sender + date/time + message in one box. */
+.direct-thread .messages-thread-feed { gap: 8px; }
+.direct-thread .messages-bubble {
+  width: min(82%, 520px); max-width: min(82%, 520px); padding: 10px 12px 11px;
+  border-radius: 16px; background: rgba(255,255,255,.045);
+}
+.direct-thread .messages-bubble-mine {
+  border-radius: 16px; background: linear-gradient(135deg,rgba(25,139,218,.20),rgba(61,68,174,.16));
+}
+.direct-message-author { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.direct-message-avatar {
+  width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center;
+  overflow: hidden; border: 1px solid rgba(98,199,255,.25); border-radius: 50%;
+  background: rgba(98,199,255,.08); color: #72d9ff; font-size: 7px; font-weight: 950;
+}
+.direct-message-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.direct-message-author > div { min-width: 0; display: grid; gap: 1px; }
+.direct-message-author strong { color: rgba(255,255,255,.94); font-size: 10px; font-weight: 850; }
+.direct-message-author small { margin: 0; color: rgba(255,255,255,.38) !important; font-size: 8px; font-weight: 650; letter-spacing: 0; }
+.direct-thread .messages-bubble p { font-size: 13px; line-height: 1.42; }
+@media (max-width:700px) {
+  .direct-thread .messages-bubble { width: 88%; max-width: 88%; }
+  .direct-thread > .user-safety-actions .user-safety-buttons > button { min-height: 28px; padding: 0 9px; font-size: 7px; }
+}
