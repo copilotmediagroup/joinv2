@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, Clock3, MapPin, Navigation, Radio, Users, Zap } from 'lucide-react'
 import PlanGovernancePanel from '../plan/PlanGovernancePanel'
-import { getMyPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
-import { getMyPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
+import { getMyPlanGovernance, subscribeToPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
+import { getMyPlanMembers, subscribeToPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
 import { checkInToMyPlan, getMyPlanAttendanceStatus, type PlanAttendanceStatus } from '../plan/planAttendanceClient'
 import { toUserFacingError } from '../../lib/userFacingError'
 import { getMyPlanMemberLocations, setMyPlanLocation, type PlanLiveLocation } from './planLiveLocationClient'
@@ -32,6 +32,19 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
 
   useEffect(() => {
     let cancelled = false
+    const refreshPlanAndMembers = () => {
+      void Promise.all([getMyPlanGovernance(planId), getMyPlanMembers(planId)])
+        .then(([nextPlan, nextMembers]) => {
+          if (cancelled) return
+          setPlan(nextPlan)
+          setMembers(nextMembers)
+          setError(null)
+        })
+        .catch((loadError) => {
+          if (!cancelled) setError(toUserFacingError(loadError, 'Unable to refresh meetup details right now.'))
+        })
+    }
+
     void Promise.all([getMyPlanGovernance(planId), getMyPlanMembers(planId), getMyPlanAttendanceStatus(planId)])
       .then(([nextPlan, nextMembers, nextAttendance]) => {
         if (cancelled) return
@@ -43,7 +56,14 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       .catch((loadError) => {
         if (!cancelled) setError(toUserFacingError(loadError, 'Unable to load meetup details right now.'))
       })
-    return () => { cancelled = true }
+
+    const unsubscribeGovernance = subscribeToPlanGovernance(planId, refreshPlanAndMembers)
+    const unsubscribeMembers = subscribeToPlanMembers(planId, refreshPlanAndMembers)
+    return () => {
+      cancelled = true
+      unsubscribeGovernance()
+      unsubscribeMembers()
+    }
   }, [planId])
 
   useEffect(() => {
@@ -64,7 +84,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
 
   useEffect(() => {
     if (!attendance?.windowOpensAt || !attendance.windowClosesAt || attendance.checkedIn) return
-    const timer = window.setInterval(() => { void getMyPlanAttendanceStatus(planId).then(setAttendance).catch(() => undefined) }, 5000)
+    const timer = window.setInterval(() => { void getMyPlanAttendanceStatus(planId).then(setAttendance).catch(() => undefined) }, 10_000)
     return () => window.clearInterval(timer)
   }, [attendance?.checkedIn, attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
 
