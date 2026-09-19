@@ -30,6 +30,9 @@ const blockPairSerialization = await read('supabase/migrations/20260919190832_se
 const disconnectPairSerialization = await read('supabase/migrations/20260919191155_serialize_signal_disconnect_pair.sql')
 const momentReactionSerialization = await read('supabase/migrations/20260919231921_serialize_signal_moment_reaction_toggle.sql')
 const momentCommentIdempotency = await read('supabase/migrations/20260919232803_idempotent_signal_moment_comments.sql')
+const momentCaptureSerialization = await read('supabase/migrations/20260919233042_serialize_signal_moment_capture.sql')
+const coordinationSubmissions = await read('supabase/migrations/20260914154500_retry_safe_signal_coordination_submissions.sql')
+const deterministicCoordination = await read('supabase/migrations/20260915020500_deterministic_coordination_fallback.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -58,6 +61,10 @@ requireMatch('block private-pair lock order', blockPairSerialization, /signal_co
 requireMatch('disconnect private-pair serialization', disconnectPairSerialization, /signal_connection_pair_v1[\s\S]*?signal_connections[\s\S]*?for update[\s\S]*?delete from public\.signal_connections/i, 'disconnect must share pair serialization with request/block before deleting relationship state')
 requireMatch('moment reaction toggle serialization', momentReactionSerialization, /signal_moment_signal_v1[\s\S]*?if exists[\s\S]*?signal_moment_signals[\s\S]*?delete from public\.signal_moment_signals[\s\S]*?else[\s\S]*?insert into public\.signal_moment_signals/i, 'same user/moment toggle calls must serialize before the read-modify-write branch')
 requireMatch('moment comment retry dedupe', momentCommentIdempotency, /client_comment_id[\s\S]*?unique index[\s\S]*?author_user_id,client_comment_id[\s\S]*?for update[\s\S]*?on conflict \(author_user_id,client_comment_id\)/i, 'Moment comments must dedupe transport retries and serialize replies against parent deletion')
+requireMatch('moment first-capture serialization', momentCaptureSerialization, /signal_moment_capture_v1[\s\S]*?signal_moments[\s\S]*?for update[\s\S]*?insert into public\.signal_moments/i, 'first Moment capture must serialize before the possibly absent Moment row is selected')
+requireMatch('venue vote round serialization', coordinationSubmissions, /cast_my_signal_venue_vote[\s\S]*?signal_groups[\s\S]*?for update[\s\S]*?signal_venue_rounds[\s\S]*?for update[\s\S]*?on conflict \(round_id, user_id\)/i, 'venue votes must serialize on group/round authority and upsert one vote per user')
+requireMatch('time submission round serialization', coordinationSubmissions, /submit_my_signal_time_availability[\s\S]*?signal_groups[\s\S]*?for update[\s\S]*?signal_time_rounds[\s\S]*?for update[\s\S]*?on conflict \(round_id, user_id, option_id\)/i, 'time availability must serialize on group/round authority and upsert one row per user/option')
+requireMatch('deterministic coordination fallback', deterministicCoordination, /reconcile_signal_venue_round[\s\S]*?source_rank asc[\s\S]*?reconcile_signal_time_round[\s\S]*?preferred[\s\S]*?starts_at asc/i, 'venue/time timeout fallback must remain deterministic')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
