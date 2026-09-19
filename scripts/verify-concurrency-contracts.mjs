@@ -20,6 +20,7 @@ const moderation = await read('supabase/migrations/20260914212500_retry_safe_mod
 const internalTimeReconcilerAcl = await read('supabase/migrations/20260919051852_restore_internal_time_reconciler_acl.sql')
 const membershipPredicateAcl = await read('supabase/migrations/20260919061851_lock_signal_membership_predicate_acl.sql')
 const policyHelperRpcAuthority = await read('supabase/migrations/20260919062832_document_policy_helper_rpc_authority.sql')
+const signalConnectionsRealtime = await read('supabase/migrations/20260919063939_publish_signal_connections_realtime.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -38,6 +39,7 @@ requireMatch('moderation concurrent claim isolation', moderation, /for update sk
 requireMatch('internal time reconciler browser ACL', internalTimeReconcilerAcl, /revoke all[\s\S]*?reconcile_signal_time_round\(uuid\)[\s\S]*?from public, anon, authenticated;[\s\S]*?grant execute[\s\S]*?to service_role;/i, 'internal reconciler must not be directly callable by browser roles')
 requireMatch('internal round membership predicate ACL', membershipPredicateAcl, /is_signal_time_round_member\(uuid\)[\s\S]*?from public, anon, authenticated;[\s\S]*?is_signal_venue_round_member\(uuid\)[\s\S]*?from public, anon, authenticated;/i, 'policy predicates must not be directly callable by browser roles')
 requireMatch('intentional policy helper RPC authority', policyHelperRpcAuthority, /is_active_plan_member\(uuid\)[\s\S]*?to authenticated, service_role;[\s\S]*?is_signal_group_member\(uuid\)[\s\S]*?to authenticated, service_role;[\s\S]*?can_upload_signal_moment_object\(text\)[\s\S]*?to authenticated, service_role;/i, 'RLS policy helpers must remain explicitly documented and anon-closed')
+requireMatch('signal connections realtime publication', signalConnectionsRealtime, /alter publication supabase_realtime[\s\S]*?add table public\.signal_connections;/i, 'connection invalidations require the RLS-protected table in Realtime publication')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
