@@ -350,6 +350,7 @@ function App() {
     useState(false)
   const [notificationUnreadCount, setNotificationUnreadCount] =
     useState(0)
+  const [notificationRefreshToken, setNotificationRefreshToken] = useState(0)
 
   useEffect(() => {
     let active = true
@@ -360,7 +361,10 @@ function App() {
       } catch { /* Panel remains the user-facing error surface. */ }
     }
     void refreshUnread()
-    const unsubscribe = subscribeToMyNotifications(currentUser.userId, () => { void refreshUnread() })
+    const unsubscribe = subscribeToMyNotifications(currentUser.userId, () => {
+      void refreshUnread()
+      setNotificationRefreshToken((current) => current + 1)
+    })
     return () => { active = false; unsubscribe() }
   }, [currentUser.userId])
   const [adminCapabilities, setAdminCapabilities] = useState<string[]>([])
@@ -1538,7 +1542,7 @@ function App() {
       {notificationsOpen && (
         <NotificationPanel
           userId={currentUser.userId}
-          onUnreadCountChange={setNotificationUnreadCount}
+          refreshToken={notificationRefreshToken}
           onOpenPlan={() => { setNotificationsOpen(false); void restoreActiveSignal(true) }}
           onOpenSignal={handleOpenSignalNotification}
           onHistorical={handleHistoricalNotification}

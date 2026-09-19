@@ -4,7 +4,6 @@ import {
   getMyNotifications,
   markMyNotificationRead,
   resolveMyNotificationTarget,
-  subscribeToMyNotifications,
   type NotificationTarget,
   type SignalNotification,
 } from './notificationClient'
@@ -13,7 +12,7 @@ import { toUserFacingError } from '../../lib/userFacingError'
 
 type NotificationPanelProps = {
   userId: string
-  onUnreadCountChange?: (count: number) => void
+  refreshToken?: number
   onOpenPlan?: (planId: string) => void
   onOpenSignal?: (target: Extract<NotificationTarget, { targetType: 'signal' }>, notificationType: string) => void
   onHistorical?: (notificationType: string, relatedPlanId: string | null, relatedEntityId: string | null) => void
@@ -31,7 +30,7 @@ function relativeTime(iso: string): string {
 
 export default function NotificationPanel({
   userId,
-  onUnreadCountChange,
+  refreshToken = 0,
   onOpenPlan,
   onOpenSignal,
   onHistorical,
@@ -45,9 +44,6 @@ export default function NotificationPanel({
     [items],
   )
 
-  useEffect(() => {
-    onUnreadCountChange?.(unreadCount)
-  }, [onUnreadCountChange, unreadCount])
 
   const refresh = useCallback(async () => {
     try {
@@ -63,21 +59,9 @@ export default function NotificationPanel({
 
   useEffect(() => {
     let active = true
-
-    queueMicrotask(() => {
-      if (active) void refresh()
-    })
-
-    const unsubscribe = subscribeToMyNotifications(
-      userId,
-      () => { if (active) void refresh() },
-    )
-
-    return () => {
-      active = false
-      unsubscribe()
-    }
-  }, [refresh, userId])
+    queueMicrotask(() => { if (active) void refresh() })
+    return () => { active = false }
+  }, [refresh, userId, refreshToken])
 
   const openItem = async (item: SignalNotification) => {
     if (item.state === 'unread') {
