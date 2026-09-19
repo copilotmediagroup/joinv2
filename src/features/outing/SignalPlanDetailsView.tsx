@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Clock3, MapPin, Navigation, Radio, Users, Zap } from 'lucide-react'
 import PlanGovernancePanel from '../plan/PlanGovernancePanel'
 import { getMyPlanGovernance, subscribeToPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
@@ -29,6 +29,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const [route, setRoute] = useState<SignalRoute | null>(null)
   const [routeLoading, setRouteLoading] = useState(false)
   const [routeError, setRouteError] = useState<string | null>(null)
+  const lastLocationPublishRef = useRef<{ latitude: number; longitude: number; at: number } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -68,10 +69,22 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     if (typeof navigator === 'undefined' || !navigator.geolocation) return
     const refreshLocations = () => void getMyPlanMemberLocations(planId).then(setLiveLocations).catch(() => undefined)
     refreshLocations()
-    const refreshId = window.setInterval(refreshLocations, 8_000)
+    const refreshId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshLocations()
+    }, 15_000)
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        setUserPosition({ latitude: position.coords.latitude, longitude: position.coords.longitude })
+        const latitude = position.coords.latitude
+        const longitude = position.coords.longitude
+        setUserPosition({ latitude, longitude })
+
+        const previous = lastLocationPublishRef.current
+        const now = Date.now()
+        const movedEnough = !previous || Math.abs(latitude - previous.latitude) >= 0.0001 || Math.abs(longitude - previous.longitude) >= 0.0001
+        const staleEnough = !previous || now - previous.at >= 15_000
+        if (!movedEnough && !staleEnough) return
+
+        lastLocationPublishRef.current = { latitude, longitude, at: now }
         void setMyPlanLocation(planId, position).then(refreshLocations).catch(() => undefined)
       },
       () => setUserPosition(null),
