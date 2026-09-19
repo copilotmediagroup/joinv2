@@ -8,6 +8,7 @@ const requireMatch = (name, source, pattern, reason) => checks.push({ name, ok: 
 
 const formation = await read('supabase/migrations/0063_signal_chemistry_soft_group_composition.sql')
 const blockSafeFormation = await read('supabase/migrations/0090_block_safe_signal_matching.sql')
+const assignedRetryFastPath = await read('supabase/migrations/20260919044726_signal_assigned_retry_fast_path.sql')
 const conversion = await read('supabase/migrations/0033_signal_plan_conversion_authority_v2.sql')
 const confirmation = await read('supabase/migrations/0026_signal_confirmation_canonical_lock_order.sql')
 const messageRepair = await read('supabase/migrations/20260914043500_repair_message_idempotency_conflict.sql')
@@ -19,6 +20,8 @@ const moderation = await read('supabase/migrations/20260914212500_retry_safe_mod
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
+requireMatch('assigned retry bypass precedes named-window lock', assignedRetryFastPath, /ASSIGNED-USER RETRY FAST PATH[\s\S]*?for share of si, sgm, sg;[\s\S]*?return;[\s\S]*?NAMED-WINDOW CONCURRENCY LOCK/i, 'already-assigned retries must return before entering first-time formation serialization')
+requireMatch('assigned retry protects authoritative rows', assignedRetryFastPath, /for share of si, sgm, sg;/i, 'retry fast path must prevent concurrent withdrawal or group mutation while returning authority')
 requireMatch('block-safe formation serialization', blockSafeFormation, /pg_advisory_xact_lock\s*\(/i, 'latest block-safe formation authority must preserve hard-identity serialization')
 requireMatch('single live journey uniqueness', singleJourney, /create unique index if not exists signal_intents_one_assigned_per_user_idx/i, 'database must reject two assigned Signal intents for one user')
 requireMatch('confirmation canonical group lock', confirmation, /signal_groups[\s\S]{0,500}for update/i, 'confirmation must serialize on the authoritative Signal group')
