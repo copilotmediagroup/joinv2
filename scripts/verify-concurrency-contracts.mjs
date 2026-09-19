@@ -27,6 +27,7 @@ const connectionResponseAuthority = await read('supabase/migrations/0082_signal_
 const directMessageIdempotency = await read('supabase/migrations/20260914043500_repair_message_idempotency_conflict.sql')
 const directConversationAuthority = await read('supabase/migrations/0084_connected_direct_messaging_authority.sql')
 const blockPairSerialization = await read('supabase/migrations/20260919190832_serialize_block_private_pair_teardown.sql')
+const disconnectPairSerialization = await read('supabase/migrations/20260919191155_serialize_signal_disconnect_pair.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -52,6 +53,7 @@ requireMatch('connection response row serialization', connectionResponseAuthorit
 requireMatch('direct message retry dedupe', directMessageIdempotency, /send_my_direct_message_v2[\s\S]*?client_message_id=p_client_message_id[\s\S]*?on conflict do nothing[\s\S]*?direct-message:/i, 'direct-message retries must resolve to one authoritative message and one deduped notification')
 requireMatch('direct conversation first-create serialization', directConversationAuthority, /get_or_create_my_direct_conversation[\s\S]*?signal_connections[\s\S]*?for update;[\s\S]*?direct_conversations[\s\S]*?for update;/i, 'conversation creation must serialize on the accepted connection before testing the possibly absent conversation row')
 requireMatch('block private-pair lock order', blockPairSerialization, /signal_connection_pair_v1[\s\S]*?signal_connections[\s\S]*?for update[\s\S]*?direct_conversations[\s\S]*?for update[\s\S]*?insert into public\.user_blocks/i, 'block teardown must serialize pair creation and lock connection before conversation to avoid request/open-thread deadlocks')
+requireMatch('disconnect private-pair serialization', disconnectPairSerialization, /signal_connection_pair_v1[\s\S]*?signal_connections[\s\S]*?for update[\s\S]*?delete from public\.signal_connections/i, 'disconnect must share pair serialization with request/block before deleting relationship state')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
