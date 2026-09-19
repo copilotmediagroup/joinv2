@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Camera, CheckCircle2, Clock3, ImagePlus, MessageCircle, ShieldAlert, Sparkles, Upload, Users, X, Zap } from 'lucide-react'
-import { getMyPlanGovernance, leaveMyPlan, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
+import { getMyPlanGovernance, leaveMyPlan, subscribeToPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
 import { getMyPlanAttendanceStatus, type PlanAttendanceStatus } from '../plan/planAttendanceClient'
-import { getMyPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
+import { getMyPlanMembers, subscribeToPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
 import { publishSignalMoment } from '../activity/signalMomentsClient'
 import { finishMyPlanOuting } from './activeOutingClient'
 import { toUserFacingError } from '../../lib/userFacingError'
@@ -62,9 +62,29 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   }, [onOutingEnded, planId])
   useEffect(() => {
     const initial = window.setTimeout(() => { void refresh() }, 0)
-    const timer = window.setInterval(() => { void refresh() }, 10000)
-    return () => { window.clearTimeout(initial); window.clearInterval(timer) }
-  }, [refresh])
+    const unsubscribeGovernance = subscribeToPlanGovernance(planId, () => { void refresh() })
+    const unsubscribeMembers = subscribeToPlanMembers(planId, () => { void refresh() })
+    return () => {
+      window.clearTimeout(initial)
+      unsubscribeGovernance()
+      unsubscribeMembers()
+    }
+  }, [planId, refresh])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void getMyPlanAttendanceStatus(planId)
+        .then((nextAttendance) => {
+          if (!nextAttendance.checkedIn || !['locked', 'recovery_required', 'active_outing'].includes(nextAttendance.planState)) {
+            onOutingEnded('ended')
+            return
+          }
+          setAttendance(nextAttendance)
+        })
+        .catch(() => undefined)
+    }, 10000)
+    return () => window.clearInterval(timer)
+  }, [onOutingEnded, planId])
 
   const selectedLabel = useMemo(() => files.length === 0
     ? 'Nothing selected yet'
