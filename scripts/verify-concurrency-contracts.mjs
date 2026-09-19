@@ -39,6 +39,7 @@ const idempotentPlanDeparture = await read('supabase/migrations/0076_idempotent_
 const venueRecoveryAuthority = await read('supabase/migrations/20260916152500_rewind_signal_journey_on_venue_recovery.sql')
 const joinGovernanceLockOrder = await read('supabase/migrations/20260919234221_canonicalize_plan_join_lock_order.sql')
 const changeGovernanceLockOrder = await read('supabase/migrations/20260919234422_canonicalize_plan_change_lock_order.sql')
+const replacementClaimLockOrder = await read('supabase/migrations/20260919235242_preserve_replacement_claim_skip_locked.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -77,6 +78,7 @@ requireMatch('leave Plan lifecycle serialization', idempotentPlanDeparture, /lea
 requireMatch('venue recovery group serialization', venueRecoveryAuthority, /recover_my_signal_venue[\s\S]*?signal_groups[\s\S]*?for update[\s\S]*?signal_venue_exclusions[\s\S]*?on conflict\(signal_group_id,place_id\) do update/i, 'venue recovery must serialize on the Signal group and idempotently own exclusions')
 requireMatch('join governance canonical lock order', joinGovernanceLockOrder, /reconcile_plan_join_request[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_join_requests[\s\S]*?for update[\s\S]*?vote_on_plan_join_request[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_join_requests[\s\S]*?for update/i, 'join voting and reconciliation must lock Plan before request to match request/leave paths')
 requireMatch('change governance canonical lock order', changeGovernanceLockOrder, /reconcile_plan_change_proposal[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_change_proposals[\s\S]*?for update[\s\S]*?vote_on_plan_change[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_change_proposals[\s\S]*?for update/i, 'Plan-change voting and reconciliation must lock Plan before proposal to match proposal creation')
+requireMatch('replacement claim user and lifecycle serialization', replacementClaimLockOrder, /plan_replacement_user_v1[\s\S]*?for update of p skip locked[\s\S]*?from public\.plan_replacement_windows[\s\S]*?for update of prw[\s\S]*?reconcile_plan_replacement_window/i, 'replacement claims must serialize first claims per user, SKIP LOCKED on Plan, then lock the replacement window')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
