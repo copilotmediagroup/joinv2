@@ -52,6 +52,20 @@ export default function DirectMessagesPanel({
   const [error, setError] = useState<string | null>(null)
   const [otherUserTyping, setOtherUserTyping] = useState(false)
   const typingPublisherRef = useRef<((typing: boolean) => void) | null>(null)
+  const feedRef = useRef<HTMLDivElement | null>(null)
+  const shouldFollowLatestRef = useRef(true)
+
+  const scrollToLatest = useCallback((behavior: ScrollBehavior = 'auto') => {
+    const feed = feedRef.current
+    if (!feed) return
+    feed.scrollTo({ top: feed.scrollHeight, behavior })
+  }, [])
+
+  const captureFollowState = () => {
+    const feed = feedRef.current
+    if (!feed) return
+    shouldFollowLatestRef.current = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 80
+  }
 
   const selected = useMemo(
     () => threads.find((thread) => thread.conversationId === selectedId) ?? null,
@@ -131,6 +145,12 @@ export default function DirectMessagesPanel({
   }, [refreshMessages, selectedId])
 
   useEffect(() => {
+    if (!selectedId || messages.length === 0 || !shouldFollowLatestRef.current) return
+    const frame = requestAnimationFrame(() => scrollToLatest())
+    return () => cancelAnimationFrame(frame)
+  }, [messages, scrollToLatest, selectedId])
+
+  useEffect(() => {
     if (!selectedId) return
     let idleTimer: ReturnType<typeof setTimeout> | null = null
     const typing = subscribeToDirectTyping(selectedId, currentUserId, (active) => {
@@ -148,6 +168,7 @@ export default function DirectMessagesPanel({
     setSending(true)
     setError(null)
     try {
+      shouldFollowLatestRef.current = true
       await sendMyDirectMessage(selectedId, draft)
       typingPublisherRef.current?.(false)
       setDraft('')
@@ -179,7 +200,7 @@ export default function DirectMessagesPanel({
           void loadInitialThreads()
         }}
       /> : null}
-      <div className="messages-thread-feed">
+      <div className="messages-thread-feed" ref={feedRef} onScroll={captureFollowState}>
         {messages.length === 0 ? <div className="messages-empty-thread">
           <MessageCircle size={26}/><strong>Start the conversation</strong>
           <span>You connected through SIGNAL.</span>
@@ -234,7 +255,7 @@ export default function DirectMessagesPanel({
           type="button"
           className="direct-thread-row"
           key={thread.conversationId}
-          onClick={() => { setOtherUserTyping(false); setSelectedId(thread.conversationId) }}
+          onClick={() => { shouldFollowLatestRef.current = true; setOtherUserTyping(false); setSelectedId(thread.conversationId) }}
         >
           {thread.avatarUrl ? <img src={thread.avatarUrl} alt=""/>
             : <span>{thread.displayName.slice(0, 1).toUpperCase()}</span>}

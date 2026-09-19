@@ -338,6 +338,8 @@ function App() {
 
   const [activeSurface, setActiveSurface] =
     useState<'discover' | 'activity' | 'messages' | 'profile' | 'public-profile' | 'admin'>('discover')
+  const activeSurfaceRef = useRef(activeSurface)
+  useEffect(() => { activeSurfaceRef.current = activeSurface }, [activeSurface])
   const [publicProfileUserId, setPublicProfileUserId] = useState<string | null>(null)
   const [liveCaptureMode, setLiveCaptureMode] =
     useState<'camera' | 'upload' | null>(null)
@@ -703,7 +705,10 @@ function App() {
     // Returning to a visible/focused app is a journey-entry event. Server resume
     // already owns whether a live Signal exists, so restore its current surface
     // instead of merely refreshing hidden state behind Discover.
-    const refreshJourney = () => { void restoreActiveSignal(true) }
+    // Focus/visibility reconciliation must refresh server journey state without
+    // stealing the user's current surface. Clicking/focusing a text input can
+    // focus the window, and must never navigate Messages back to Discover.
+    const refreshJourney = () => { void restoreActiveSignal(activeSurfaceRef.current === 'discover') }
     const onVisibility = () => {
       if (document.visibilityState === 'visible') refreshJourney()
     }
