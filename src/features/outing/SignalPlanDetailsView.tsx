@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronDown, Clock3, MapPin, Navigation, Radio, Users, Zap } from 'lucide-react'
 import PlanGovernancePanel from '../plan/PlanGovernancePanel'
 import { getMyPlanGovernance, subscribeToPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
-import { getMyPlanMembers, subscribeToPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
+import { getMyPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
 import { checkInToMyPlan, getMyPlanAttendanceStatus, type PlanAttendanceStatus } from '../plan/planAttendanceClient'
 import { toUserFacingError } from '../../lib/userFacingError'
 import { getMyPlanMemberLocations, setMyPlanLocation, type PlanLiveLocation } from './planLiveLocationClient'
@@ -58,11 +58,9 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       })
 
     const unsubscribeGovernance = subscribeToPlanGovernance(planId, refreshPlanAndMembers)
-    const unsubscribeMembers = subscribeToPlanMembers(planId, refreshPlanAndMembers)
     return () => {
       cancelled = true
       unsubscribeGovernance()
-      unsubscribeMembers()
     }
   }, [planId])
 
