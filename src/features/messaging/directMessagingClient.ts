@@ -222,6 +222,9 @@ export function subscribeToDirectTyping(
   let stopped = false
   let subscribed = false
   let pendingTyping = false
+  let lastSentTyping: boolean | null = null
+  let stopTimer: ReturnType<typeof setTimeout> | null = null
+
   const channel = supabase.channel(`direct-typing:${conversationId}`)
     .on('broadcast', { event: 'typing' }, ({ payload }) => {
       if (stopped || !payload || payload.userId === currentUserId) return
@@ -229,26 +232,34 @@ export function subscribeToDirectTyping(
     })
     .subscribe((status) => {
       subscribed = status === 'SUBSCRIBED'
-      if (subscribed && pendingTyping) {
-        void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing: true } })
+      if (subscribed && pendingTyping !== lastSentTyping) {
+        lastSentTyping = pendingTyping
+        void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing: pendingTyping } })
       }
     })
 
-  const setTyping = (typing: boolean) => {
-    if (stopped) return
+  const publish = (typing: boolean) => {
     pendingTyping = typing
-    if (!subscribed) return
+    if (!subscribed || stopped || lastSentTyping === typing) return
+    lastSentTyping = typing
     void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing } })
   }
 
   return {
-    setTyping,
+    setTyping: (typing) => {
+      if (stopped) return
+      if (stopTimer) { clearTimeout(stopTimer); stopTimer = null }
+      publish(typing)
+      if (typing) stopTimer = setTimeout(() => publish(false), 2200)
+    },
     stop: () => {
       if (stopped) return
-      stopped = true
+      if (stopTimer) clearTimeout(stopTimer)
+      stopTimer = null
       if (subscribed && pendingTyping) {
         void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing: false } })
       }
+      stopped = true
       void supabase.removeChannel(channel)
     },
   }
