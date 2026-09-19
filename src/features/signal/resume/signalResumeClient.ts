@@ -41,6 +41,7 @@ export type SignalResumeResult = {
   lockedVenue: SignalResumeVenue | null
   planId: string | null
   planDetailsOpened: boolean
+  checkedInAt: string | null
 }
 
 type ResumeRpcRow = {
@@ -58,6 +59,7 @@ type ResumeRpcRow = {
   locked_venue: unknown
   plan_id: unknown
   plan_details_opened: unknown
+  checked_in_at: unknown
 }
 
 function requireString(value: unknown, field: string): string {
@@ -147,6 +149,7 @@ function parseResumeRow(row: ResumeRpcRow): SignalResumeResult {
     lockedVenue: parseVenue(row.locked_venue),
     planId: typeof row.plan_id === 'string' ? row.plan_id : null,
     planDetailsOpened: row.plan_details_opened === true,
+    checkedInAt: typeof row.checked_in_at === 'string' ? row.checked_in_at : null,
   }
 }
 

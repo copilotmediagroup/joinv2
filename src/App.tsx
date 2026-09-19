@@ -49,7 +49,6 @@ import {
   openMySignalPlanDetails,
   type SignalResumeResult,
 } from './features/signal/resume/signalResumeClient'
-import { getMyActiveSignalOuting } from './features/outing/activeOutingClient'
 import { advanceMySignalJourneyStage } from './features/signal/journey/signalJourneyClient'
 import {
   claimMatchingPlanReplacement,
@@ -580,12 +579,11 @@ function App() {
       // opening Plan details must never impersonate arrival.
       const resume = await getMyActiveSignalResume()
       setActiveSignalResume(resume)
-      const outing = await getMyActiveSignalOuting().catch(() => null)
-      if (outing && resume?.planId === outing.planId) {
-        setActiveOutingPlanId(outing.planId)
-        setActivePlanId(outing.planId)
+      if (resume?.planId && resume.checkedInAt) {
+        setActiveOutingPlanId(resume.planId)
+        setActivePlanId(resume.planId)
         setPlanExitNotice(null)
-        setMessagePlanId(outing.planId)
+        setMessagePlanId(resume.planId)
         setMessageDirectConversationId(null)
         setSignalThreshold(false)
         setFormationResult(null)
