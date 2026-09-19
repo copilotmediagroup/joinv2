@@ -36,6 +36,8 @@ type ActivityViewProps = {
   momentComposerPlanId?: string | null
   stayConnectedPlanId?: string | null
   onMomentComposerHandled?: () => void
+  focusMomentId?: string | null
+  onFocusMomentHandled?: () => void
 }
 
 function formatState(value: string): string {
@@ -136,10 +138,12 @@ function CurrentActivityCard({
   moment,
   currentUserId,
   onDeleted,
+  focused = false,
 }: {
   moment: SignalMoment
   currentUserId: string
   onDeleted: () => Promise<void>
+  focused?: boolean
 }) {
   const [reportOpen, setReportOpen] = useState(false)
   const [reportReason, setReportReason] =
@@ -219,7 +223,7 @@ function CurrentActivityCard({
 
   return (
     <motion.article
-      className="signal-moment-card"
+      className={focused ? "signal-moment-card is-notification-focus" : "signal-moment-card"}
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -320,6 +324,8 @@ export default function ActivityView({
   currentUserId,
   momentComposerPlanId = null,
   stayConnectedPlanId = null,
+  focusMomentId = null,
+  onFocusMomentHandled,
 }: ActivityViewProps) {
   const currentItem = items[0] ?? null
   const [moments, setMoments] = useState<SignalMoment[]>([])
@@ -427,6 +433,12 @@ export default function ActivityView({
     }
   }
 
+  useEffect(() => {
+    if (!focusMomentId || momentsLoading) return
+    const element = document.querySelector('[data-moment-id="' + focusMomentId + '"]')
+    if (element instanceof HTMLElement) { element.scrollIntoView({ behavior: 'smooth', block: 'center' }); onFocusMomentHandled?.() }
+  }, [focusMomentId, moments, momentsLoading, onFocusMomentHandled])
+
   const connectionPlanId = stayConnectedPlanId ?? momentComposerPlanId ?? null
 
   return (
@@ -530,12 +542,9 @@ export default function ActivityView({
           <>
             <div className="signal-moments-feed">
               {moments.map((moment) => (
-                <MomentCard
-                  key={moment.momentId}
-                  moment={moment}
-                  currentUserId={currentUserId}
-                  onDeleted={refreshMoments}
-                />
+                <div key={moment.momentId} data-moment-id={moment.momentId}>
+                  <MomentCard moment={moment} currentUserId={currentUserId} onDeleted={refreshMoments} focused={focusMomentId === moment.momentId} />
+                </div>
               ))}
             </div>
             {hasMoreMoments ? (

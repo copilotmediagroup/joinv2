@@ -431,6 +431,7 @@ function App() {
     useState<string | null>(null)
   const [stayConnectedPlanId, setStayConnectedPlanId] =
     useState<string | null>(null)
+  const [notificationMomentId, setNotificationMomentId] = useState<string | null>(null)
   const [logoutSubmitting, setLogoutSubmitting] = useState(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
@@ -1018,7 +1019,14 @@ function App() {
     setAccepted(false)
     setBored(false)
 
-    if (notificationType === 'direct_message' && relatedEntityId) {
+    if ((notificationType === 'moment_signal' || notificationType === 'moment_comment' || notificationType === 'moment_reply') && relatedEntityId) {
+      setMessageDirectConversationId(null)
+      setMomentComposerPlanId(null)
+      setStayConnectedPlanId(null)
+      setNotificationMomentId(relatedEntityId)
+      setActiveSurface('activity')
+      setPlanExitNotice(null)
+    } else if (notificationType === 'direct_message' && relatedEntityId) {
       setMessageDirectConversationId(relatedEntityId)
       setMessagePlanId(null)
       setActiveSurface('messages')
@@ -1578,6 +1586,8 @@ function App() {
           momentComposerPlanId={momentComposerPlanId}
           stayConnectedPlanId={stayConnectedPlanId}
           onMomentComposerHandled={() => setMomentComposerPlanId(null)}
+          focusMomentId={notificationMomentId}
+          onFocusMomentHandled={() => setNotificationMomentId(null)}
         />
       ) : activeSurface === 'messages' ? (
         <MessagesView
