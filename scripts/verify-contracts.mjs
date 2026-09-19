@@ -58,6 +58,10 @@ const forbidden = [
     pattern: /\.rpc\(\s*['"]enforce_moment_author_account['"]/,
     message: 'Use enforce_moment_author_account_v2 so Moment-author enforcement is idempotent and retry-safe.',
   },
+  {
+    pattern: /table:\s*['"]plans['"]/,
+    message: 'Do not subscribe directly to public.plans: browser SELECT is intentionally revoked and the table is not in supabase_realtime. Signal-to-Plan convergence is driven by authoritative signal_groups invalidation plus resume RPC.',
+  },
 ]
 
 async function walk(directory) {

@@ -17,7 +17,6 @@ import {
 
 export type UseSignalRealtimeState = {
   snapshot: SignalSnapshot | null
-  journeyAuthorityVersion: number
   loading: boolean
   error: Error | null
   connectionState:
@@ -43,9 +42,6 @@ export function useSignalRealtime(
 
   const [error, setError] =
     useState<Error | null>(null)
-
-  const [journeyAuthorityVersion, setJourneyAuthorityVersion] =
-    useState(0)
 
   const [
     connectionState,
@@ -106,11 +102,6 @@ export function useSignalRealtime(
             setLoading(false)
           },
 
-          onJourneyAuthorityInvalidated() {
-            if (!active) return
-            setJourneyAuthorityVersion((version) => version + 1)
-          },
-
           onError(nextError) {
             if (!active) return
             setError(nextError)
@@ -156,7 +147,6 @@ export function useSignalRealtime(
 
   return {
     snapshot,
-    journeyAuthorityVersion,
     loading,
     error,
     connectionState,

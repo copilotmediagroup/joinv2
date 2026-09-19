@@ -752,7 +752,6 @@ function App() {
 
   const {
     snapshot: signalRealtimeSnapshot,
-    journeyAuthorityVersion: signalJourneyAuthorityVersion,
     loading: signalRealtimeLoading,
     error: signalRealtimeError,
     connectionState: signalRealtimeConnectionState,
@@ -854,13 +853,6 @@ function App() {
     signalRealtimeTarget?.signalGroupId,
   ])
 
-  useEffect(() => {
-    if (signalJourneyAuthorityVersion === 0) return
-    // A Plan-domain event means Signal rows are no longer sufficient authority.
-    // Re-read the canonical journey handoff for this participant immediately.
-    const timer = window.setTimeout(() => { void restoreActiveSignal(false) }, 0)
-    return () => window.clearTimeout(timer)
-  }, [restoreActiveSignal, signalJourneyAuthorityVersion])
 
   const signalParticipantRosterVersion =
     signalRealtimeSnapshot?.memberships
