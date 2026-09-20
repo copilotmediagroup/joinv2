@@ -403,6 +403,7 @@ function App() {
   const lastRealtimeJourneyVersionRef = React.useRef<string | null>(null)
   const lastRealtimeGroupIdRef = React.useRef<string | null>(null)
   const journeyRestorePromiseRef = React.useRef<Promise<void> | null>(null)
+  const completionHandoffRef = React.useRef(false)
   const [activeOutingPlanId, setActiveOutingPlanId] =
     useState<string | null>(null)
   const [planExitNotice, setPlanExitNotice] =
@@ -591,6 +592,10 @@ function App() {
   }, [])
 
   const restoreActiveSignal = useCallback((openJourney = false) => {
+    // Completion is intentionally historical, not resumable. Focus/visibility
+    // events during its receipt must never reopen the Signal that just ended.
+    if (completionHandoffRef.current) return Promise.resolve()
+
     const inFlight = journeyRestorePromiseRef.current
     if (inFlight) return inFlight
 
@@ -1674,6 +1679,7 @@ function App() {
       <React.Suspense fallback={<div className="surface-loading">Loading…</div>}>
       {completionPlanId ? (
         <SignalCompletionView planId={completionPlanId} onDone={() => {
+          completionHandoffRef.current = false
           setCompletionPlanId(null)
           setActiveSurface('activity')
           setPlanExitNotice('SIGNAL complete. Your night is now part of Activity.')
@@ -1715,6 +1721,7 @@ function App() {
               lastRealtimeGroupIdRef.current = null
               setFormationError(null)
               setWithdrawalError(null)
+              completionHandoffRef.current = true
               setCompletionPlanId(finishedPlanId)
               setPlanExitNotice(null)
             } else {
