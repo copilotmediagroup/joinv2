@@ -26,9 +26,9 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
 
   if (loading || !gender) return null
 
-  const requiredSeeking: ProfileGender = gender === 'male' ? 'female' : 'male'
+  const oppositeGender: ProfileGender = gender === 'male' ? 'female' : 'male'
   const draft = preferences ?? {
-    seekingGender: requiredSeeking,
+    seekingGender: oppositeGender,
     minAge: 18,
     maxAge: 80,
     isEnabled: false,
@@ -55,16 +55,43 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
         <p>One person. Mutual match. SIGNAL handles the meetup.</p>
       </div>
 
+      <div className="chill-dating-identity">
+        <span>Your profile</span>
+        <strong>{gender === 'female' ? 'Woman' : 'Man'}</strong>
+      </div>
+
+      <div className="chill-dating-seeking">
+        <strong>Looking to meet</strong>
+        <div className="chill-dating-gender-options">
+          {(['male', 'female'] as ProfileGender[]).map((option) => {
+            const isAllowed = option !== gender
+            const isSelected = draft.seekingGender === option
+            return (
+              <button
+                key={option}
+                type="button"
+                className={isSelected ? 'active' : ''}
+                disabled={saving || !isAllowed}
+                title={isAllowed ? undefined : 'Chill currently matches men with women and women with men.'}
+                onClick={() => setPreferences({ ...draft, seekingGender: option })}
+              >
+                {option === 'male' ? 'MEN' : 'WOMEN'}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       <div className="chill-dating-row">
         <div>
-          <strong>Looking to meet</strong>
-          <small>{requiredSeeking === 'female' ? 'Women' : 'Men'}</small>
+          <strong>Dating mode</strong>
+          <small>{draft.isEnabled ? 'Available for reciprocal Chill matches' : 'Not matching right now'}</small>
         </div>
         <button
           type="button"
           className={draft.isEnabled ? 'active' : ''}
           disabled={saving}
-          onClick={() => void save({ ...draft, seekingGender: requiredSeeking, isEnabled: !draft.isEnabled })}
+          onClick={() => void save({ ...draft, isEnabled: !draft.isEnabled })}
         >
           {saving ? <LoaderCircle size={14} className="chill-dating-spinner" /> : draft.isEnabled ? 'ON' : 'OFF'}
         </button>
@@ -79,7 +106,7 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
           <label>MAX<input type="number" min="18" max="80" value={draft.maxAge} disabled={saving || !draft.isEnabled}
             onChange={(event) => setPreferences({ ...draft, maxAge: Math.max(18, Math.min(80, Number(event.target.value) || 80)) })} /></label>
           <button type="button" disabled={saving || !draft.isEnabled || draft.minAge > draft.maxAge}
-            onClick={() => void save({ ...draft, seekingGender: requiredSeeking })}>SAVE</button>
+            onClick={() => void save(draft)}>SAVE</button>
         </div>
       </div>
 
