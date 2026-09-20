@@ -1692,6 +1692,29 @@ function App() {
             setActivePlanId(null)
             setMessagePlanId(null)
             if (reason === 'completed' && finishedPlanId) {
+              // DONE HERE closes the live journey even though we keep the Plan id
+              // briefly for the completion receipt / connection handoff.
+              setFormationResult(null)
+              setSignalRealtimeTarget(null)
+              setSignalParticipants([])
+              setAccepted(false)
+              setActive('drinks')
+              setDirectActivitySlug(null)
+              setBored(false)
+              setBoredOpportunity(null)
+              setBoredOpportunityExcluded([])
+              setSignalTimePreference('TONIGHT')
+              setSignalCrowdPreference('everyone')
+              setSignalAgePreference('open')
+              setSignalPreferencesOpen(false)
+              setSignalThreshold(false)
+              setServerJourneyStage('forming')
+              setLockedSignalVenue(null)
+              setMessageDirectConversationId(null)
+              lastRealtimeJourneyVersionRef.current = null
+              lastRealtimeGroupIdRef.current = null
+              setFormationError(null)
+              setWithdrawalError(null)
               setCompletionPlanId(finishedPlanId)
               setPlanExitNotice(null)
             } else {
