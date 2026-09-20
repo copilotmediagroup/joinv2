@@ -633,14 +633,22 @@ function App() {
         setActivePlanId(null)
         setActiveOutingPlanId(null)
         setMessagePlanId(null)
+        setMessageDirectConversationId(null)
         setAccepted(false)
+        setActive('drinks')
         setDirectActivitySlug(null)
+        setBored(false)
+        setBoredOpportunity(null)
+        setBoredOpportunityExcluded([])
+        setSignalTimePreference('TONIGHT')
+        setSignalCrowdPreference('everyone')
+        setSignalAgePreference('open')
+        setSignalPreferencesOpen(false)
+        lastRealtimeJourneyVersionRef.current = null
+        lastRealtimeGroupIdRef.current = null
         setFormationError(null)
         setWithdrawalError(null)
-        if (openJourney) {
-          setBored(false)
-          setActiveSurface('discover')
-        }
+        if (openJourney) setActiveSurface('discover')
         return
       }
 
