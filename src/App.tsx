@@ -1783,7 +1783,13 @@ function App() {
         <SignalPlanDetailsView
           planId={activePlanId}
           onOpenChat={handleOpenPlanChat}
-          onCheckedIn={() => { void restoreActiveSignal(true) }}
+          onCheckedIn={() => {
+            // Check-in is a forward journey boundary. A restore that started before
+            // attendance committed must not keep the user on the pre-arrival shell.
+            journeyRestoreEpochRef.current += 1
+            journeyRestorePromiseRef.current = null
+            void restoreActiveSignal(true)
+          }}
           onPlanEnded={() => {
             // LEAVE SIGNAL from Plan details is the same hard user boundary as
             // withdrawing before conversion. The server has already removed the
