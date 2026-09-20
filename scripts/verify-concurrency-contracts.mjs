@@ -44,6 +44,7 @@ const livePlanMembershipInvariant = await read('supabase/migrations/202609192355
 const signalPlanConversionUserLocks = await read('supabase/migrations/20260919235959_serialize_signal_plan_conversion_users.sql')
 const directMessagePairLifecycle = await read('supabase/migrations/20260920000503_serialize_direct_message_pair_lifecycle.sql')
 const momentSocialDeleteSerialization = await read('supabase/migrations/20260920001014_serialize_moment_social_with_delete.sql')
+const momentCaptureLifecycleAuthority = await read('supabase/migrations/20260920001239_lock_moment_capture_lifecycle_authority.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -89,6 +90,7 @@ requireMatch('direct message pair lifecycle serialization', directMessagePairLif
 requireMatch('direct read pair lifecycle serialization', directMessagePairLifecycle, /mark_my_direct_conversation_read[\s\S]*?signal_connection_pair_v1[\s\S]*?signal_connections[\s\S]*?for update[\s\S]*?direct_conversations[\s\S]*?for update[\s\S]*?update public\.direct_messages/i, 'read receipts must not race stale access after block or disconnect')
 requireMatch('Moment reaction/delete serialization', momentSocialDeleteSerialization, /toggle_signal_moment_signal[\s\S]*?signal_moments[\s\S]*?state='published'[\s\S]*?for update[\s\S]*?signal_moment_signal_v1/i, 'Moment reactions must lock published Moment authority before reaction mutation so owner deletion cannot race stale visibility')
 requireMatch('Moment comment/delete serialization', momentSocialDeleteSerialization, /add_signal_moment_comment[\s\S]*?signal_moments[\s\S]*?state='published'[\s\S]*?for update[\s\S]*?signal_moment_comments[\s\S]*?insert into public\.signal_moment_comments/i, 'Moment comments and replies must lock published Moment authority before insertion')
+requireMatch('Moment capture lifecycle authority lock', momentCaptureLifecycleAuthority, /signal_moment_capture_v1[\s\S]*?from public\.plans[\s\S]*?join public\.plan_memberships[\s\S]*?for share of p,pm[\s\S]*?signal_moments[\s\S]*?for update/i, 'Moment capture must hold Plan and membership lifecycle authority while creating or extending the draft')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
