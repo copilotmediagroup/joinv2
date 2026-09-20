@@ -43,6 +43,7 @@ const replacementClaimLockOrder = await read('supabase/migrations/20260919235242
 const livePlanMembershipInvariant = await read('supabase/migrations/20260919235502_serialize_live_plan_user_admission.sql')
 const signalPlanConversionUserLocks = await read('supabase/migrations/20260919235959_serialize_signal_plan_conversion_users.sql')
 const directMessagePairLifecycle = await read('supabase/migrations/20260920000503_serialize_direct_message_pair_lifecycle.sql')
+const momentSocialDeleteSerialization = await read('supabase/migrations/20260920001014_serialize_moment_social_with_delete.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -86,6 +87,8 @@ requireMatch('single live Plan membership invariant', livePlanMembershipInvarian
 requireMatch('Signal conversion deterministic user locks', signalPlanConversionUserLocks, /convert_locked_signal_group_to_plan[\s\S]*?live_plan_membership_user_v1[\s\S]*?order by sgm\.user_id[\s\S]*?insert into public\.plan_memberships/i, 'multi-user Signal conversion must acquire membership admission locks in deterministic user order before inserting')
 requireMatch('direct message pair lifecycle serialization', directMessagePairLifecycle, /send_my_direct_message_v2[\s\S]*?signal_connection_pair_v1[\s\S]*?signal_connections[\s\S]*?for update[\s\S]*?direct_conversations[\s\S]*?for update[\s\S]*?insert into public\.direct_messages/i, 'direct sends must lock pair then accepted connection then active conversation before insert')
 requireMatch('direct read pair lifecycle serialization', directMessagePairLifecycle, /mark_my_direct_conversation_read[\s\S]*?signal_connection_pair_v1[\s\S]*?signal_connections[\s\S]*?for update[\s\S]*?direct_conversations[\s\S]*?for update[\s\S]*?update public\.direct_messages/i, 'read receipts must not race stale access after block or disconnect')
+requireMatch('Moment reaction/delete serialization', momentSocialDeleteSerialization, /toggle_signal_moment_signal[\s\S]*?signal_moments[\s\S]*?state='published'[\s\S]*?for update[\s\S]*?signal_moment_signal_v1/i, 'Moment reactions must lock published Moment authority before reaction mutation so owner deletion cannot race stale visibility')
+requireMatch('Moment comment/delete serialization', momentSocialDeleteSerialization, /add_signal_moment_comment[\s\S]*?signal_moments[\s\S]*?state='published'[\s\S]*?for update[\s\S]*?signal_moment_comments[\s\S]*?insert into public\.signal_moment_comments/i, 'Moment comments and replies must lock published Moment authority before insertion')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
