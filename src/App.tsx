@@ -1928,21 +1928,21 @@ function App() {
                                 : signalTimePreference
                             }
                             {' · '}
-                            {
-                              effectiveSignalCrowdPreference === 'women_only'
-                                ? 'WOMEN ONLY'
-                                : effectiveSignalCrowdPreference === 'men_only'
-                                  ? 'MEN ONLY'
-                                  : 'EVERYONE'
-                            }
-                            {' · '}
-                            {
-                              effectiveSignalAgePreference === '30_plus'
-                                ? '30+'
-                                : effectiveSignalAgePreference === '40_plus'
-                                  ? '40+'
-                                  : 'OPEN'
-                            }
+                            {directActivitySlug === 'chill'
+                              ? 'DATING · 1-ON-1'
+                              : <>
+                                  {effectiveSignalCrowdPreference === 'women_only'
+                                    ? 'WOMEN ONLY'
+                                    : effectiveSignalCrowdPreference === 'men_only'
+                                      ? 'MEN ONLY'
+                                      : 'EVERYONE'}
+                                  {' · '}
+                                  {effectiveSignalAgePreference === '30_plus'
+                                    ? '30+'
+                                    : effectiveSignalAgePreference === '40_plus'
+                                      ? '40+'
+                                      : 'OPEN'}
+                                </>}
                           </span>
                         </div>
 
@@ -1981,6 +1981,7 @@ function App() {
                           </div>
                         </div>
 
+                        {directActivitySlug !== 'chill' && <>
                         <div className="signal-preference-group">
                           <span className="signal-preference-label">
                             CROWD
@@ -2098,6 +2099,7 @@ function App() {
                             ))}
                           </div>
                         </div>
+                        </>}
                       </div>
 
                             <button
