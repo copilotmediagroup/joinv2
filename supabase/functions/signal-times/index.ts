@@ -253,7 +253,17 @@ Deno.serve(async (request: Request) => {
     // Chill is fully coordinated by SIGNAL once the reciprocal pair locks.
     // Generated options already respect the winning venue's opening hours and
     // Signal window, so prefer BEST FIT without asking two daters to poll.
-    if (activity.slug === 'chill') {
+    const { data: boredMember, error: boredMemberError } = await domain
+      .from('signal_group_memberships')
+      .select('signal_intents!inner(journey_origin)')
+      .eq('signal_group_id', signalGroupId)
+      .eq('user_id', user.id)
+      .in('state', ['matched', 'confirmed'])
+      .eq('signal_intents.journey_origin', 'im_bored')
+      .maybeSingle()
+    if (boredMemberError) throw boredMemberError
+
+    if (activity.slug === 'chill' && boredMember) {
       const { error: finalizeError } = await domain.rpc('finalize_chill_time_choice', {
         p_signal_group_id: signalGroupId,
       })

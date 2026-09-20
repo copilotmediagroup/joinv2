@@ -807,7 +807,17 @@ Deno.serve(async (request: Request) => {
     // already enforced open-hours, usable-window and midpoint/fairness policy.
     // Once the reciprocal pair is locked, deterministically take rank 1 so the
     // date keeps moving without exposing an unnecessary voting step.
-    if (activity.slug === 'chill') {
+    const { data: boredMember, error: boredMemberError } = await domain
+      .from('signal_group_memberships')
+      .select('signal_intents!inner(journey_origin)')
+      .eq('signal_group_id', signalGroupId)
+      .eq('user_id', user.id)
+      .in('state', ['matched', 'confirmed'])
+      .eq('signal_intents.journey_origin', 'im_bored')
+      .maybeSingle()
+    if (boredMemberError) throw boredMemberError
+
+    if (activity.slug === 'chill' && boredMember) {
       const { error: finalizeError } = await domain.rpc('finalize_chill_venue_choice', {
         p_signal_group_id: signalGroupId,
       })
