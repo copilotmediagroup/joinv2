@@ -1190,22 +1190,23 @@ function App() {
     }
   }
 
-  const handleImDown = async () => {
+  const handleImDown = async (boredOpportunityOverride?: BoredOpportunity) => {
     // React state does not synchronously lock a rapid second click. The ref does.
     // One user gesture must own exactly one immutable formation request.
     if (formationRequestRef.current) return
     formationRequestRef.current = true
 
+    const selectedBoredOpportunity = boredOpportunityOverride ?? boredOpportunity
     const requestedActivitySlug =
       directActivitySlug ??
-      boredOpportunity?.activitySlug ??
+      selectedBoredOpportunity?.activitySlug ??
       null
     const requestedJourneyOrigin = directActivitySlug
       ? 'direct_signal' as const
       : 'im_bored' as const
     const requestedTimeWindow = directActivitySlug
       ? signalTimePreference
-      : boredOpportunity?.timeWindow ?? 'NOW'
+      : selectedBoredOpportunity?.timeWindow ?? 'NOW'
     const requestedCrowdMode = effectiveSignalCrowdPreference
     const requestedAgePreference = effectiveSignalAgePreference
 
@@ -1252,8 +1253,8 @@ function App() {
       })
 
       if (replacement.claimed && replacement.planId) {
-        if (!directActivitySlug && boredOpportunity) {
-          await acceptMyBoredOpportunity(boredOpportunity.boredIntentId, activitySlug)
+        if (!directActivitySlug && selectedBoredOpportunity) {
+          await acceptMyBoredOpportunity(selectedBoredOpportunity.boredIntentId, activitySlug)
         }
         setFormationResult(null)
         setSignalRealtimeTarget(null)
@@ -1281,8 +1282,8 @@ function App() {
           journeyOrigin,
         })
 
-      if (!directActivitySlug && boredOpportunity) {
-        await acceptMyBoredOpportunity(boredOpportunity.boredIntentId, activitySlug)
+      if (!directActivitySlug && selectedBoredOpportunity) {
+        await acceptMyBoredOpportunity(selectedBoredOpportunity.boredIntentId, activitySlug)
       }
 
       setFormationResult(result)
@@ -1309,9 +1310,9 @@ function App() {
         committedJourney?.signalIntentId &&
         committedJourney.activitySlug === requestedActivitySlug
       ) {
-        if (!directActivitySlug && boredOpportunity) {
+        if (!directActivitySlug && selectedBoredOpportunity) {
           await acceptMyBoredOpportunity(
-            boredOpportunity.boredIntentId,
+            selectedBoredOpportunity.boredIntentId,
             requestedActivitySlug,
           ).catch(() => undefined)
         }
@@ -1325,6 +1326,34 @@ function App() {
     } finally {
       formationRequestRef.current = false
       setFormationSubmitting(false)
+    }
+  }
+
+  const handleImBoredAutomation = async () => {
+    if (formationRequestRef.current || boredOpportunityLoading || formationSubmitting) return
+
+    setDirectActivitySlug(null)
+    setBored(true)
+    setAccepted(false)
+    setFormationError(null)
+    setFormationResult(null)
+    setSignalRealtimeTarget(null)
+    setBoredOpportunity(null)
+    setBoredOpportunityExcluded([])
+    setSignalTimePreference('NOW')
+    setSignalCrowdPreference('everyone')
+    setSignalAgePreference('open')
+    setBoredOpportunityLoading(true)
+
+    try {
+      const opportunity = await getMyBoredOpportunity([])
+      if (!opportunity) throw new Error('No automatic opportunity is available right now.')
+      setBoredOpportunity(opportunity)
+      await handleImDown(opportunity)
+    } catch (error) {
+      setFormationError(toUserFacingError(error, 'Unable to find something right now.'))
+    } finally {
+      setBoredOpportunityLoading(false)
     }
   }
 
@@ -2027,6 +2056,7 @@ function App() {
                           </p>
                         ) : null}
 
+                        {directActivitySlug ? (
                         <div className="suggestion-actions">
                         <motion.button
                           type="button"
@@ -2049,6 +2079,13 @@ function App() {
                           <ChevronRight size={16} />
                         </button>
                       </div>
+                      ) : (
+                        <div className="forming-state">
+                          <span className="forming-kicker">AUTOMATIC SIGNAL</span>
+                          <h2>{formationSubmitting ? 'PUTTING IT TOGETHER…' : 'SIGNAL IS SEARCHING…'}</h2>
+                          <p>No picking. No choosing. SIGNAL is handling it.</p>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="forming-state">
@@ -2285,18 +2322,7 @@ function App() {
             return
           }
 
-          setDirectActivitySlug(null)
-          setBored(true)
-          setAccepted(false)
-          setFormationError(null)
-          setFormationResult(null)
-          setSignalRealtimeTarget(null)
-          setBoredOpportunity(null)
-          setBoredOpportunityExcluded([])
-          setSignalTimePreference('NOW')
-          setSignalCrowdPreference('everyone')
-          setSignalAgePreference('open')
-          void loadBoredOpportunity([])
+          void handleImBoredAutomation()
         }}
         whileHover={{ y: -3 }}
         whileTap={{ scale: 0.99 }}
@@ -2339,7 +2365,7 @@ function App() {
               : bored
                 ? accepted
                   ? 'Compatible people are coming together.'
-                  : 'React to whatever feels right.'
+                  : 'SIGNAL is choosing and joining for you.'
                 : "Don't make me choose."}
           </small>
         </span>
