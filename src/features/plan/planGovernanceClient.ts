@@ -273,8 +273,14 @@ export function subscribeToPlanGovernance(
   planId: string,
   onInvalidate: () => void,
 ): () => void {
+  // Multiple mounted views can legitimately observe the same Plan at once
+  // (details shell, live outing shell, and the lazily mounted options panel).
+  // Realtime-js requires channel topics to be unique within one client, so a
+  // stable plan-only topic crashes when the options panel mounts. Give every
+  // subscriber its own local topic; the database filters remain plan-scoped.
+  const subscriptionId = crypto.randomUUID()
   const channel = supabase
-    .channel(`plan-governance:${planId}`)
+    .channel(`plan-governance:${planId}:${subscriptionId}`)
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'plan_join_requests',
       filter: `plan_id=eq.${planId}`,
