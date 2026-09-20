@@ -130,23 +130,8 @@ export async function subscribeToSignalDiscovery(
     throw new Error('Signal discovery realtime topic is unavailable.')
   }
 
-  const {
-    data: { session },
-    error: sessionError,
-  } = await supabase.auth.getSession()
-
-  if (sessionError) {
-    throw sessionError
-  }
-
-  if (!session?.access_token) {
-    throw new Error('Signal discovery realtime authentication is unavailable.')
-  }
-
-  await supabase.realtime.setAuth(session.access_token)
-
   const channel = supabase
-    .channel(data, { config: { private: true } })
+    .channel(data)
     .on('broadcast', { event: 'refresh' }, () => onRefresh())
 
   await new Promise<void>((resolve, reject) => {
