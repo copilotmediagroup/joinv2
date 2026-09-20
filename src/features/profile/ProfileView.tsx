@@ -38,6 +38,7 @@ import {
   type SignalHistorySummary,
 } from './signalHistoryClient'
 import SignalPreferencesPanel from './SignalPreferencesPanel'
+import ChillDatingPreferencesPanel from './ChillDatingPreferencesPanel'
 import BlockedPeoplePanel from '../safety/BlockedPeoplePanel'
 import MyConnectionsPanel from './MyConnectionsPanel'
 import ProfileSignalLife from './ProfileSignalLife'
@@ -1261,6 +1262,11 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
             <SignalPreferencesPanel />
           </div>
         </>) : null}
+
+        <div className="profile-view-divider" />
+        <div className="profile-view-section profile-view-private-matching">
+          <ChillDatingPreferencesPanel gender={profile.gender} />
+        </div>
 
         <div className="profile-view-divider" />
         <div className="profile-view-section">
