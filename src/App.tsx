@@ -59,6 +59,7 @@ import { advanceMySignalJourneyStage } from './features/signal/journey/signalJou
 import {
   claimMatchingPlanReplacement,
 } from './features/plan/planGovernanceClient'
+import { getMyChillDatingPreferences } from './features/profile/chillDatingPreferencesClient'
 import type {
   SignalRealtimeTarget,
 } from './features/signal/realtime/contract'
@@ -1252,7 +1253,9 @@ function App() {
     const requestedTimeWindow = directActivitySlug
       ? signalTimePreference
       : selectedBoredOpportunity?.timeWindow ?? 'NOW'
-    const requestedCrowdMode = effectiveSignalCrowdPreference
+    const requestedCrowdMode = requestedActivitySlug === 'chill'
+      ? 'everyone' as const
+      : effectiveSignalCrowdPreference
     const requestedAgePreference = effectiveSignalAgePreference
 
     setFormationSubmitting(true)
@@ -1281,14 +1284,24 @@ function App() {
       const activitySlug = requestedActivitySlug
       const journeyOrigin = requestedJourneyOrigin
 
-      const minAge =
-        requestedAgePreference === '30_plus'
+      if (activitySlug === 'chill') {
+        const datingPreferences = await getMyChillDatingPreferences()
+        if (!datingPreferences?.isEnabled) {
+          throw new Error('Set your Chill dating preferences in Profile before starting a Chill Signal.')
+        }
+      }
+
+      const minAge = activitySlug === 'chill'
+        ? null
+        : requestedAgePreference === '30_plus'
           ? 30
           : requestedAgePreference === '40_plus'
             ? 40
             : null
 
-      const replacement = await claimMatchingPlanReplacement({
+      const replacement = activitySlug === 'chill'
+        ? { claimed: false, planId: null }
+        : await claimMatchingPlanReplacement({
         citySlug: homeCity.slug,
         activitySlug,
         timeWindow: requestedTimeWindow,
