@@ -1114,6 +1114,11 @@ function App() {
     setLogoutSubmitting(true)
     setLogoutError(null)
     try {
+      // Completion suppression is scoped to this authenticated browser session.
+      // Never let it survive sign-out and suppress journey restoration for the
+      // next account that signs in on the same tab.
+      completionHandoffRef.current = false
+      setCompletionPlanId(null)
       await signOutCurrentUser()
     } catch {
       setLogoutError('Unable to log out right now. Please try again.')
