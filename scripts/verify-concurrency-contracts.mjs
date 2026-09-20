@@ -53,6 +53,7 @@ const boredChillCompatibility = await read('supabase/migrations/20260920073000_b
 const chillReplacementGuard = await read('supabase/migrations/20260920074000_disable_chill_replacement_claims.sql')
 const chillPrivateDiscovery = await read('supabase/migrations/20260920075000_chill_private_discovery_social_proof.sql')
 const chillParticipantPrivacy = await read('supabase/migrations/20260920080000_chill_participant_identity_lock_privacy.sql')
+const chillDiscoveryAvatarPrivacy = await read('supabase/migrations/20260920081000_chill_discovery_no_prelock_avatar_paths.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -108,6 +109,7 @@ requireMatch('I am Bored Chill compatibility gate', boredChillCompatibility, /a\
 requireMatch('Chill replacement admission disabled', chillReplacementGuard, /p_activity_slug[\s\S]*?='chill'[\s\S]*?return query select null::uuid,false/i, 'a two-person Chill date must never admit a generic replacement member after lock')
 requireMatch('Chill discovery compatibility privacy', chillPrivateDiscovery, /intent_activity\.slug <> 'chill'[\s\S]*?si\.user_id = au\.user_id[\s\S]*?chill_users_are_reciprocally_compatible\(au\.user_id, si\.user_id\)/i, 'Chill discovery counts and avatar previews must not expose incompatible dating candidates')
 requireMatch('Chill forming participant identity privacy', chillParticipantPrivacy, /v_activity_slug='chill' and v_group_state='forming'[\s\S]*?sgm\.user_id=v_user_id[\s\S]*?return;/i, 'a waiting Chill member must not receive the other dating candidate identity before the pair is locked')
+requireMatch('Chill discovery returns no avatar object paths', chillDiscoveryAvatarPrivacy, /ranked_avatar_candidates[\s\S]*?preview_activity\.slug <> 'chill'/i, 'discovery must not leak pre-lock Chill avatar object paths or their owner-folder identity to the browser')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
