@@ -54,6 +54,8 @@ const chillReplacementGuard = await read('supabase/migrations/20260920074000_dis
 const chillPrivateDiscovery = await read('supabase/migrations/20260920075000_chill_private_discovery_social_proof.sql')
 const chillParticipantPrivacy = await read('supabase/migrations/20260920080000_chill_participant_identity_lock_privacy.sql')
 const chillDiscoveryAvatarPrivacy = await read('supabase/migrations/20260920081000_chill_discovery_no_prelock_avatar_paths.sql')
+const chillAutomaticVenueChoice = await read('supabase/migrations/20260920082000_chill_automatic_venue_choice.sql')
+const signalPlacesEdge = await read('supabase/functions/signal-places/index.ts')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -110,6 +112,8 @@ requireMatch('Chill replacement admission disabled', chillReplacementGuard, /p_a
 requireMatch('Chill discovery compatibility privacy', chillPrivateDiscovery, /intent_activity\.slug <> 'chill'[\s\S]*?si\.user_id = au\.user_id[\s\S]*?chill_users_are_reciprocally_compatible\(au\.user_id, si\.user_id\)/i, 'Chill discovery counts and avatar previews must not expose incompatible dating candidates')
 requireMatch('Chill forming participant identity privacy', chillParticipantPrivacy, /v_activity_slug='chill' and v_group_state='forming'[\s\S]*?sgm\.user_id=v_user_id[\s\S]*?return;/i, 'a waiting Chill member must not receive the other dating candidate identity before the pair is locked')
 requireMatch('Chill discovery returns no avatar object paths', chillDiscoveryAvatarPrivacy, /ranked_avatar_candidates[\s\S]*?preview_activity\.slug <> 'chill'/i, 'discovery must not leak pre-lock Chill avatar object paths or their owner-folder identity to the browser')
+requireMatch('Chill automatic venue choice is pair-locked', chillAutomaticVenueChoice, /v_activity_slug<>'chill'[\s\S]*?v_group\.state not in \('locked','coordinating'\)[\s\S]*?v_confirmed<>2[\s\S]*?order by svo\.source_rank asc[\s\S]*?state='won'/i, 'Chill may auto-select a venue only for an authoritative confirmed two-person pair and must choose deterministically')
+requireMatch('Chill venue edge invokes server finalizer', signalPlacesEdge, /activity\.slug === 'chill'[\s\S]*?finalize_chill_venue_choice[\s\S]*?p_signal_group_id: signalGroupId/i, 'the venue edge must finalize Chill automatically after persisting the ranked usable slate')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)

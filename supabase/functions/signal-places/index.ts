@@ -803,6 +803,17 @@ Deno.serve(async (request: Request) => {
     })
     if (ensureError) throw ensureError
 
+    // Chill is a two-person dating Signal, not a group poll. Google ranking has
+    // already enforced open-hours, usable-window and midpoint/fairness policy.
+    // Once the reciprocal pair is locked, deterministically take rank 1 so the
+    // date keeps moving without exposing an unnecessary voting step.
+    if (activity.slug === 'chill') {
+      const { error: finalizeError } = await domain.rpc('finalize_chill_venue_choice', {
+        p_signal_group_id: signalGroupId,
+      })
+      if (finalizeError) throw finalizeError
+    }
+
     const persisted = await loadRound(domain, signalGroupId, user.id)
     if (!persisted) throw new Error('Signal venue round could not be initialized')
 
