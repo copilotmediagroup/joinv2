@@ -26,6 +26,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const [userPosition, setUserPosition] = useState<{ latitude: number; longitude: number } | null>(null)
   const [liveLocations, setLiveLocations] = useState<PlanLiveLocation[]>([])
   const [planOptionsOpen, setPlanOptionsOpen] = useState(false)
+  const [planOptionsMounted, setPlanOptionsMounted] = useState(false)
   const [route, setRoute] = useState<SignalRoute | null>(null)
   const [routeLoading, setRouteLoading] = useState(false)
   const [routeError, setRouteError] = useState<string | null>(null)
@@ -197,9 +198,9 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
         <button type="button" className="signal-details-arrival-unavailable" disabled aria-disabled="true"><MapPin size={18}/><span><strong>I'M HERE</strong><small>Check-in isn't available right now</small></span></button>
       )}
     </section>
-    <div className={`signal-details-controls ${planOptionsOpen ? 'options-open' : ''}`}>
-      {planOptionsOpen ? <PlanGovernancePanel planId={planId} onCheckedIn={onCheckedIn} onLeftPlan={() => onPlanEnded()} /> : null}
+    <div className={`signal-details-controls ${planOptionsOpen ? 'options-open' : ''}`} aria-hidden={!planOptionsOpen}>
+      {planOptionsMounted ? <PlanGovernancePanel planId={planId} onCheckedIn={onCheckedIn} onLeftPlan={() => onPlanEnded()} /> : null}
     </div>
-    <button type="button" className={`signal-details-options-toggle ${planOptionsOpen ? 'open' : ''}`} onClick={() => setPlanOptionsOpen((open) => !open)}><span>PLAN OPTIONS</span><ChevronDown size={16}/></button>
+    <button type="button" className={`signal-details-options-toggle ${planOptionsOpen ? 'open' : ''}`} aria-expanded={planOptionsOpen} onClick={() => { setPlanOptionsMounted(true); setPlanOptionsOpen((open) => !open) }}><span>PLAN OPTIONS</span><ChevronDown size={16}/></button>
   </section>
 }
