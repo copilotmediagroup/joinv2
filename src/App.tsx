@@ -35,6 +35,7 @@ import {
 import { useSignalCurrentUser } from './features/onboarding/components/signalCurrentUserContext'
 import {
   getMySignalDiscovery,
+  subscribeToSignalDiscovery,
   type SignalDiscoveryActivity,
 } from './features/signal/discovery/signalDiscoveryClient'
 import {
@@ -539,6 +540,50 @@ function App() {
 
     return () => {
       cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let stopped = false
+    let unsubscribe: (() => void) | null = null
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+    const refreshLiveCounts = () => {
+      if (stopped || refreshTimer) return
+
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null
+
+        void getMySignalDiscovery()
+          .then((result) => {
+            if (!stopped) setDiscovery(result)
+          })
+          .catch(() => undefined)
+      }, 80)
+    }
+
+    void subscribeToSignalDiscovery(refreshLiveCounts)
+      .then((stop) => {
+        if (stopped) {
+          stop()
+          return
+        }
+        unsubscribe = stop
+      })
+      .catch(() => undefined)
+
+    const expiryRefresh = window.setInterval(refreshLiveCounts, 60_000)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refreshLiveCounts()
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      stopped = true
+      if (refreshTimer) clearTimeout(refreshTimer)
+      window.clearInterval(expiryRefresh)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      unsubscribe?.()
     }
   }, [])
 

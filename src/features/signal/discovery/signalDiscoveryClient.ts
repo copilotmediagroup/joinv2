@@ -115,3 +115,27 @@ Promise<SignalDiscoveryActivity[]> {
     ),
   )
 }
+
+export async function subscribeToSignalDiscovery(
+  onRefresh: () => void,
+): Promise<() => void> {
+  const { data, error } =
+    await supabase.rpc('get_my_signal_discovery_realtime_topic')
+
+  if (error) {
+    throw error
+  }
+
+  if (typeof data !== 'string' || !data.startsWith('signal-discovery:')) {
+    throw new Error('Signal discovery realtime topic is unavailable.')
+  }
+
+  const channel = supabase
+    .channel(data, { config: { private: true } })
+    .on('broadcast', { event: 'refresh' }, () => onRefresh())
+    .subscribe()
+
+  return () => {
+    void supabase.removeChannel(channel)
+  }
+}
