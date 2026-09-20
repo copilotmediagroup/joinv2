@@ -38,6 +38,11 @@ import {
   type SignalDiscoveryActivity,
 } from './features/signal/discovery/signalDiscoveryClient'
 import {
+  getMyBoredOpportunity,
+  acceptMyBoredOpportunity,
+  type BoredOpportunity,
+} from './features/signal/discovery/boredOpportunityClient'
+import {
   getAuthoritativeHomeCity,
 } from './features/city/homeCityAuthority'
 import {
@@ -104,14 +109,6 @@ type Pulse = {
   line: string
   image: string
   size: 'hero' | 'wide' | 'medium' | 'small'
-}
-
-type BoredSuggestion = {
-  id: string
-  emoji: string
-  title: string
-  subtitle: string
-  image: string
 }
 
 type SignalPreferenceTime =
@@ -250,47 +247,6 @@ const pulses: Pulse[] = [
   },
 ]
 
-const boredSuggestions: BoredSuggestion[] = [
-  {
-    id: 'basketball',
-    emoji: '🏀',
-    title: 'PICKUP BASKETBALL?',
-    subtitle: 'Easy run. No league. Just hoop.',
-    image: imageUrl('1519861531473-9200262188bf'),
-  },
-  {
-    id: 'paint',
-    emoji: '🎨',
-    title: 'PAINT & SIP?',
-    subtitle: 'Creative without taking it too seriously.',
-    image: imageUrl('1541961017774-22349e4a1262'),
-  },
-  {
-    id: 'rooftop',
-    emoji: '🌙',
-    title: 'ROOFTOP TONIGHT?',
-    subtitle: 'Drinks, skyline, somewhere with energy.',
-    image: imageUrl('1514525253161-7a46d19cd819'),
-  },
-  {
-    id: 'music',
-    emoji: '🎶',
-    title: 'LIVE MUSIC?',
-    subtitle: 'Local spot. Good energy. Nothing overplanned.',
-    image: imageUrl('1501386761578-eac5c94b800a'),
-  },
-]
-
-const boredSuggestionActivitySlug: Record<
-  BoredSuggestion['id'],
-  string
-> = {
-  basketball: 'sports',
-  paint: 'creative',
-  rooftop: 'nightlife',
-  music: 'music',
-}
-
 function AvatarStack({ urls }: { urls: string[] }) {
   if (urls.length === 0) {
     return null
@@ -385,7 +341,9 @@ function App() {
   const [directActivitySlug, setDirectActivitySlug] =
     useState<string | null>(null)
   const [bored, setBored] = useState(false)
-  const [suggestionIndex, setSuggestionIndex] = useState(0)
+  const [boredOpportunity, setBoredOpportunity] = useState<BoredOpportunity | null>(null)
+  const [boredOpportunityLoading, setBoredOpportunityLoading] = useState(false)
+  const [boredOpportunityExcluded, setBoredOpportunityExcluded] = useState<string[]>([])
   const [accepted, setAccepted] = useState(false)
   const [signalTimePreference, setSignalTimePreference] =
     useState<SignalPreferenceTime>('TONIGHT')
@@ -457,12 +415,14 @@ function App() {
   const [logoutError, setLogoutError] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
 
-  const suggestion = boredSuggestions[suggestionIndex]
-
   const directActivity = directActivitySlug
     ? pulses.find(
         (pulse) => pulse.id === directActivitySlug,
       ) ?? null
+    : null
+
+  const boredOpportunityPulse = boredOpportunity
+    ? pulses.find((pulse) => pulse.id === boredOpportunity.activitySlug) ?? null
     : null
 
   const journeyPresentation = directActivity
@@ -475,18 +435,27 @@ function App() {
         activitySlug: directActivity.id,
         kicker: 'YOUR SIGNAL',
       }
-    : {
-        id: suggestion.id,
-        emoji: suggestion.emoji,
-        title: suggestion.title,
-        subtitle: suggestion.subtitle,
-        image: suggestion.image,
-        activitySlug:
-          boredSuggestionActivitySlug[
-            suggestion.id
-          ],
-        kicker: 'SIGNAL FOUND SOMETHING',
-      }
+    : boredOpportunity && boredOpportunityPulse
+      ? {
+          id: boredOpportunity.activityId,
+          emoji: boredOpportunityPulse.emoji,
+          title: boredOpportunity.activityName.toUpperCase() + '?',
+          subtitle: boredOpportunity.activeCount > 0
+            ? boredOpportunity.activeCount + ' people are active around this opportunity in your city right now.'
+            : 'SIGNAL picked this for right now based on timing and your activity history.',
+          image: boredOpportunityPulse.image,
+          activitySlug: boredOpportunity.activitySlug,
+          kicker: 'SIGNAL FOUND SOMETHING',
+        }
+      : {
+          id: 'bored-search',
+          emoji: '⚡',
+          title: 'LOOKING AROUND...',
+          subtitle: 'Checking what fits right now and where people are active.',
+          image: imageUrl('1514525253161-7a46d19cd819'),
+          activitySlug: '',
+          kicker: 'SIGNAL IS SEARCHING',
+        }
 
   useEffect(() => {
     let cancelled = false
@@ -1205,6 +1174,22 @@ function App() {
     }
   }
 
+  const loadBoredOpportunity = async (excluded: string[] = []) => {
+    setBoredOpportunityLoading(true)
+    setFormationError(null)
+    try {
+      const opportunity = await getMyBoredOpportunity(excluded)
+      if (!opportunity) throw new Error('No automatic opportunity is available right now.')
+      setBoredOpportunity(opportunity)
+      setBoredOpportunityExcluded(excluded)
+    } catch (error) {
+      setBoredOpportunity(null)
+      setFormationError(toUserFacingError(error, 'Unable to find something right now.'))
+    } finally {
+      setBoredOpportunityLoading(false)
+    }
+  }
+
   const handleImDown = async () => {
     // React state does not synchronously lock a rapid second click. The ref does.
     // One user gesture must own exactly one immutable formation request.
@@ -1213,11 +1198,14 @@ function App() {
 
     const requestedActivitySlug =
       directActivitySlug ??
-      boredSuggestionActivitySlug[suggestion.id]
+      boredOpportunity?.activitySlug ??
+      null
     const requestedJourneyOrigin = directActivitySlug
       ? 'direct_signal' as const
       : 'im_bored' as const
-    const requestedTimeWindow = signalTimePreference
+    const requestedTimeWindow = directActivitySlug
+      ? signalTimePreference
+      : boredOpportunity?.timeWindow ?? 'NOW'
     const requestedCrowdMode = effectiveSignalCrowdPreference
     const requestedAgePreference = effectiveSignalAgePreference
 
@@ -1264,6 +1252,9 @@ function App() {
       })
 
       if (replacement.claimed && replacement.planId) {
+        if (!directActivitySlug && boredOpportunity) {
+          await acceptMyBoredOpportunity(boredOpportunity.boredIntentId, activitySlug)
+        }
         setFormationResult(null)
         setSignalRealtimeTarget(null)
         setSignalThreshold(false)
@@ -1290,6 +1281,10 @@ function App() {
           journeyOrigin,
         })
 
+      if (!directActivitySlug && boredOpportunity) {
+        await acceptMyBoredOpportunity(boredOpportunity.boredIntentId, activitySlug)
+      }
+
       setFormationResult(result)
       setWithdrawalError(null)
 
@@ -1314,6 +1309,12 @@ function App() {
         committedJourney?.signalIntentId &&
         committedJourney.activitySlug === requestedActivitySlug
       ) {
+        if (!directActivitySlug && boredOpportunity) {
+          await acceptMyBoredOpportunity(
+            boredOpportunity.boredIntentId,
+            requestedActivitySlug,
+          ).catch(() => undefined)
+        }
         await restoreActiveSignal(true)
         return
       }
@@ -1352,11 +1353,10 @@ function App() {
       return
     }
 
-    setSuggestionIndex(
-      (current) =>
-        (current + 1) %
-        boredSuggestions.length,
-    )
+    const excluded = boredOpportunity
+      ? [...new Set([...boredOpportunityExcluded, boredOpportunity.activitySlug])]
+      : boredOpportunityExcluded
+    void loadBoredOpportunity(excluded.length >= pulses.length ? [] : excluded)
   }
 
   const hasActiveSignalJourney =
@@ -1788,10 +1788,10 @@ function App() {
 />
                         <div>
                           <strong>
-  {discoveryLoading
+  {boredOpportunityLoading && !directActivitySlug
     ? 'Checking live activity…'
-    : `${journeyDiscovery?.activeCount ?? 0} ${
-        (journeyDiscovery?.activeCount ?? 0) === 1
+    : `${directActivitySlug ? (journeyDiscovery?.activeCount ?? 0) : (boredOpportunity?.activeCount ?? 0)} ${
+        (directActivitySlug ? (journeyDiscovery?.activeCount ?? 0) : (boredOpportunity?.activeCount ?? 0)) === 1
           ? 'person'
           : 'people'
       } active nearby`}
@@ -1799,11 +1799,15 @@ function App() {
                           <span>
   {discoveryError
     ? 'Live activity is temporarily unavailable.'
-    : 'Based on active Signals in your home city.'}
+    : directActivitySlug
+      ? 'Based on active Signals in your home city.'
+      : 'SIGNAL is combining people who are bored now with live activity in your city.'}
 </span>
                         </div>
                       </div>
 
+                      {directActivitySlug && (
+                        <>
                       <div className="signal-preference-access">
                           <button
                             type="button"
@@ -2014,6 +2018,8 @@ function App() {
                             </button>
                           </div>
                         )}
+                        </>
+                      )}
 
                         {formationError ? (
                           <p className="formation-error" role="alert">
@@ -2028,18 +2034,18 @@ function App() {
                           onClick={() => {
                             void handleImDown()
                           }}
-                          disabled={formationSubmitting}
+                          disabled={formationSubmitting || (!directActivitySlug && (boredOpportunityLoading || !boredOpportunity))}
                           whileTap={{ scale: 0.98 }}
                         >
                           <Zap size={18} fill="currentColor" />
-                          {formationSubmitting ? 'JOINING…' : "I'M DOWN"}
+                          {formationSubmitting ? 'JOINING…' : boredOpportunityLoading && !directActivitySlug ? 'LOOKING…' : "I'M DOWN"}
                         </motion.button>
 
                         <button
                           className="next-button"
                           onClick={nextSuggestion}
                         >
-                          NEXT
+                          {directActivitySlug ? 'NEXT' : 'TRY ANOTHER'}
                           <ChevronRight size={16} />
                         </button>
                       </div>
@@ -2280,11 +2286,17 @@ function App() {
           }
 
           setDirectActivitySlug(null)
-          setBored((value) => !value)
+          setBored(true)
           setAccepted(false)
           setFormationError(null)
           setFormationResult(null)
           setSignalRealtimeTarget(null)
+          setBoredOpportunity(null)
+          setBoredOpportunityExcluded([])
+          setSignalTimePreference('NOW')
+          setSignalCrowdPreference('everyone')
+          setSignalAgePreference('open')
+          void loadBoredOpportunity([])
         }}
         whileHover={{ y: -3 }}
         whileTap={{ scale: 0.99 }}

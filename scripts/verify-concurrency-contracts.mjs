@@ -45,6 +45,9 @@ const signalPlanConversionUserLocks = await read('supabase/migrations/2026091923
 const directMessagePairLifecycle = await read('supabase/migrations/20260920000503_serialize_direct_message_pair_lifecycle.sql')
 const momentSocialDeleteSerialization = await read('supabase/migrations/20260920001014_serialize_moment_social_with_delete.sql')
 const momentCaptureLifecycleAuthority = await read('supabase/migrations/20260920001239_lock_moment_capture_lifecycle_authority.sql')
+const boredOpportunityEngine = await read('supabase/migrations/20260920003217_bored_open_intent_opportunity_engine.sql')
+const boredOpportunityPooling = await read('supabase/migrations/20260920003840_pool_bored_open_intents.sql')
+const boredOpportunityAcceptance = await read('supabase/migrations/20260920003950_close_bored_intent_on_acceptance.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -91,6 +94,9 @@ requireMatch('direct read pair lifecycle serialization', directMessagePairLifecy
 requireMatch('Moment reaction/delete serialization', momentSocialDeleteSerialization, /toggle_signal_moment_signal[\s\S]*?signal_moments[\s\S]*?state='published'[\s\S]*?for update[\s\S]*?signal_moment_signal_v1/i, 'Moment reactions must lock published Moment authority before reaction mutation so owner deletion cannot race stale visibility')
 requireMatch('Moment comment/delete serialization', momentSocialDeleteSerialization, /add_signal_moment_comment[\s\S]*?signal_moments[\s\S]*?state='published'[\s\S]*?for update[\s\S]*?signal_moment_comments[\s\S]*?insert into public\.signal_moment_comments/i, 'Moment comments and replies must lock published Moment authority before insertion')
 requireMatch('Moment capture lifecycle authority lock', momentCaptureLifecycleAuthority, /signal_moment_capture_v1[\s\S]*?from public\.plans[\s\S]*?join public\.plan_memberships[\s\S]*?for share of p,pm[\s\S]*?signal_moments[\s\S]*?for update/i, 'Moment capture must hold Plan and membership lifecycle authority while creating or extending the draft')
+requireMatch('I am Bored open-intent serialization', boredOpportunityEngine, /bored_open_intents_one_open_user_idx[\s\S]*?bored_open_intent_user_v1[\s\S]*?state='open'[\s\S]*?for update/i, 'I am Bored must have one serialized open intent per user instead of a client-only suggestion loop')
+requireMatch('I am Bored pooled opportunity authority', boredOpportunityPooling, /bored_pool[\s\S]*?chosen_activity_id[\s\S]*?users_have_block_relation[\s\S]*?coalesce\(bp\.n,0\)\*110[\s\S]*?chosen_activity_id=v_pick_id/i, 'automated opportunities must pool compatible open boredom intents in PostgreSQL rather than frontend categories')
+requireMatch('I am Bored acceptance idempotency', boredOpportunityAcceptance, /bored_open_intent_user_v1[\s\S]*?for update[\s\S]*?state='converted'[\s\S]*?return true[\s\S]*?set state='converted'/i, 'accepted automated opportunities must idempotently leave the open pool before Signal lifecycle ownership')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
