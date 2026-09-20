@@ -21,6 +21,8 @@ import { toUserFacingError } from './lib/userFacingError'
 import { getMyAdminCapabilities } from './features/admin/adminClient'
 import { signOutCurrentUser } from './features/auth/authClient'
 import NotificationPanel from './features/notifications/NotificationPanel'
+import SignalCompletionView from './features/outing/SignalCompletionView'
+import { getMyPendingSignalCompletionPlanId } from './features/outing/signalCompletionClient'
 import { getOrCreateDirectConversationWithUser } from './features/messaging/directMessagingClient'
 import { getMyNotifications, getMyUnreadNotificationCount, subscribeToMyNotifications, type SignalNotification } from './features/notifications/notificationClient'
 import {
@@ -90,9 +92,6 @@ const ModerationView = React.lazy(
 )
 const ActiveOutingView = React.lazy(
   () => import('./features/outing/ActiveOutingView'),
-)
-const SignalCompletionView = React.lazy(
-  () => import('./features/outing/SignalCompletionView'),
 )
 const SignalPlanDetailsView = React.lazy(
   () => import('./features/outing/SignalPlanDetailsView'),
@@ -757,7 +756,21 @@ function App() {
   }, [])
 
   useEffect(() => {
-    queueMicrotask(() => { void restoreActiveSignal(true) })
+    let cancelled = false
+    queueMicrotask(() => {
+      void getMyPendingSignalCompletionPlanId()
+        .then((planId) => {
+          if (cancelled) return
+          if (planId) {
+            completionHandoffRef.current = true
+            setCompletionPlanId(planId)
+            return
+          }
+          void restoreActiveSignal(true)
+        })
+        .catch(() => { if (!cancelled) void restoreActiveSignal(true) })
+    })
+    return () => { cancelled = true }
   }, [restoreActiveSignal])
 
   useEffect(() => {

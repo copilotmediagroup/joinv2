@@ -25,6 +25,12 @@ function req(value: unknown, field: string): string {
   return value
 }
 
+export async function getMyPendingSignalCompletionPlanId(): Promise<string | null> {
+  const { data, error } = await supabase.rpc('get_my_pending_signal_completion_plan_id')
+  if (error) throw new Error(error.message || 'Unable to restore Signal completion.')
+  return typeof data === 'string' && data ? data : null
+}
+
 export async function getMySignalCompletion(planId: string): Promise<SignalCompletion> {
   const { data, error } = await supabase.rpc('get_my_signal_completion', { p_plan_id: planId })
   if (error) throw new Error(error.message || 'Unable to load Signal completion.')

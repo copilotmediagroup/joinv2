@@ -62,6 +62,6 @@ export default function SignalCompletionView({ planId, onDone }: Props) {
     </section>
 
     {error ? <p className="signal-complete-error" role="alert">{error}</p> : null}
-    <button type="button" className="signal-complete-done" onClick={onDone}>DONE</button>
+    <button type="button" className="signal-complete-done" disabled={!rating || saving} onClick={onDone}>{rating ? 'DONE' : 'CHOOSE ONE TO FINISH'}</button>
   </section>
 }
