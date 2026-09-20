@@ -1707,10 +1707,35 @@ function App() {
           onOpenChat={handleOpenPlanChat}
           onCheckedIn={() => { void restoreActiveSignal(true) }}
           onPlanEnded={() => {
+            // LEAVE SIGNAL from Plan details is the same hard user boundary as
+            // withdrawing before conversion. The server has already removed the
+            // Plan membership; now discard every browser-owned journey remnant.
             setActiveSignalResume(null)
+            setFormationResult(null)
+            setSignalRealtimeTarget(null)
+            setSignalParticipants([])
+            setAccepted(false)
+            setActive('drinks')
+            setDirectActivitySlug(null)
+            setBored(false)
+            setBoredOpportunity(null)
+            setBoredOpportunityExcluded([])
+            setSignalTimePreference('TONIGHT')
+            setSignalCrowdPreference('everyone')
+            setSignalAgePreference('open')
+            setSignalPreferencesOpen(false)
+            setSignalThreshold(false)
+            setServerJourneyStage('forming')
+            setLockedSignalVenue(null)
             setActivePlanId(null)
             setActiveOutingPlanId(null)
             setMessagePlanId(null)
+            setMessageDirectConversationId(null)
+            lastRealtimeJourneyVersionRef.current = null
+            lastRealtimeGroupIdRef.current = null
+            setFormationError(null)
+            setWithdrawalError(null)
+            setPlanExitNotice(null)
             setActiveSurface('discover')
             void Promise.all([refreshActivity(), refreshDiscovery()])
           }}
