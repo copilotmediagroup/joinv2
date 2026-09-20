@@ -178,7 +178,7 @@ const pulses: Pulse[] = [
     emoji: '🍸',
     label: 'DRINKS',
     line: 'down for drinks',
-    image: imageUrl('1515003197210-e0cd71810b5f'),
+    image: imageUrl('1513558161293-cdaf765ed2fd'),
     size: 'hero',
   },
   {
