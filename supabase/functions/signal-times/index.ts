@@ -191,10 +191,16 @@ Deno.serve(async (request: Request) => {
 
     const { data: group, error: groupError } = await domain
       .from('signal_groups')
-      .select('state,journey_stage,starts_at,ends_at')
+      .select('state,journey_stage,starts_at,ends_at,activity_id')
       .eq('id', signalGroupId)
       .single()
     if (groupError || !group) throw groupError ?? new Error('Signal group not found')
+    const { data: activity, error: activityError } = await domain
+      .from('activities')
+      .select('slug')
+      .eq('id', group.activity_id)
+      .single()
+    if (activityError || !activity) throw activityError ?? new Error('Signal activity unavailable')
 
     // A finalized time round remains the authoritative read model after the
     // Signal converts to a Plan. Resume must be able to read that immutable
@@ -243,6 +249,16 @@ Deno.serve(async (request: Request) => {
       p_options: generated,
     })
     if (ensureError) throw ensureError
+
+    // Chill is fully coordinated by SIGNAL once the reciprocal pair locks.
+    // Generated options already respect the winning venue's opening hours and
+    // Signal window, so prefer BEST FIT without asking two daters to poll.
+    if (activity.slug === 'chill') {
+      const { error: finalizeError } = await domain.rpc('finalize_chill_time_choice', {
+        p_signal_group_id: signalGroupId,
+      })
+      if (finalizeError) throw finalizeError
+    }
 
     const persisted = await loadRound(domain, signalGroupId, user.id)
     if (!persisted) throw new Error('Signal time round could not be initialized')

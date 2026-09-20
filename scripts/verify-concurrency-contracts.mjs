@@ -56,6 +56,8 @@ const chillParticipantPrivacy = await read('supabase/migrations/20260920080000_c
 const chillDiscoveryAvatarPrivacy = await read('supabase/migrations/20260920081000_chill_discovery_no_prelock_avatar_paths.sql')
 const chillAutomaticVenueChoice = await read('supabase/migrations/20260920082000_chill_automatic_venue_choice.sql')
 const signalPlacesEdge = await read('supabase/functions/signal-places/index.ts')
+const chillAutomaticTimeChoice = await read('supabase/migrations/20260920083000_chill_automatic_time_choice.sql')
+const signalTimesEdge = await read('supabase/functions/signal-times/index.ts')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -114,6 +116,8 @@ requireMatch('Chill forming participant identity privacy', chillParticipantPriva
 requireMatch('Chill discovery returns no avatar object paths', chillDiscoveryAvatarPrivacy, /ranked_avatar_candidates[\s\S]*?preview_activity\.slug <> 'chill'/i, 'discovery must not leak pre-lock Chill avatar object paths or their owner-folder identity to the browser')
 requireMatch('Chill automatic venue choice is pair-locked', chillAutomaticVenueChoice, /v_activity_slug<>'chill'[\s\S]*?v_group\.state not in \('locked','coordinating'\)[\s\S]*?v_confirmed<>2[\s\S]*?order by svo\.source_rank asc[\s\S]*?state='won'/i, 'Chill may auto-select a venue only for an authoritative confirmed two-person pair and must choose deterministically')
 requireMatch('Chill venue edge invokes server finalizer', signalPlacesEdge, /activity\.slug === 'chill'[\s\S]*?finalize_chill_venue_choice[\s\S]*?p_signal_group_id: signalGroupId/i, 'the venue edge must finalize Chill automatically after persisting the ranked usable slate')
+requireMatch('Chill automatic time choice is pair and venue locked', chillAutomaticTimeChoice, /v_activity_slug<>'chill'[\s\S]*?v_group\.state not in \('locked','coordinating'\)[\s\S]*?signal_venue_rounds[\s\S]*?v_confirmed<>2[\s\S]*?BEST FIT[\s\S]*?state='won'/i, 'Chill may auto-select time only after its confirmed pair and venue are authoritative')
+requireMatch('Chill time edge invokes server finalizer', signalTimesEdge, /activity\.slug === 'chill'[\s\S]*?finalize_chill_time_choice[\s\S]*?p_signal_group_id: signalGroupId/i, 'the time edge must finalize Chill automatically after persisting venue-compatible time options')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
