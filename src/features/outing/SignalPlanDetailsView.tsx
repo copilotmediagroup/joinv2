@@ -195,7 +195,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       {attendance?.checkedIn ? (
         <div className="signal-details-arrival-checked"><MapPin size={17}/><span><small>YOU'RE HERE</small><strong>{attendance.checkedInCount}/{attendance.activeMemberCount} checked in</strong></span></div>
       ) : attendance?.canCheckIn ? (
-        <button type="button" disabled={attendanceBusy} onClick={() => { void checkIn() }}><MapPin size={18}/><span><strong>{attendanceBusy ? 'CHECKING YOU IN…' : "I'M HERE"}</strong><small>Check in and enter Live Signal</small></span></button>
+        <button type="button" disabled={attendanceBusy} onClick={() => { void checkIn() }}><MapPin size={18}/><span><strong>{attendanceBusy ? 'CHECKING YOU IN…' : "I'M HERE"}</strong><small>{attendance.checkedInCount > 0 ? `${attendance.checkedInCount}/${attendance.activeMemberCount} PEOPLE HERE · Check in and enter Live Signal` : 'Check in and enter Live Signal'}</small></span></button>
       ) : attendance?.windowOpensAt && new Date(attendance.windowOpensAt).getTime() > new Date(attendance.serverNow).getTime() ? (
         <button type="button" className="signal-details-arrival-early" disabled aria-disabled="true"><MapPin size={18}/><span><strong>I'M HERE</strong><small>Check-in opens 30 minutes before meetup</small></span><Clock3 size={16}/></button>
       ) : (
