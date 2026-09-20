@@ -442,9 +442,11 @@ function App() {
           id: boredOpportunity.activityId,
           emoji: boredOpportunityPulse.emoji,
           title: boredOpportunity.activityName.toUpperCase() + '?',
-          subtitle: boredOpportunity.activeCount > 0
-            ? boredOpportunity.activeCount + ' people are active around this opportunity in your city right now.'
-            : 'SIGNAL picked this for right now based on timing and your activity history.',
+          subtitle: boredOpportunity.activitySlug === 'chill'
+            ? 'A reciprocal dating match is available right now. SIGNAL keeps identities private until the pair locks.'
+            : boredOpportunity.activeCount > 0
+              ? boredOpportunity.activeCount + ' people are active around this opportunity in your city right now.'
+              : 'SIGNAL picked this for right now based on timing and your activity history.',
           image: boredOpportunityPulse.image,
           activitySlug: boredOpportunity.activitySlug,
           kicker: 'SIGNAL FOUND SOMETHING',
@@ -1875,26 +1877,32 @@ function App() {
 
                       <div className="suggestion-social">
                         <AvatarStack
-  urls={
-    journeyDiscovery?.previewAvatarUrls ?? []
-  }
+  urls={journeyPresentation.activitySlug === 'chill'
+    ? []
+    : journeyDiscovery?.previewAvatarUrls ?? []}
 />
                         <div>
                           <strong>
   {boredOpportunityLoading && !directActivitySlug
     ? 'Checking live activity…'
-    : `${directActivitySlug ? (journeyDiscovery?.activeCount ?? 0) : (boredOpportunity?.activeCount ?? 0)} ${
-        (directActivitySlug ? (journeyDiscovery?.activeCount ?? 0) : (boredOpportunity?.activeCount ?? 0)) === 1
-          ? 'person'
-          : 'people'
-      } active nearby`}
+    : journeyPresentation.activitySlug === 'chill'
+      ? directActivitySlug
+        ? `${Math.max(0, (journeyDiscovery?.activeCount ?? 0) - 1)} compatible nearby`
+        : 'Compatible match available'
+      : `${directActivitySlug ? (journeyDiscovery?.activeCount ?? 0) : (boredOpportunity?.activeCount ?? 0)} ${
+          (directActivitySlug ? (journeyDiscovery?.activeCount ?? 0) : (boredOpportunity?.activeCount ?? 0)) === 1
+            ? 'person'
+            : 'people'
+        } active nearby`}
 </strong>
                           <span>
   {discoveryError
     ? 'Live activity is temporarily unavailable.'
-    : directActivitySlug
-      ? 'Based on active Signals in your home city.'
-      : 'SIGNAL is combining people who are bored now with live activity in your city.'}
+    : journeyPresentation.activitySlug === 'chill'
+      ? 'Dating identities stay private until a reciprocal pair locks.'
+      : directActivitySlug
+        ? 'Based on active Signals in your home city.'
+        : 'SIGNAL is combining people who are bored now with live activity in your city.'}
 </span>
                         </div>
                       </div>
