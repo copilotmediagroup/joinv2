@@ -42,6 +42,7 @@ const changeGovernanceLockOrder = await read('supabase/migrations/20260919234422
 const replacementClaimLockOrder = await read('supabase/migrations/20260919235242_preserve_replacement_claim_skip_locked.sql')
 const livePlanMembershipInvariant = await read('supabase/migrations/20260919235502_serialize_live_plan_user_admission.sql')
 const signalPlanConversionUserLocks = await read('supabase/migrations/20260919235959_serialize_signal_plan_conversion_users.sql')
+const directMessagePairLifecycle = await read('supabase/migrations/20260920000503_serialize_direct_message_pair_lifecycle.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -83,6 +84,8 @@ requireMatch('change governance canonical lock order', changeGovernanceLockOrder
 requireMatch('replacement claim user and lifecycle serialization', replacementClaimLockOrder, /plan_replacement_user_v1[\s\S]*?for update of p skip locked[\s\S]*?from public\.plan_replacement_windows[\s\S]*?for update of prw[\s\S]*?reconcile_plan_replacement_window/i, 'replacement claims must serialize first claims per user, SKIP LOCKED on Plan, then lock the replacement window')
 requireMatch('single live Plan membership invariant', livePlanMembershipInvariant, /live_plan_membership_user_v1[\s\S]*?plan_memberships[\s\S]*?plan_id<>new\.plan_id[\s\S]*?state not in[\s\S]*?user_already_has_live_plan[\s\S]*?before insert or update of membership_state/i, 'all active Plan admissions must serialize per user and reject a second nonterminal Plan membership')
 requireMatch('Signal conversion deterministic user locks', signalPlanConversionUserLocks, /convert_locked_signal_group_to_plan[\s\S]*?live_plan_membership_user_v1[\s\S]*?order by sgm\.user_id[\s\S]*?insert into public\.plan_memberships/i, 'multi-user Signal conversion must acquire membership admission locks in deterministic user order before inserting')
+requireMatch('direct message pair lifecycle serialization', directMessagePairLifecycle, /send_my_direct_message_v2[\s\S]*?signal_connection_pair_v1[\s\S]*?signal_connections[\s\S]*?for update[\s\S]*?direct_conversations[\s\S]*?for update[\s\S]*?insert into public\.direct_messages/i, 'direct sends must lock pair then accepted connection then active conversation before insert')
+requireMatch('direct read pair lifecycle serialization', directMessagePairLifecycle, /mark_my_direct_conversation_read[\s\S]*?signal_connection_pair_v1[\s\S]*?signal_connections[\s\S]*?for update[\s\S]*?direct_conversations[\s\S]*?for update[\s\S]*?update public\.direct_messages/i, 'read receipts must not race stale access after block or disconnect')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
