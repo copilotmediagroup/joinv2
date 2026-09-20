@@ -1201,10 +1201,15 @@ function App() {
       setFormationResult(null)
       setSignalRealtimeTarget(null)
       setSignalParticipants([])
+      setActive('drinks')
       setDirectActivitySlug(null)
       setBored(false)
       setBoredOpportunity(null)
       setBoredOpportunityExcluded([])
+      setSignalTimePreference('TONIGHT')
+      setSignalCrowdPreference('everyone')
+      setSignalAgePreference('open')
+      setSignalPreferencesOpen(false)
 
       // Leaving is a hard local journey boundary. Do not leave any coordination
       // or Plan pointer behind that can make a departed Signal render again.
