@@ -1132,6 +1132,8 @@ function App() {
       // next account that signs in on the same tab.
       completionHandoffRef.current = false
       setCompletionPlanId(null)
+      journeyRestoreEpochRef.current += 1
+      journeyRestorePromiseRef.current = null
       await signOutCurrentUser()
     } catch {
       setLogoutError('Unable to log out right now. Please try again.')
@@ -1213,6 +1215,7 @@ function App() {
     try {
       await withdrawMySignal(signalIntentId)
       journeyRestoreEpochRef.current += 1
+      journeyRestorePromiseRef.current = null
 
       /*
        * PostgreSQL succeeded first.
@@ -1713,6 +1716,7 @@ function App() {
           onOutingEnded={(reason) => {
             const finishedPlanId = activeOutingPlanId
             journeyRestoreEpochRef.current += 1
+            journeyRestorePromiseRef.current = null
             setActiveSignalResume(null)
             setActiveOutingPlanId(null)
             setActivePlanId(null)
@@ -1785,6 +1789,7 @@ function App() {
             // withdrawing before conversion. The server has already removed the
             // Plan membership; now discard every browser-owned journey remnant.
             journeyRestoreEpochRef.current += 1
+            journeyRestorePromiseRef.current = null
             setActiveSignalResume(null)
             setFormationResult(null)
             setSignalRealtimeTarget(null)
