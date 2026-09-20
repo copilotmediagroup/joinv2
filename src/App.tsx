@@ -22,7 +22,7 @@ import { getMyAdminCapabilities } from './features/admin/adminClient'
 import { signOutCurrentUser } from './features/auth/authClient'
 import NotificationPanel from './features/notifications/NotificationPanel'
 import SignalCompletionView from './features/outing/SignalCompletionView'
-import { getMyPendingSignalCompletionPlanId } from './features/outing/signalCompletionClient'
+import { getMyPendingSignalCompletionPlanId, resetCompletionRecoverySession } from './features/outing/signalCompletionClient'
 import { getOrCreateDirectConversationWithUser } from './features/messaging/directMessagingClient'
 import { getMyNotifications, getMyUnreadNotificationCount, subscribeToMyNotifications, type SignalNotification } from './features/notifications/notificationClient'
 import {
@@ -1157,6 +1157,7 @@ function App() {
       // next account that signs in on the same tab.
       completionHandoffRef.current = false
       setCompletionPlanId(null)
+      resetCompletionRecoverySession()
       journeyRestoreEpochRef.current += 1
       journeyRestorePromiseRef.current = null
       await signOutCurrentUser()

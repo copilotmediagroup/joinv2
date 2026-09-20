@@ -25,8 +25,24 @@ function req(value: unknown, field: string): string {
   return value
 }
 
+const COMPLETION_RECOVERY_SESSION_KEY = 'signal:completion-recovery-session-started-at'
+
+function getCompletionRecoverySessionStartedAt(): string {
+  const existing = window.sessionStorage.getItem(COMPLETION_RECOVERY_SESSION_KEY)
+  if (existing && !Number.isNaN(Date.parse(existing))) return existing
+  const startedAt = new Date().toISOString()
+  window.sessionStorage.setItem(COMPLETION_RECOVERY_SESSION_KEY, startedAt)
+  return startedAt
+}
+
+export function resetCompletionRecoverySession(): void {
+  window.sessionStorage.removeItem(COMPLETION_RECOVERY_SESSION_KEY)
+}
+
 export async function getMyPendingSignalCompletionPlanId(): Promise<string | null> {
-  const { data, error } = await supabase.rpc('get_my_pending_signal_completion_plan_id')
+  const { data, error } = await supabase.rpc('get_my_pending_signal_completion_plan_id', {
+    p_session_started_at: getCompletionRecoverySessionStartedAt(),
+  })
   if (error) throw new Error(error.message || 'Unable to restore Signal completion.')
   return typeof data === 'string' && data ? data : null
 }
