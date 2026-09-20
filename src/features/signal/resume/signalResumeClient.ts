@@ -13,7 +13,7 @@ export type SignalResumeCrowdMode =
   | 'women_only'
   | 'men_only'
 
-export type SignalResumeStage = 'arrival' | 'places' | 'time' | 'plan'
+export type SignalResumeStage = 'forming' | 'arrival' | 'places' | 'time' | 'plan'
 
 export type SignalResumeVenue = {
   placeId: string
@@ -121,7 +121,7 @@ function parseResumeRow(row: ResumeRpcRow): SignalResumeResult {
   }
 
   const signalStage = requireString(row.signal_stage, 'signal_stage')
-  if (!['arrival', 'places', 'time', 'plan'].includes(signalStage)) {
+  if (!['forming', 'arrival', 'places', 'time', 'plan'].includes(signalStage)) {
     throw new Error('Invalid Signal resume response: signal_stage')
   }
 

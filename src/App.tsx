@@ -1332,6 +1332,12 @@ function App() {
   const handleImBoredAutomation = async () => {
     if (formationRequestRef.current || boredOpportunityLoading || formationSubmitting) return
 
+    const existingJourney = await getMyActiveSignalResume().catch(() => null)
+    if (existingJourney?.signalIntentId || existingJourney?.planId) {
+      await restoreActiveSignal(true)
+      return
+    }
+
     setDirectActivitySlug(null)
     setBored(true)
     setAccepted(false)
