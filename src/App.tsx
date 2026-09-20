@@ -403,6 +403,7 @@ function App() {
   const lastRealtimeJourneyVersionRef = React.useRef<string | null>(null)
   const lastRealtimeGroupIdRef = React.useRef<string | null>(null)
   const journeyRestorePromiseRef = React.useRef<Promise<void> | null>(null)
+  const journeyRestoreEpochRef = React.useRef(0)
   const completionHandoffRef = React.useRef(false)
   const [activeOutingPlanId, setActiveOutingPlanId] =
     useState<string | null>(null)
@@ -599,12 +600,16 @@ function App() {
     const inFlight = journeyRestorePromiseRef.current
     if (inFlight) return inFlight
 
+    const restoreEpoch = journeyRestoreEpochRef.current
     const restore = (async () => {
       try {
       // Resolve the canonical journey and this member's attendance independently.
       // A matching checked-in attendance row is the sole authority for live outing;
       // opening Plan details must never impersonate arrival.
       const resume = await getMyActiveSignalResume()
+      // A leave/completion boundary can occur while this RPC is in flight. Any
+      // response started before that boundary is stale and must not resurrect it.
+      if (restoreEpoch !== journeyRestoreEpochRef.current) return
       setActiveSignalResume(resume)
       if (resume?.planId && resume.checkedInAt) {
         setActiveOutingPlanId(resume.planId)
@@ -1207,6 +1212,7 @@ function App() {
 
     try {
       await withdrawMySignal(signalIntentId)
+      journeyRestoreEpochRef.current += 1
 
       /*
        * PostgreSQL succeeded first.
@@ -1706,6 +1712,7 @@ function App() {
           onOpenChat={handleOpenPlanChat}
           onOutingEnded={(reason) => {
             const finishedPlanId = activeOutingPlanId
+            journeyRestoreEpochRef.current += 1
             setActiveSignalResume(null)
             setActiveOutingPlanId(null)
             setActivePlanId(null)
@@ -1777,6 +1784,7 @@ function App() {
             // LEAVE SIGNAL from Plan details is the same hard user boundary as
             // withdrawing before conversion. The server has already removed the
             // Plan membership; now discard every browser-owned journey remnant.
+            journeyRestoreEpochRef.current += 1
             setActiveSignalResume(null)
             setFormationResult(null)
             setSignalRealtimeTarget(null)
