@@ -52,6 +52,7 @@ const chillReciprocalFormation = await read('supabase/migrations/20260920072000_
 const boredChillCompatibility = await read('supabase/migrations/20260920073000_bored_chill_compatibility.sql')
 const chillReplacementGuard = await read('supabase/migrations/20260920074000_disable_chill_replacement_claims.sql')
 const chillPrivateDiscovery = await read('supabase/migrations/20260920075000_chill_private_discovery_social_proof.sql')
+const chillParticipantPrivacy = await read('supabase/migrations/20260920080000_chill_participant_identity_lock_privacy.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -106,6 +107,7 @@ requireMatch('Chill private age ranges excluded from hard group identity', chill
 requireMatch('I am Bored Chill compatibility gate', boredChillCompatibility, /a\.slug<>'chill'[\s\S]*?signal_intents partner[\s\S]*?chill_users_are_reciprocally_compatible[\s\S]*?bored_open_intents partner[\s\S]*?chill_users_are_reciprocally_compatible/i, 'I am Bored must not select Chill unless a reciprocal compatible partner is actually available')
 requireMatch('Chill replacement admission disabled', chillReplacementGuard, /p_activity_slug[\s\S]*?='chill'[\s\S]*?return query select null::uuid,false/i, 'a two-person Chill date must never admit a generic replacement member after lock')
 requireMatch('Chill discovery compatibility privacy', chillPrivateDiscovery, /intent_activity\.slug <> 'chill'[\s\S]*?si\.user_id = au\.user_id[\s\S]*?chill_users_are_reciprocally_compatible\(au\.user_id, si\.user_id\)/i, 'Chill discovery counts and avatar previews must not expose incompatible dating candidates')
+requireMatch('Chill forming participant identity privacy', chillParticipantPrivacy, /v_activity_slug='chill' and v_group_state='forming'[\s\S]*?sgm\.user_id=v_user_id[\s\S]*?return;/i, 'a waiting Chill member must not receive the other dating candidate identity before the pair is locked')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
