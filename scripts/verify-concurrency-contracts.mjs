@@ -41,6 +41,7 @@ const joinGovernanceLockOrder = await read('supabase/migrations/20260919234221_c
 const changeGovernanceLockOrder = await read('supabase/migrations/20260919234422_canonicalize_plan_change_lock_order.sql')
 const replacementClaimLockOrder = await read('supabase/migrations/20260919235242_preserve_replacement_claim_skip_locked.sql')
 const livePlanMembershipInvariant = await read('supabase/migrations/20260919235502_serialize_live_plan_user_admission.sql')
+const signalPlanConversionUserLocks = await read('supabase/migrations/20260919235959_serialize_signal_plan_conversion_users.sql')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -81,6 +82,7 @@ requireMatch('join governance canonical lock order', joinGovernanceLockOrder, /r
 requireMatch('change governance canonical lock order', changeGovernanceLockOrder, /reconcile_plan_change_proposal[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_change_proposals[\s\S]*?for update[\s\S]*?vote_on_plan_change[\s\S]*?from public\.plans[\s\S]*?for update[\s\S]*?from public\.plan_change_proposals[\s\S]*?for update/i, 'Plan-change voting and reconciliation must lock Plan before proposal to match proposal creation')
 requireMatch('replacement claim user and lifecycle serialization', replacementClaimLockOrder, /plan_replacement_user_v1[\s\S]*?for update of p skip locked[\s\S]*?from public\.plan_replacement_windows[\s\S]*?for update of prw[\s\S]*?reconcile_plan_replacement_window/i, 'replacement claims must serialize first claims per user, SKIP LOCKED on Plan, then lock the replacement window')
 requireMatch('single live Plan membership invariant', livePlanMembershipInvariant, /live_plan_membership_user_v1[\s\S]*?plan_memberships[\s\S]*?plan_id<>new\.plan_id[\s\S]*?state not in[\s\S]*?user_already_has_live_plan[\s\S]*?before insert or update of membership_state/i, 'all active Plan admissions must serialize per user and reject a second nonterminal Plan membership')
+requireMatch('Signal conversion deterministic user locks', signalPlanConversionUserLocks, /convert_locked_signal_group_to_plan[\s\S]*?live_plan_membership_user_v1[\s\S]*?order by sgm\.user_id[\s\S]*?insert into public\.plan_memberships/i, 'multi-user Signal conversion must acquire membership admission locks in deterministic user order before inserting')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)
