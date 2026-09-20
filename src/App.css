@@ -4669,6 +4669,26 @@ button:disabled,
   cursor: pointer;
 }
 
+.notification-toast {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  z-index: 140;
+  width: min(360px, calc(100vw - 40px));
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(83, 207, 255, .42);
+  border-radius: 16px;
+  background: rgba(7, 14, 24, .97);
+  box-shadow: 0 18px 55px rgba(0,0,0,.48), 0 0 28px rgba(45,174,255,.13);
+  padding: 13px 15px;
+  color: #f2f9ff;
+  text-align: left;
+  cursor: pointer;
+}
+.notification-toast strong { font-size: 11px; letter-spacing: .1em; color: #77d9ff; }
+.notification-toast span { font-size: 13px; line-height: 1.35; color: rgba(242,249,255,.9); }
+
 .connection-banner {
   position: fixed;
   top: 14px;

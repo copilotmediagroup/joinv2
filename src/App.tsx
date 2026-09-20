@@ -22,7 +22,7 @@ import { getMyAdminCapabilities } from './features/admin/adminClient'
 import { signOutCurrentUser } from './features/auth/authClient'
 import NotificationPanel from './features/notifications/NotificationPanel'
 import { getOrCreateDirectConversationWithUser } from './features/messaging/directMessagingClient'
-import { getMyUnreadNotificationCount, subscribeToMyNotifications } from './features/notifications/notificationClient'
+import { getMyNotifications, getMyUnreadNotificationCount, subscribeToMyNotifications, type SignalNotification } from './features/notifications/notificationClient'
 import {
   getMyActivity,
   type ActivityItem,
@@ -311,6 +311,8 @@ function App() {
   const [notificationUnreadCount, setNotificationUnreadCount] =
     useState(0)
   const [notificationRefreshToken, setNotificationRefreshToken] = useState(0)
+  const [notificationToast, setNotificationToast] = useState<SignalNotification | null>(null)
+  const notificationToastTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     let active = true
@@ -324,8 +326,18 @@ function App() {
     const unsubscribe = subscribeToMyNotifications(currentUser.userId, () => {
       void refreshUnread()
       setNotificationRefreshToken((current) => current + 1)
+      void getMyNotifications(1).then(([latest]) => {
+        if (!active || !latest || latest.state !== 'unread') return
+        setNotificationToast(latest)
+        if (notificationToastTimerRef.current !== null) window.clearTimeout(notificationToastTimerRef.current)
+        notificationToastTimerRef.current = window.setTimeout(() => setNotificationToast(null), 6500)
+      }).catch(() => {})
     })
-    return () => { active = false; unsubscribe() }
+    return () => {
+      active = false
+      unsubscribe()
+      if (notificationToastTimerRef.current !== null) window.clearTimeout(notificationToastTimerRef.current)
+    }
   }, [currentUser.userId])
   const [adminCapabilities, setAdminCapabilities] = useState<string[]>([])
 
@@ -1618,6 +1630,13 @@ function App() {
     <main className="app">
       <div className="ambient ambient-a" />
       <div className="ambient ambient-b" />
+
+      {notificationToast && (
+        <button type="button" className="notification-toast" onClick={() => { setNotificationsOpen(true); setNotificationToast(null) }} aria-label="Open notification">
+          <strong>{notificationToast.title}</strong>
+          {notificationToast.body && <span>{notificationToast.body}</span>}
+        </button>
+      )}
 
       {!isOnline && (
         <div className="connection-banner" role="status">
