@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Camera, CheckCircle2, Clock3, ImagePlus, MessageCircle, ShieldAlert, Sparkles, Upload, Users, X, Zap } from 'lucide-react'
 import { getMyPlanGovernance, leaveMyPlan, subscribeToPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
-import { getMyPlanAttendanceStatus, type PlanAttendanceStatus } from '../plan/planAttendanceClient'
+import { getMyPlanAttendanceStatus, subscribeToLivePlanRefresh, type PlanAttendanceStatus } from '../plan/planAttendanceClient'
 import { getMyPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
 import { publishSignalMoment } from '../activity/signalMomentsClient'
 import { finishMyPlanOuting } from './activeOutingClient'
@@ -63,9 +63,11 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   useEffect(() => {
     const initial = window.setTimeout(() => { void refresh() }, 0)
     const unsubscribeGovernance = subscribeToPlanGovernance(planId, () => { void refresh() })
+    const unsubscribeLive = subscribeToLivePlanRefresh(planId, () => { void refresh() })
     return () => {
       window.clearTimeout(initial)
       unsubscribeGovernance()
+      unsubscribeLive()
     }
   }, [planId, refresh])
 
@@ -80,7 +82,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
           setAttendance(nextAttendance)
         })
         .catch(() => undefined)
-    }, 10000)
+    }, 30000)
     return () => window.clearInterval(timer)
   }, [onOutingEnded, planId])
 

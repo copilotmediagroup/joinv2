@@ -3,7 +3,7 @@ import { ChevronDown, Clock3, MapPin, Navigation, Radio, Users, Zap } from 'luci
 import PlanGovernancePanel from '../plan/PlanGovernancePanel'
 import { getMyPlanGovernance, subscribeToPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
 import { getMyPlanMembers, type PlanMemberIdentity } from '../plan/planMembersClient'
-import { checkInToMyPlan, getMyPlanAttendanceStatus, type PlanAttendanceStatus } from '../plan/planAttendanceClient'
+import { checkInToMyPlan, getMyPlanAttendanceStatus, subscribeToLivePlanRefresh, type PlanAttendanceStatus } from '../plan/planAttendanceClient'
 import { toUserFacingError } from '../../lib/userFacingError'
 import { getMyPlanMemberLocations, setMyPlanLocation, type PlanLiveLocation } from './planLiveLocationClient'
 import SignalLiveMap from './SignalLiveMap'
@@ -61,9 +61,13 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       })
 
     const unsubscribeGovernance = subscribeToPlanGovernance(planId, refreshPlanAndMembers)
+    const unsubscribeLive = subscribeToLivePlanRefresh(planId, () => {
+      void getMyPlanAttendanceStatus(planId).then(setAttendance).catch(() => undefined)
+    })
     return () => {
       cancelled = true
       unsubscribeGovernance()
+      unsubscribeLive()
     }
   }, [planId])
 
@@ -97,7 +101,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
 
   useEffect(() => {
     if (!attendance?.windowOpensAt || !attendance.windowClosesAt || attendance.checkedIn) return
-    const timer = window.setInterval(() => { void getMyPlanAttendanceStatus(planId).then(setAttendance).catch(() => undefined) }, 10_000)
+    const timer = window.setInterval(() => { void getMyPlanAttendanceStatus(planId).then(setAttendance).catch(() => undefined) }, 30_000)
     return () => window.clearInterval(timer)
   }, [attendance?.checkedIn, attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
 

@@ -78,6 +78,14 @@ export async function getMyPlanAttendanceStatus(
   return parseStatus(data)
 }
 
+export function subscribeToLivePlanRefresh(planId: string, onInvalidate: () => void): () => void {
+  const channel = supabase
+    .channel(`plan-live:${planId}`)
+    .on('broadcast', { event: 'refresh' }, onInvalidate)
+    .subscribe()
+  return () => { void supabase.removeChannel(channel) }
+}
+
 export async function checkInToMyPlan(
   planId: string,
 ): Promise<PlanAttendanceStatus> {
