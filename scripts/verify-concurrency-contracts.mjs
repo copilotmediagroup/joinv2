@@ -59,6 +59,7 @@ const signalPlacesEdge = await read('supabase/functions/signal-places/index.ts')
 const chillAutomaticTimeChoice = await read('supabase/migrations/20260920083000_chill_automatic_time_choice.sql')
 const signalTimesEdge = await read('supabase/functions/signal-times/index.ts')
 const planGovernanceClient = await read('src/features/plan/planGovernanceClient.ts')
+const appShell = await read('src/App.tsx')
 
 requireMatch('formation named-window serialization', formation, /pg_advisory_xact_lock\s*\(/i, 'same hard Signal identity must serialize before group selection')
 requireMatch('formation capacity row revalidation', formation, /limit\s+1\s+for update/i, 'selected accepting group must be locked before delegation')
@@ -120,6 +121,7 @@ requireMatch('Bored Chill venue edge invokes server finalizer', signalPlacesEdge
 requireMatch('Chill automatic time choice is pair and venue locked', chillAutomaticTimeChoice, /v_activity_slug<>'chill'[\s\S]*?v_group\.state not in \('locked','coordinating'\)[\s\S]*?signal_venue_rounds[\s\S]*?v_confirmed<>2[\s\S]*?BEST FIT[\s\S]*?state='won'/i, 'Chill may auto-select time only after its confirmed pair and venue are authoritative')
 requireMatch('Bored Chill time edge invokes server finalizer', signalTimesEdge, /journey_origin[\s\S]*?im_bored[\s\S]*?activity\.slug === 'chill' && boredMember[\s\S]*?finalize_chill_time_choice/i, 'only I AM BORED Chill may auto-finalize time; direct Discovery Chill must retain user choice')
 requireMatch('Plan governance realtime topics are subscriber-unique', planGovernanceClient, /const subscriptionId = crypto\.randomUUID\(\)[\s\S]*?\.channel\(`plan-governance:\$\{planId\}:\$\{subscriptionId\}`\)/i, 'multiple mounted Plan views must never collide on one Realtime channel topic')
+requireMatch('Leave Signal purges journey before Discovery', appShell, /await withdrawMySignal\(signalIntentId\)[\s\S]*?setActiveSignalResume\(null\)[\s\S]*?setSignalRealtimeTarget\(null\)[\s\S]*?setSignalParticipants\(\[\]\)[\s\S]*?setServerJourneyStage\('forming'\)[\s\S]*?setActivePlanId\(null\)[\s\S]*?setActiveSurface\('discover'\)/i, 'successful Leave Signal must destroy browser journey state and return the user to Discovery')
 
 const failures = checks.filter((check) => !check.ok)
 for (const check of checks) console.log(`${check.ok ? 'PASS' : 'FAIL'}  ${check.name}`)

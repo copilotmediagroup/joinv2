@@ -1200,11 +1200,23 @@ function App() {
       setAccepted(false)
       setFormationResult(null)
       setSignalRealtimeTarget(null)
+      setSignalParticipants([])
       setDirectActivitySlug(null)
       setBored(false)
+      setBoredOpportunity(null)
+      setBoredOpportunityExcluded([])
 
+      // Leaving is a hard local journey boundary. Do not leave any coordination
+      // or Plan pointer behind that can make a departed Signal render again.
       setSignalThreshold(false)
+      setServerJourneyStage('forming')
       setLockedSignalVenue(null)
+      setActivePlanId(null)
+      setActiveOutingPlanId(null)
+      setMessagePlanId(null)
+      setMessageDirectConversationId(null)
+      lastRealtimeJourneyVersionRef.current = null
+      lastRealtimeGroupIdRef.current = null
 
       setFormationError(null)
       setActiveSurface('discover')
