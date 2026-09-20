@@ -2015,7 +2015,7 @@ function App() {
     ? 'Checking live activity…'
     : journeyPresentation.activitySlug === 'chill'
       ? directActivitySlug
-        ? `${Math.max(0, (journeyDiscovery?.activeCount ?? 0) - 1)} compatible nearby`
+        ? `${Math.max(0, (journeyDiscovery?.activeCount ?? 0) - (accepted ? 1 : 0))} compatible nearby`
         : 'Compatible match available'
       : `${directActivitySlug ? (journeyDiscovery?.activeCount ?? 0) : (boredOpportunity?.activeCount ?? 0)} ${
           (directActivitySlug ? (journeyDiscovery?.activeCount ?? 0) : (boredOpportunity?.activeCount ?? 0)) === 1
