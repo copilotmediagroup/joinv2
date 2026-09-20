@@ -1695,10 +1695,34 @@ function App() {
               setCompletionPlanId(finishedPlanId)
               setPlanExitNotice(null)
             } else {
+              // A live-outing departure is terminal for this user's current
+              // journey. Never let stale formation/lock state or an immediate
+              // resume fetch resurrect the Signal after leaving.
+              setFormationResult(null)
+              setSignalRealtimeTarget(null)
+              setSignalParticipants([])
+              setAccepted(false)
+              setActive('drinks')
+              setDirectActivitySlug(null)
+              setBored(false)
+              setBoredOpportunity(null)
+              setBoredOpportunityExcluded([])
+              setSignalTimePreference('TONIGHT')
+              setSignalCrowdPreference('everyone')
+              setSignalAgePreference('open')
+              setSignalPreferencesOpen(false)
+              setSignalThreshold(false)
+              setServerJourneyStage('forming')
+              setLockedSignalVenue(null)
+              setMessageDirectConversationId(null)
+              lastRealtimeJourneyVersionRef.current = null
+              lastRealtimeGroupIdRef.current = null
+              setFormationError(null)
+              setWithdrawalError(null)
               setActiveSurface('discover')
               setPlanExitNotice(reason === 'safety' ? 'You left the live outing.' : 'Your live SIGNAL has ended.')
             }
-            void Promise.all([refreshActivity(), refreshDiscovery(), restoreActiveSignal(false)])
+            void Promise.all([refreshActivity(), refreshDiscovery()])
           }}
         />
       ) : activePlanId && activeSignalResume?.planDetailsOpened && activeSurface !== 'messages' ? (
