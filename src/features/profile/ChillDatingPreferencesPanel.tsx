@@ -26,9 +26,8 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
 
   if (loading || !gender) return null
 
-  const oppositeGender: ProfileGender = gender === 'male' ? 'female' : 'male'
   const draft = preferences ?? {
-    seekingGender: oppositeGender,
+    seekingGender: gender === 'male' ? 'female' : 'male',
     minAge: 18,
     maxAge: 80,
     isEnabled: false,
@@ -64,15 +63,13 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
         <strong>Looking to meet</strong>
         <div className="chill-dating-gender-options">
           {(['male', 'female'] as ProfileGender[]).map((option) => {
-            const isAllowed = option !== gender
             const isSelected = draft.seekingGender === option
             return (
               <button
                 key={option}
                 type="button"
                 className={isSelected ? 'active' : ''}
-                disabled={saving || !isAllowed}
-                title={isAllowed ? undefined : 'Chill currently matches men with women and women with men.'}
+                disabled={saving}
                 onClick={() => setPreferences({ ...draft, seekingGender: option })}
               >
                 {option === 'male' ? 'MEN' : 'WOMEN'}
