@@ -8,14 +8,30 @@ export default function ProfileSignalLife() {
   const [moments, setMoments] = useState<ProfileSignalMoment[]>([])
   const [selected, setSelected] = useState<Tile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    void getMyProfileSignalMoments().then((next) => { if (!cancelled) setMoments(next) })
-      .catch(() => { if (!cancelled) setMoments([]) })
+    void getMyProfileSignalMoments().then((page) => {
+      if (!cancelled) { setMoments(page.moments); setHasMore(page.hasMore) }
+    }).catch(() => { if (!cancelled) setMoments([]) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [])
+
+  async function loadMore() {
+    const last = moments[moments.length - 1]
+    if (!last || loadingMore || !hasMore) return
+    setLoadingMore(true)
+    try {
+      const page = await getMyProfileSignalMoments({ publishedAt: last.publishedAt, momentId: last.momentId })
+      setMoments((current) => [...current, ...page.moments])
+      setHasMore(page.hasMore)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const tiles = useMemo(() => moments.flatMap((moment) =>
     moment.media.map((_, mediaIndex) => ({ moment, mediaIndex }))), [moments])
@@ -40,6 +56,7 @@ export default function ProfileSignalLife() {
         </button>
       })}
     </div> : <div className="profile-signal-life-empty"><Zap size={23}/><strong>Your Signal Life starts when you show up.</strong><span>Photos and videos you capture during SIGNALs will build your visual history here.</span></div>}
+    {hasMore ? <button type="button" className="profile-signal-life-load-more" disabled={loadingMore} onClick={() => { void loadMore() }}>{loadingMore ? 'LOADING…' : 'LOAD MORE SIGNAL LIFE'}</button> : null}
 
     {selected ? <div className="profile-signal-life-viewer" role="dialog" aria-modal="true" onClick={() => setSelected(null)}>
       <article onClick={(event) => event.stopPropagation()}>

@@ -16,6 +16,8 @@ const [
   signalTimeStage,
   liveMap,
   myConnections,
+  profileMomentClient,
+  publicProfileClient,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -31,6 +33,8 @@ const [
   read('src/features/signal/SignalTimeStage.tsx'),
   read('src/features/outing/SignalLiveMap.tsx'),
   read('src/features/profile/MyConnectionsPanel.tsx'),
+  read('src/features/profile/profileSignalMomentsClient.ts'),
+  read('src/features/profile/publicProfileClient.ts'),
 ])
 
 const checks = []
@@ -96,6 +100,9 @@ lock('Profile reputation stats remain prominent', profile,
 lock('Your Signal Life remains on profile', profile,
   /ProfileSignalLife/,
   'Verified Signal media must retain its profile home.')
+lock('Signal Life stays cursor-paginated with batched media signing', profileMomentClient + publicProfileClient + publicProfile,
+  /createSignedUrls[\s\S]*?get_my_profile_signal_moments_page[\s\S]*?get_signal_public_profile_moments_page[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE SIGNAL LIFE/,
+  'Profile growth must not restore the old 60-Moment eager load or one signing request per media object.')
 lock('Public connections remain clickable and exact-count driven', publicProfile,
   /getPublicProfileConnectionCount[\s\S]*?connectionCount[\s\S]*?setConnectionsOpen\(true\)[\s\S]*?SIGNAL CONNECTIONS/,
   'Connections count/list/profile navigation is a locked profile behavior.')

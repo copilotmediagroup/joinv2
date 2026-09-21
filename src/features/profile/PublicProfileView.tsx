@@ -19,14 +19,31 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
   const [selected, setSelected] = useState<Tile | null>(null)
   const [connectionsOpen, setConnectionsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [momentsHaveMore, setMomentsHaveMore] = useState(false)
+  const [momentsLoadingMore, setMomentsLoadingMore] = useState(false)
 
   useEffect(() => {
     let active = true
     void Promise.all([getPublicSignalProfile(userId), getPublicProfileMoments(userId), getPublicProfileConnections(userId), getPublicProfileConnectionCount(userId)])
-      .then(([nextProfile, nextMoments, nextConnections, nextConnectionCount]) => { if (active) { setProfile(nextProfile); setMoments(nextMoments); setConnections(nextConnections); setConnectionCount(nextConnectionCount) } })
+      .then(([nextProfile, momentPage, nextConnections, nextConnectionCount]) => {
+        if (active) { setProfile(nextProfile); setMoments(momentPage.moments); setMomentsHaveMore(momentPage.hasMore); setConnections(nextConnections); setConnectionCount(nextConnectionCount) }
+      })
       .catch((loadError) => { if (active) setError(loadError instanceof Error ? loadError.message : 'Unable to load profile') })
     return () => { active = false }
   }, [userId])
+
+  async function loadMoreMoments() {
+    const last = moments[moments.length - 1]
+    if (!last || momentsLoadingMore || !momentsHaveMore) return
+    setMomentsLoadingMore(true)
+    try {
+      const page = await getPublicProfileMoments(userId, { publishedAt: last.publishedAt, momentId: last.momentId })
+      setMoments((current) => [...current, ...page.moments])
+      setMomentsHaveMore(page.hasMore)
+    } finally {
+      setMomentsLoadingMore(false)
+    }
+  }
 
   const tiles = useMemo(() => moments.flatMap((moment) => moment.media.map((_, mediaIndex) => ({ moment, mediaIndex }))), [moments])
 
@@ -66,6 +83,7 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
           </button>
         })}
       </div> : <div className="profile-signal-life-empty"><Zap size={22}/><strong>No published Signal Moments yet.</strong></div>}
+      {momentsHaveMore ? <button type="button" className="profile-signal-life-load-more" disabled={momentsLoadingMore} onClick={() => { void loadMoreMoments() }}>{momentsLoadingMore ? 'LOADING…' : 'LOAD MORE SIGNAL LIFE'}</button> : null}
     </div>
 
     {connectionsOpen ? <div className="public-profile-connections-dialog" role="dialog" aria-modal="true" aria-label={`${profile.displayName} connections`} onClick={() => setConnectionsOpen(false)}><article onClick={(event) => event.stopPropagation()}>
