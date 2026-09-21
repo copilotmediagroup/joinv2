@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Clock3, LogOut, MapPin, Navigation, ShieldCheck, Users, Zap } from 'lucide-react'
 import {
   getMyPlanGovernance,
@@ -58,14 +58,17 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
   const [replacementSeconds, setReplacementSeconds] = useState(0)
   const [attendance, setAttendance] = useState<PlanAttendanceStatus | null>(null)
   const [attendanceBusy, setAttendanceBusy] = useState(false)
+  const refreshEpochRef = useRef(0)
 
   const refresh = useCallback(async () => {
+    const requestEpoch = ++refreshEpochRef.current
     try {
       const next = await getMyPlanGovernance(planId)
       const [replacementStatus, attendanceStatus] = await Promise.all([
         getMyPlanReplacementStatus(planId),
         getMyPlanAttendanceStatus(planId),
       ])
+      if (requestEpoch !== refreshEpochRef.current) return
       setSnapshot(next)
       setReplacement(replacementStatus)
       setAttendance(attendanceStatus)
@@ -81,6 +84,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
       )
       setNewTime((current) => current || toLocalInputValue(next.scheduledStartsAt))
     } catch (loadError) {
+      if (requestEpoch !== refreshEpochRef.current) return
       if (loadError instanceof PlanAccessLostError) {
         setSnapshot(null)
         setReplacement(null)
@@ -91,7 +95,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
       }
       setError(toUserFacingError(loadError, 'Unable to load group controls right now.'))
     } finally {
-      setLoading(false)
+      if (requestEpoch === refreshEpochRef.current) setLoading(false)
     }
   }, [onLeftPlan, planId])
 

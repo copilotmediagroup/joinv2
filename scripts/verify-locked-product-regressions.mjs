@@ -34,6 +34,7 @@ const [
   liveLocationMigration,
   planMembersClient,
   profileSearchPanel,
+  planGovernance,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -67,6 +68,7 @@ const [
   read('supabase/migrations/20260921083500_fix_live_plan_location_states.sql'),
   read('src/features/plan/planMembersClient.ts'),
   read('src/features/profile/ProfileSearchPanel.tsx'),
+  read('src/features/plan/PlanGovernancePanel.tsx'),
 ])
 
 const checks = []
@@ -114,6 +116,9 @@ lock('Live capture remains check-in gated', outing,
 lock('DONE HERE remains separate from safety leave', outing,
   /DONE HERE[\s\S]*?I DON'T FEEL SAFE/,
   'Normal completion and emergency departure are intentionally distinct actions.')
+lock('Plan governance refresh ignores stale realtime responses', planGovernance,
+  /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
+  'Overlapping Plan governance refreshes must not let older voting, replacement, or attendance state overwrite newer authority.')
 lock('Plan Options remains lazy mounted', details,
   /planOptionsMounted[\s\S]*?PlanGovernancePanel[\s\S]*?PLAN OPTIONS/,
   'Opening Plan Options must not reintroduce the prior always-mounted governance collision.')
