@@ -15,6 +15,7 @@ const [
   discovery,
   signalTimeStage,
   liveMap,
+  myConnections,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -29,6 +30,7 @@ const [
   read('src/features/signal/discovery/signalDiscoveryClient.ts'),
   read('src/features/signal/SignalTimeStage.tsx'),
   read('src/features/outing/SignalLiveMap.tsx'),
+  read('src/features/profile/MyConnectionsPanel.tsx'),
 ])
 
 const checks = []
@@ -97,6 +99,9 @@ lock('Your Signal Life remains on profile', profile,
 lock('Public connections remain clickable and exact-count driven', publicProfile,
   /getPublicProfileConnectionCount[\s\S]*?connectionCount[\s\S]*?setConnectionsOpen\(true\)[\s\S]*?SIGNAL CONNECTIONS/,
   'Connections count/list/profile navigation is a locked profile behavior.')
+lock('Own profile connections remain exact-count clickable', myConnections,
+  /getPublicProfileConnectionCount\(userId\)[\s\S]*?setConnectionCount\(exactCount\)[\s\S]*?profile-connections-summary[\s\S]*?setOpen\(true\)[\s\S]*?My SIGNAL connections/,
+  'The owner profile must show an exact clickable Connections count and modal list.')
 lock('My Energy stays out of public profile', publicProfile,
   /^(?![\s\S]*MY ENERGY)(?![\s\S]*SignalPreferencesPanel)[\s\S]*$/,
   'My Energy is private/backend-facing preference data and must not render publicly.')

@@ -1270,7 +1270,7 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
 
         <div className="profile-view-divider" />
         <div className="profile-view-section">
-          <MyConnectionsPanel onOpenDirectConversation={onOpenDirectConversation} onOpenProfile={onOpenProfile} />
+          <MyConnectionsPanel userId={profile.userId} onOpenDirectConversation={onOpenDirectConversation} onOpenProfile={onOpenProfile} />
         </div>
 
         <div className="profile-view-divider" />
