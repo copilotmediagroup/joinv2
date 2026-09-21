@@ -29,6 +29,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
+  const actionRequestRef = useRef(false)
 
   const refresh = useCallback(async () => {
     const requestEpoch = ++refreshEpochRef.current
@@ -84,7 +85,8 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   }, [refresh])
 
   const message = async (connection: MySignalConnection) => {
-    if (busyId) return
+    if (actionRequestRef.current) return
+    actionRequestRef.current = true
     setBusyId(connection.connectionId)
     setError(null)
     try {
@@ -98,7 +100,8 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   }
 
   const disconnect = async (connection: MySignalConnection) => {
-    if (busyId) return
+    if (actionRequestRef.current) return
+    actionRequestRef.current = true
     setBusyId(connection.connectionId)
     setError(null)
     try {

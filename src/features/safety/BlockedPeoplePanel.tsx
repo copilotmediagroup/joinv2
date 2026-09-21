@@ -21,6 +21,7 @@ export default function BlockedPeoplePanel() {
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
+  const actionRequestRef = useRef(false)
 
   const refresh = useCallback(async () => {
     const requestEpoch = ++refreshEpochRef.current
@@ -89,7 +90,8 @@ export default function BlockedPeoplePanel() {
   }
 
   const unblock = async (user: BlockedUser) => {
-    if (busyId) return
+    if (actionRequestRef.current) return
+    actionRequestRef.current = true
     setBusyId(user.userId)
     setError(null)
     try {
@@ -104,6 +106,7 @@ export default function BlockedPeoplePanel() {
         'Unable to unblock this person right now.',
       ))
     } finally {
+      actionRequestRef.current = false
       setBusyId(null)
     }
   }

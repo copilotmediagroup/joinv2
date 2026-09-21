@@ -17,6 +17,7 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
+  const actionRequestRef = useRef(false)
 
   const refresh = useCallback(async () => {
     const requestEpoch = ++refreshEpochRef.current
@@ -42,7 +43,8 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
   useEffect(() => subscribeToSignalConnections(currentUser.userId, () => { void refresh() }), [currentUser.userId, refresh])
 
   const connect = async (person: SignalConnectionPerson) => {
-    if (busyUserId) return
+    if (actionRequestRef.current) return
+    actionRequestRef.current = true
     setBusyUserId(person.userId)
     setError(null)
     try {
@@ -56,7 +58,8 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
   }
 
   const respond = async (person: SignalConnectionPerson, accept: boolean) => {
-    if (busyUserId || !person.connectionId) return
+    if (actionRequestRef.current || !person.connectionId) return
+    actionRequestRef.current = true
     setBusyUserId(person.userId)
     setError(null)
     try {

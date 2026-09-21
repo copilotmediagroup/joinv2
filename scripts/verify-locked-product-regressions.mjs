@@ -241,6 +241,9 @@ lock('Public connections remain clickable and exact-count driven', publicProfile
 lock('Public connection modal stays paginated with batched avatars', publicProfileClient + avatarClient + publicProfile,
   /get_signal_public_profile_connections_page[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE CONNECTIONS/,
   'Large social graphs must remain cursor-paginated and avoid one avatar-signing request per connection.')
+lock('Connection actions serialize rapid mutations', stayConnected + myConnections,
+  /actionRequestRef[\s\S]*?connect[\s\S]*?actionRequestRef\.current[\s\S]*?respond[\s\S]*?actionRequestRef\.current[\s\S]*?message[\s\S]*?actionRequestRef\.current[\s\S]*?disconnect[\s\S]*?actionRequestRef\.current/,
+  'Connect, accept/decline, message-open, and disconnect actions must not rely only on delayed React busy state.')
 lock('Post-Signal connection refresh ignores stale responses', stayConnected,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Realtime and action-triggered refreshes must not let an older post-Signal connection response overwrite newer state.')
@@ -283,6 +286,9 @@ lock('Moment comment pagination serializes requests', activityView,
 lock('Safety report and block actions serialize rapid submissions', userSafetyActions,
   /actionRequestRef[\s\S]*?submitReport[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?confirmBlock[\s\S]*?if \(actionRequestRef\.current\) return/,
   'Rapid report/block actions must share synchronous request ownership instead of relying on delayed React busy state.')
+lock('Unblock action serializes rapid submissions', blockedPeople,
+  /actionRequestRef[\s\S]*?unblock[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false/,
+  'Rapid unblock taps must not submit duplicate mutations.')
 lock('Blocked people pagination serializes and rejects stale pages', blockedPeople,
   /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid blocked-user pagination must serialize and an older page must not append after unblock or refresh authority changes.')
