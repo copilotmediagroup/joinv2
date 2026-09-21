@@ -467,62 +467,33 @@ export function subscribeToSignalRealtime(
 
   emitConnectionState('connecting')
 
-  channel = client
-    .channel(
-      `signal:${target.signalGroupId}`,
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'signal_intents',
-        filter:
-          `id=eq.${target.signalIntentId}`,
-      },
-      () => {
-        void runRefresh()
-      },
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'signal_groups',
-        filter:
-          `id=eq.${target.signalGroupId}`,
-      },
-      () => {
-        void runRefresh()
-      },
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table:
-          'signal_group_memberships',
-        filter:
-          `signal_group_id=eq.${target.signalGroupId}`,
-      },
-      () => {
-        void runRefresh()
-      },
-    )
-    .subscribe((status) => {
-      const normalized =
-        normalizeConnectionState(status)
+  void client.realtime.setAuth().then(() => {
+    if (stopped) return
+    channel = client
+      .channel(
+        `signal:${target.signalGroupId}`,
+        { config: { private: true } },
+      )
+      .on(
+        'broadcast',
+        { event: 'refresh' },
+        () => {
+          void runRefresh()
+        },
+      )
+      .subscribe((status) => {
+        const normalized =
+          normalizeConnectionState(status)
 
-      if (normalized) {
-        emitConnectionState(normalized)
-      }
+        if (normalized) {
+          emitConnectionState(normalized)
+        }
 
-      if (status === 'SUBSCRIBED') {
-        void runRefresh()
-      }
-    })
+        if (status === 'SUBSCRIBED') {
+          void runRefresh()
+        }
+      })
+  })
 
   /*
    * Initial authoritative read starts immediately.
