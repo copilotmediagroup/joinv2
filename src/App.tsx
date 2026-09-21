@@ -24,6 +24,7 @@ import NotificationPanel from './features/notifications/NotificationPanel'
 import SignalCompletionView from './features/outing/SignalCompletionView'
 import { getMyPendingSignalCompletionPlanId, resetCompletionRecoverySession } from './features/outing/signalCompletionClient'
 import { getOrCreateDirectConversationWithUser } from './features/messaging/directMessagingClient'
+import ProfileSearchPanel from './features/profile/ProfileSearchPanel'
 import { getMyNotifications, getMyUnreadNotificationCount, subscribeToMyNotifications, type SignalNotification } from './features/notifications/notificationClient'
 import {
   getMyActivity,
@@ -305,6 +306,7 @@ function App() {
     useState(false)
   const [activityError, setActivityError] =
     useState<string | null>(null)
+  const [profileSearchOpen, setProfileSearchOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] =
     useState(false)
   const [notificationUnreadCount, setNotificationUnreadCount] =
@@ -1680,7 +1682,7 @@ function App() {
         </div>
 
         <div className="top-actions">
-          <button>
+          <button type="button" aria-label="Search SIGNAL people" aria-expanded={profileSearchOpen} onClick={() => { setProfileSearchOpen(true); setNotificationsOpen(false) }}>
             <Search size={18} />
           </button>
           <button
@@ -1719,6 +1721,10 @@ function App() {
             ADMIN MODE
           </button>
         </div>
+      )}
+
+      {profileSearchOpen && (
+        <ProfileSearchPanel onClose={() => setProfileSearchOpen(false)} onOpenProfile={(userId) => { setProfileSearchOpen(false); setPublicProfileUserId(userId); setActiveSurface('public-profile') }} />
       )}
 
       {notificationsOpen && (
