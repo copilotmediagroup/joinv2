@@ -13,6 +13,8 @@ const [
   publicProfile,
   profilePreferences,
   discovery,
+  signalTimeStage,
+  liveMap,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -25,6 +27,8 @@ const [
   read('src/features/profile/PublicProfileView.tsx'),
   read('src/features/profile/SignalPreferencesPanel.tsx'),
   read('src/features/signal/discovery/signalDiscoveryClient.ts'),
+  read('src/features/signal/SignalTimeStage.tsx'),
+  read('src/features/outing/SignalLiveMap.tsx'),
 ])
 
 const checks = []
@@ -66,6 +70,18 @@ lock('DONE HERE remains separate from safety leave', outing,
 lock('Plan Options remains lazy mounted', details,
   /planOptionsMounted[\s\S]*?PlanGovernancePanel[\s\S]*?PLAN OPTIONS/,
   'Opening Plan Options must not reintroduce the prior always-mounted governance collision.')
+lock('Locked Signal retains Open Details entry point', signalTimeStage,
+  /OPEN DETAILS/,
+  'The verified live journey uses details/map separately from group messaging.')
+lock('Live details retain route toggle and trip stats', details,
+  /route \? ' HIDE ROUTE' : ' DIRECTIONS'[\s\S]*?DISTANCE[\s\S]*?DRIVE[\s\S]*?ETA/,
+  'Directions must remain a toggle with distance, drive time, and ETA.')
+lock('Live map retains fixed destination and user markers', liveMap,
+  /destination\.latitude[\s\S]*?destination\.longitude[\s\S]*?redIcon[\s\S]*?userPosition[\s\S]*?blueIcon/,
+  'The destination and current-user positions must remain distinct map authorities.')
+lock('Pre-lock formation keeps joined participant proof', app,
+  /signalParticipants\.slice\(0, 4\)[\s\S]*?participant\.displayName[\s\S]*?\+ JOINED/,
+  'Users must see who is joining before the Signal locks instead of jumping blindly to coordination.')
 lock('Notification unread authority remains server counted', notifications,
   /head: true[\s\S]*?state[\s\S]*?unread|state[\s\S]*?unread[\s\S]*?head: true/,
   'Unread badges must not be inferred only from a bounded notification page.')
