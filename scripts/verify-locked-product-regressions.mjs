@@ -354,6 +354,9 @@ lock('Social list avatars use batched private signing', signalConnectionsClient 
 lock('Moment social mutations serialize rapid actions', activityView,
   /socialMutationRef[\s\S]*?deleteRequestRef[\s\S]*?reportRequestRef[\s\S]*?handleSignal[\s\S]*?socialMutationRef\.current = true[\s\S]*?socialMutationRef\.current = false[\s\S]*?handleComment[\s\S]*?socialMutationRef\.current = true[\s\S]*?socialMutationRef\.current = false[\s\S]*?handleDelete[\s\S]*?deleteRequestRef\.current = true[\s\S]*?deleteRequestRef\.current = false[\s\S]*?handleReport[\s\S]*?reportRequestRef\.current = true[\s\S]*?reportRequestRef\.current = false/,
   'Moment signals, comments, deletes, and reports must synchronously own their mutation request.')
+lock('Moment card mutations are mutually exclusive', activityView,
+  /handleSignal[\s\S]*?deleteRequestRef\.current[\s\S]*?handleComment[\s\S]*?reportRequestRef\.current[\s\S]*?handleCommentDelete[\s\S]*?socialMutationRef\.current[\s\S]*?handleDelete[\s\S]*?commentDeleteRequestRef\.current[\s\S]*?handleReport[\s\S]*?deleteRequestRef\.current/,
+  'Reaction, comment, comment-delete, Moment-delete, and report writes on one card must not race each other.')
 lock('Moment comment deletion serializes rapid actions', activityView,
   /commentDeleteRequestRef[\s\S]*?handleCommentDelete[\s\S]*?commentDeleteRequestRef\.current[\s\S]*?commentDeleteRequestRef\.current = true[\s\S]*?deleteMyMomentComment[\s\S]*?commentDeleteRequestRef\.current = false/,
   'Rapid comment delete taps must not issue duplicate destructive mutations.')

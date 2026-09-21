@@ -198,7 +198,7 @@ function CurrentActivityCard({
   }
 
   const handleSignal = async () => {
-    if (socialMutationRef.current) return
+    if (socialMutationRef.current || deleteRequestRef.current || reportRequestRef.current || commentDeleteRequestRef.current) return
     socialMutationRef.current = true
     setSocialBusy(true)
     try {
@@ -208,7 +208,7 @@ function CurrentActivityCard({
   }
 
   const handleComment = async () => {
-    if (socialMutationRef.current || !commentBody.trim()) return
+    if (socialMutationRef.current || deleteRequestRef.current || reportRequestRef.current || commentDeleteRequestRef.current || !commentBody.trim()) return
     socialMutationRef.current = true
     setSocialBusy(true)
     try {
@@ -221,7 +221,7 @@ function CurrentActivityCard({
   }
 
   const handleCommentDelete = async (commentId: string) => {
-    if (commentDeleteRequestRef.current) return
+    if (commentDeleteRequestRef.current || socialMutationRef.current || deleteRequestRef.current || reportRequestRef.current) return
     commentDeleteRequestRef.current = true
     try {
       await deleteMyMomentComment(commentId)
@@ -236,7 +236,7 @@ function CurrentActivityCard({
   }
 
   const handleDelete = async () => {
-    if (deleteRequestRef.current || !window.confirm('Delete this Signal Moment?')) return
+    if (deleteRequestRef.current || socialMutationRef.current || reportRequestRef.current || commentDeleteRequestRef.current || !window.confirm('Delete this Signal Moment?')) return
     deleteRequestRef.current = true
     setDeleting(true)
     setReportStatus(null)
@@ -254,7 +254,7 @@ function CurrentActivityCard({
   }
 
   const handleReport = async () => {
-    if (reportRequestRef.current) return
+    if (reportRequestRef.current || socialMutationRef.current || deleteRequestRef.current || commentDeleteRequestRef.current) return
     reportRequestRef.current = true
     setReporting(true)
     setReportStatus(null)
@@ -298,9 +298,9 @@ function CurrentActivityCard({
         <div className="signal-moment-head-actions">
           {moment.isLocal ? <span className="signal-moment-local">NEAR YOU</span> : null}
           {moment.authorUserId !== currentUserId ? (
-            <button type="button" onClick={() => setReportOpen((value) => !value)}>REPORT</button>
+            <button type="button" disabled={reporting || socialBusy} onClick={() => setReportOpen((value) => !value)}>REPORT</button>
           ) : (
-            <button type="button" disabled={deleting} onClick={() => void handleDelete()}>
+            <button type="button" disabled={deleting || socialBusy || reporting} onClick={() => void handleDelete()}>
               {deleting ? 'DELETING…' : 'DELETE'}
             </button>
           )}
@@ -329,8 +329,8 @@ function CurrentActivityCard({
             onChange={(event) => setReportDetails(event.target.value)}
           />
           <div>
-            <button type="button" onClick={() => setReportOpen(false)}>CANCEL</button>
-            <button type="button" disabled={reporting} onClick={() => void handleReport()}>
+            <button type="button" disabled={reporting} onClick={() => setReportOpen(false)}>CANCEL</button>
+            <button type="button" disabled={reporting || socialBusy} onClick={() => void handleReport()}>
               {reporting ? 'SENDING…' : 'SEND REPORT'}
             </button>
           </div>
@@ -355,17 +355,17 @@ function CurrentActivityCard({
           <span><Users size={13} /> {moment.participantCount} met through SIGNAL</span>
         </div>
         <div className="signal-moment-social">
-          <button type="button" className={signaled ? 'is-signaled' : ''} disabled={socialBusy} onClick={() => void handleSignal()}><Zap size={17} fill={signaled ? 'currentColor' : 'none'}/> <strong>{signalCount}</strong> SIGNAL{signalCount === 1 ? '' : 'S'}</button>
+          <button type="button" className={signaled ? 'is-signaled' : ''} disabled={socialBusy || deleting || reporting} onClick={() => void handleSignal()}><Zap size={17} fill={signaled ? 'currentColor' : 'none'}/> <strong>{signalCount}</strong> SIGNAL{signalCount === 1 ? '' : 'S'}</button>
           <button type="button" onClick={() => { const next=!commentsOpen; setCommentsOpen(next); if(next) void loadComments() }}><span>◯</span> <strong>{commentCount}</strong> COMMENT{commentCount === 1 ? '' : 'S'}</button>
         </div>
         {commentsOpen ? <div className="signal-moment-comments">
           {commentsHaveMore ? <button type="button" className="signal-moment-comments-more" disabled={commentsLoading} onClick={() => void loadComments(true)}>{commentsLoading ? 'LOADING…' : 'LOAD OLDER COMMENTS'}</button> : null}
           {comments.map((comment) => <div key={comment.commentId} className={comment.parentCommentId ? 'signal-moment-comment is-reply' : 'signal-moment-comment'}>
             {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt=""/> : <i>{comment.authorDisplayName.slice(0,1)}</i>}
-            <div><p><strong>{comment.authorDisplayName}</strong> {comment.body}</p><span><button type="button" onClick={() => setReplyTo(comment.parentCommentId ? comments.find((item) => item.commentId === comment.parentCommentId) ?? comment : comment)}>REPLY</button>{comment.isMine ? <button type="button" onClick={() => void handleCommentDelete(comment.commentId)}>DELETE</button> : null}</span></div>
+            <div><p><strong>{comment.authorDisplayName}</strong> {comment.body}</p><span><button type="button" onClick={() => setReplyTo(comment.parentCommentId ? comments.find((item) => item.commentId === comment.parentCommentId) ?? comment : comment)}>REPLY</button>{comment.isMine ? <button type="button" disabled={socialBusy || deleting || reporting} onClick={() => void handleCommentDelete(comment.commentId)}>DELETE</button> : null}</span></div>
           </div>)}
           {replyTo ? <div className="signal-moment-replying">Replying to {replyTo.authorDisplayName}<button type="button" onClick={() => setReplyTo(null)}>×</button></div> : null}
-          <div className="signal-moment-comment-compose"><input maxLength={1000} value={commentBody} placeholder={replyTo ? 'Reply to ' + replyTo.authorDisplayName + '…' : 'Add a comment…'} onChange={(e) => setCommentBody(e.target.value)} onKeyDown={(e) => { if(e.key==='Enter') void handleComment() }}/><button type="button" disabled={socialBusy || !commentBody.trim()} onClick={() => void handleComment()}>POST</button></div>
+          <div className="signal-moment-comment-compose"><input maxLength={1000} value={commentBody} placeholder={replyTo ? 'Reply to ' + replyTo.authorDisplayName + '…' : 'Add a comment…'} onChange={(e) => setCommentBody(e.target.value)} onKeyDown={(e) => { if(e.key==='Enter') void handleComment() }}/><button type="button" disabled={socialBusy || deleting || reporting || !commentBody.trim()} onClick={() => void handleComment()}>POST</button></div>
         </div> : null}
       </div>
     </motion.article>
