@@ -36,6 +36,7 @@ const [
   profileSearchPanel,
   planGovernance,
   activityView,
+  blockedPeople,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -71,6 +72,7 @@ const [
   read('src/features/profile/ProfileSearchPanel.tsx'),
   read('src/features/plan/PlanGovernancePanel.tsx'),
   read('src/features/activity/ActivityView.tsx'),
+  read('src/features/safety/BlockedPeoplePanel.tsx'),
 ])
 
 const checks = []
@@ -232,6 +234,9 @@ lock('Social list avatars use batched private signing', signalConnectionsClient 
 lock('Moment comment pagination serializes requests', activityView,
   /commentsRequestRef[\s\S]*?commentsRequestRef\.current[\s\S]*?commentsRequestRef\.current = true[\s\S]*?setComments[\s\S]*?loadOlder[\s\S]*?commentsRequestRef\.current = false/,
   'Comment refresh and LOAD OLDER must not overlap and overwrite or duplicate the paginated thread.')
+lock('Blocked people refresh cannot resurrect unblocked users', blockedPeople,
+  /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current[\s\S]*?unblockUser[\s\S]*?refreshEpochRef\.current \+= 1/,
+  'An older blocked-people read must not restore a user after a successful unblock.')
 lock('Comments, blocked users, and moderation evidence batch signing', momentSocialClient + userSafetyClient + adminClient,
   /getMomentCommentsPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyBlockedUsersPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getModerationMomentEvidence[\s\S]*?createSignedUrls/,
   'Bounded social and moderation pages must avoid per-row Storage signing fan-out.')

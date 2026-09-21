@@ -1,5 +1,5 @@
 import { Ban, RotateCcw } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
   BLOCKED_USERS_PAGE_SIZE,
@@ -19,11 +19,14 @@ export default function BlockedPeoplePanel() {
   } | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const refreshEpochRef = useRef(0)
 
   const refresh = useCallback(async () => {
+    const requestEpoch = ++refreshEpochRef.current
     try {
       setError(null)
       const page = await getMyBlockedUsersPage()
+      if (requestEpoch !== refreshEpochRef.current) return
       setItems(page)
       setHasMore(page.length === BLOCKED_USERS_PAGE_SIZE)
       const last = page[page.length - 1]
@@ -32,12 +35,13 @@ export default function BlockedPeoplePanel() {
         blockId: last.blockId,
       } : null)
     } catch (value) {
+      if (requestEpoch !== refreshEpochRef.current) return
       setError(toUserFacingError(
         value,
         'Unable to load blocked people right now.',
       ))
     } finally {
-      setLoading(false)
+      if (requestEpoch === refreshEpochRef.current) setLoading(false)
     }
   }, [])
 
@@ -83,6 +87,7 @@ export default function BlockedPeoplePanel() {
     setError(null)
     try {
       await unblockUser(user.userId)
+      refreshEpochRef.current += 1
       setItems((current) =>
         current.filter((item) => item.userId !== user.userId),
       )
