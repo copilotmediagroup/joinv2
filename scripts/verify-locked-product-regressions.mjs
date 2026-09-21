@@ -35,6 +35,7 @@ const [
   planMembersClient,
   profileSearchPanel,
   planGovernance,
+  activityView,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -69,6 +70,7 @@ const [
   read('src/features/plan/planMembersClient.ts'),
   read('src/features/profile/ProfileSearchPanel.tsx'),
   read('src/features/plan/PlanGovernancePanel.tsx'),
+  read('src/features/activity/ActivityView.tsx'),
 ])
 
 const checks = []
@@ -209,6 +211,9 @@ lock('Plan member avatars use batched private signing', planMembersClient,
 lock('Social list avatars use batched private signing', signalConnectionsClient + signalParticipantsClient + profileSearchClient + directMessagingClient,
   /createProfileAvatarSignedUrls[\s\S]*?getMySignalParticipants[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?searchSignalProfiles[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyDirectThreadsPage[\s\S]*?createProfileAvatarSignedUrls/,
   'Search, participants, connections, and inbox pages must not create one Storage signing request per person.')
+lock('Moment comment pagination serializes requests', activityView,
+  /commentsRequestRef[\s\S]*?commentsRequestRef\.current[\s\S]*?commentsRequestRef\.current = true[\s\S]*?setComments[\s\S]*?loadOlder[\s\S]*?commentsRequestRef\.current = false/,
+  'Comment refresh and LOAD OLDER must not overlap and overwrite or duplicate the paginated thread.')
 lock('Comments, blocked users, and moderation evidence batch signing', momentSocialClient + userSafetyClient + adminClient,
   /getMomentCommentsPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyBlockedUsersPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getModerationMomentEvidence[\s\S]*?createSignedUrls/,
   'Bounded social and moderation pages must avoid per-row Storage signing fan-out.')

@@ -171,9 +171,11 @@ function CurrentActivityCard({
   const [commentBody, setCommentBody] = useState('')
   const [replyTo, setReplyTo] = useState<SignalMomentComment | null>(null)
   const [socialBusy, setSocialBusy] = useState(false)
+  const commentsRequestRef = useRef(false)
 
   const loadComments = async (loadOlder = false) => {
-    if (commentsLoading) return
+    if (commentsRequestRef.current) return
+    commentsRequestRef.current = true
     setCommentsLoading(true)
     try {
       const oldest = loadOlder ? comments[0] ?? null : null
@@ -186,6 +188,7 @@ function CurrentActivityCard({
       setComments((current) => loadOlder ? [...next, ...current] : next)
       setCommentsHaveMore(next.length === MOMENT_COMMENT_PAGE_SIZE)
     } finally {
+      commentsRequestRef.current = false
       setCommentsLoading(false)
     }
   }
