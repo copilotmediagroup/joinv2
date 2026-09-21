@@ -344,6 +344,9 @@ lock('Auth mode remains stable during submission', authGate,
 lock('Moderation actions serialize rapid admin mutations', moderationView + momentModeration,
   /actionRequestRef[\s\S]*?takeNext[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?releaseSelected[\s\S]*?actionRequestRef\.current[\s\S]*?runEnforcement[\s\S]*?actionRequestRef\.current[\s\S]*?finishSelected[\s\S]*?actionRequestRef\.current[\s\S]*?actionRequestRef[\s\S]*?takeNext[\s\S]*?actionRequestRef\.current = true/,
   'Moderation claim, release, enforcement, and resolution actions must not overlap under rapid admin input.')
+lock('Moderation pagination pauses during case mutations', moderationView + momentModeration,
+  /actionRequestRef\.current[\s\S]*?disabled=\{loadingMore \|\| actionLoading\}/,
+  'Queue pagination must not race claim, release, enforcement, or review writes while a case mutation owns the panel.')
 lock('Moderation queues serialize pagination and reject stale tabs', moderationView + momentModeration,
   /queueEpochRef[\s\S]*?pageRequestRef[\s\S]*?requestEpoch = append \? queueEpochRef\.current : \+\+queueEpochRef\.current[\s\S]*?requestEpoch !== queueEpochRef\.current/,
   'People and Moment moderation queues must not duplicate cursor pages or let an older tab response replace the current queue.')

@@ -64,7 +64,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
       ? { createdAt: current[current.length - 1].createdAt, reportId: current[current.length - 1].reportId }
       : null
 
-    if (append && pageRequestRef.current) return
+    if (append && (pageRequestRef.current || actionRequestRef.current)) return
     const requestEpoch = append ? queueEpochRef.current : ++queueEpochRef.current
     if (append) {
       pageRequestRef.current = true
@@ -242,7 +242,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
           ))}
           {hasMore && (
             <button className="moderation-load-more"
-              onClick={() => { void loadPage(tab, true, items) }} disabled={loadingMore}>
+              onClick={() => { void loadPage(tab, true, items) }} disabled={loadingMore || actionLoading}>
               {loadingMore ? 'Loading…' : 'Load 40 more'}
             </button>
           )}
