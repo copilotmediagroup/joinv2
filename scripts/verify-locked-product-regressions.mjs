@@ -38,6 +38,8 @@ const [
   activityView,
   blockedPeople,
   profileSignalLife,
+  moderationView,
+  momentModeration,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -75,6 +77,8 @@ const [
   read('src/features/activity/ActivityView.tsx'),
   read('src/features/safety/BlockedPeoplePanel.tsx'),
   read('src/features/profile/ProfileSignalLife.tsx'),
+  read('src/features/admin/ModerationView.tsx'),
+  read('src/features/admin/MomentModerationPanel.tsx'),
 ])
 
 const checks = []
@@ -236,6 +240,9 @@ lock('My Energy stays out of public profile', publicProfile,
 lock('My Energy remains editable only in own profile flow', profile + profilePreferences,
   /SignalPreferencesPanel[\s\S]*?MY ENERGY[\s\S]*?SAVE MY ENERGY/,
   'Private preference editing must remain available to the owner.')
+lock('Moderation queues serialize pagination and reject stale tabs', moderationView + momentModeration,
+  /queueEpochRef[\s\S]*?pageRequestRef[\s\S]*?requestEpoch = append \? queueEpochRef\.current : \+\+queueEpochRef\.current[\s\S]*?requestEpoch !== queueEpochRef\.current/,
+  'People and Moment moderation queues must not duplicate cursor pages or let an older tab response replace the current queue.')
 lock('Admin operations counters remain independently indexable', adminOpsMigration,
   /get_admin_operations_snapshot[\s\S]*?select count\(\*\) from public\.signal_groups[\s\S]*?select count\(\*\) from public\.plans[\s\S]*?select count\(\*\) from public\.user_reports[\s\S]*?select count\(\*\) from public\.signal_moment_reports/,
   'Admin monitoring must not regress to broad materialized scans as production tables grow.')

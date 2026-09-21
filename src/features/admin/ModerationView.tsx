@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, Inbox, RefreshCw, ShieldCheck, Undo2, XCircle } from 'lucide-react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
@@ -49,6 +49,8 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
   const [enforcementLoading, setEnforcementLoading] = useState(false)
   const [enforcementReason, setEnforcementReason] = useState('')
   const [suspensionMinutes, setSuspensionMinutes] = useState(1440)
+  const queueEpochRef = useRef(0)
+  const pageRequestRef = useRef(false)
 
   const selected = useMemo(
     () => items.find((item) => item.reportId === selectedId) ?? null,
@@ -66,20 +68,28 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
       ? { createdAt: current[current.length - 1].createdAt, reportId: current[current.length - 1].reportId }
       : null
 
-    if (append) setLoadingMore(true)
-    else setLoading(true)
+    if (append && pageRequestRef.current) return
+    const requestEpoch = append ? queueEpochRef.current : ++queueEpochRef.current
+    if (append) {
+      pageRequestRef.current = true
+      setLoadingMore(true)
+    } else setLoading(true)
     setError(null)
     try {
       const page = await getModerationReportQueue({ ...config, cursor, limit: PAGE_SIZE })
+      if (requestEpoch !== queueEpochRef.current) return
       const nextItems = append ? [...current, ...page] : page
       setItems(nextItems)
       setHasMore(page.length === PAGE_SIZE)
       if (!append) setSelectedId(nextItems[0]?.reportId ?? null)
     } catch (loadError) {
+      if (requestEpoch !== queueEpochRef.current) return
       setError(toUserFacingError(loadError, 'Unable to load the moderation queue.'))
     } finally {
-      if (append) setLoadingMore(false)
-      else setLoading(false)
+      if (append) {
+        pageRequestRef.current = false
+        if (requestEpoch === queueEpochRef.current) setLoadingMore(false)
+      } else if (requestEpoch === queueEpochRef.current) setLoading(false)
     }
   }, [])
   useEffect(() => {
