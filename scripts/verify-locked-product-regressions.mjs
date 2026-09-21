@@ -108,6 +108,12 @@ lock('Group chat typing presence remains present', messages,
 lock('Group chat typing transport remains realtime', messagingRealtime,
   /plan-typing:[\s\S]*?broadcast[\s\S]*?typing[\s\S]*?2200/,
   'Typing presence must retain realtime publish and idle clearing.')
+lock('Direct message pagination serializes and rejects stale conversation pages', directMessagesPanel,
+  /messagePageRequestRef[\s\S]*?requestedConversationId = selectedId[\s\S]*?requestEpoch = messageRefreshEpochRef\.current[\s\S]*?requestEpoch !== messageRefreshEpochRef\.current/,
+  'Rapid LOAD OLDER requests must serialize and an older conversation page must not append after realtime refresh or thread navigation.')
+lock('Direct thread pagination serializes rapid requests', directMessagesPanel,
+  /threadPageRequestRef[\s\S]*?if \(!last \|\| threadPageRequestRef\.current\) return[\s\S]*?threadPageRequestRef\.current = true[\s\S]*?threadPageRequestRef\.current = false/,
+  'Rapid direct-thread pagination must not issue duplicate cursor requests.')
 lock('Direct message refresh ignores stale conversation responses', directMessagesPanel,
   /messageRefreshEpochRef[\s\S]*?requestedConversationId = selectedId[\s\S]*?requestEpoch = \+\+messageRefreshEpochRef\.current[\s\S]*?requestEpoch !== messageRefreshEpochRef\.current[\s\S]*?messageRefreshEpochRef\.current \+= 1/,
   'Switching or closing a direct conversation must invalidate older message refresh responses.')

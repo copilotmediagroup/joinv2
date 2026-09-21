@@ -57,6 +57,8 @@ export default function DirectMessagesPanel({
   const feedRef = useRef<HTMLDivElement | null>(null)
   const shouldFollowLatestRef = useRef(true)
   const messageRefreshEpochRef = useRef(0)
+  const messagePageRequestRef = useRef(false)
+  const threadPageRequestRef = useRef(false)
 
   const scrollToLatest = useCallback((behavior: ScrollBehavior = 'auto') => {
     const feed = feedRef.current
@@ -128,12 +130,16 @@ export default function DirectMessagesPanel({
 
   const loadOlderMessages = async () => {
     const oldest = messages[0]
-    if (!selectedId || !oldest || loadingOlderMessages || !hasOlderMessages) return
+    if (!selectedId || !oldest || messagePageRequestRef.current || !hasOlderMessages) return
+    const requestedConversationId = selectedId
+    const requestEpoch = messageRefreshEpochRef.current
     const feed = feedRef.current
     const previousHeight = feed?.scrollHeight ?? 0
+    messagePageRequestRef.current = true
     setLoadingOlderMessages(true)
     try {
-      const page = await getMyDirectMessagesPage(selectedId, { sentAt: oldest.sentAt, messageId: oldest.messageId })
+      const page = await getMyDirectMessagesPage(requestedConversationId, { sentAt: oldest.sentAt, messageId: oldest.messageId })
+      if (requestedConversationId !== selectedId || requestEpoch !== messageRefreshEpochRef.current) return
       setMessages((current) => {
         const byId = new Map([...page.messages, ...current].map((message) => [message.messageId, message]))
         return [...byId.values()].sort((left, right) =>
@@ -146,15 +152,21 @@ export default function DirectMessagesPanel({
       })
       setError(null)
     } catch (loadError) {
-      setError(toUserFacingError(loadError, 'Unable to load older messages right now.'))
+      if (requestedConversationId === selectedId && requestEpoch === messageRefreshEpochRef.current) {
+        setError(toUserFacingError(loadError, 'Unable to load older messages right now.'))
+      }
     } finally {
-      setLoadingOlderMessages(false)
+      messagePageRequestRef.current = false
+      if (requestedConversationId === selectedId && requestEpoch === messageRefreshEpochRef.current) {
+        setLoadingOlderMessages(false)
+      }
     }
   }
 
   const loadMore = async () => {
     const last = threads[threads.length - 1]
-    if (!last || loadingMore) return
+    if (!last || threadPageRequestRef.current) return
+    threadPageRequestRef.current = true
     setLoadingMore(true)
     try {
       const page = await getMyDirectThreadsPage({
@@ -167,6 +179,7 @@ export default function DirectMessagesPanel({
     } catch (loadError) {
       setError(toUserFacingError(loadError, 'Unable to load older conversations right now.'))
     } finally {
+      threadPageRequestRef.current = false
       setLoadingMore(false)
     }
   }
