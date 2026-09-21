@@ -54,22 +54,28 @@ function mergePlanConversations(
   )
 }
 
-function formatMessageTime(
-  sentAt: string,
-): string {
+function formatMessageStamp(sentAt: string): { date: string; time: string } {
   const date = new Date(sentAt)
+  if (Number.isNaN(date.getTime())) return { date: '', time: '' }
 
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
+  const today = new Date()
+  const sameDay = date.getFullYear() === today.getFullYear()
+    && date.getMonth() === today.getMonth()
+    && date.getDate() === today.getDate()
 
-  return new Intl.DateTimeFormat(
-    undefined,
-    {
+  return {
+    date: sameDay
+      ? 'Today'
+      : new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric',
+      }).format(date),
+    time: new Intl.DateTimeFormat(undefined, {
       hour: 'numeric',
       minute: '2-digit',
-    },
-  ).format(date)
+    }).format(date),
+  }
 }
 
 export default function MessagesView({
@@ -100,6 +106,8 @@ export default function MessagesView({
     useState<string | null>(null)
   const [typingUserIds, setTypingUserIds] = useState<string[]>([])
   const typingPublisherRef = useRef<((typing: boolean) => void) | null>(null)
+  const groupFeedRef = useRef<HTMLDivElement | null>(null)
+  const shouldFollowGroupLatestRef = useRef(true)
 
   const selectedPlanId =
     conversations.find(
@@ -265,6 +273,22 @@ export default function MessagesView({
     }
   }, [currentUserId, selectedConversationId])
 
+  useEffect(() => {
+    if (!selectedConversationId || messages.length === 0 || !shouldFollowGroupLatestRef.current) return
+    const frame = requestAnimationFrame(() => {
+      const feed = groupFeedRef.current
+      if (feed) feed.scrollTo({ top: feed.scrollHeight, behavior: 'auto' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [messages, selectedConversationId])
+
+  const captureGroupFollowState = () => {
+    const feed = groupFeedRef.current
+    if (!feed) return
+    shouldFollowGroupLatestRef.current =
+      feed.scrollHeight - feed.scrollTop - feed.clientHeight < 80
+  }
+
   const loadMoreConversations = async () => {
     if (!conversationCursor || loadingMoreConversations) return
     setLoadingMoreConversations(true)
@@ -302,6 +326,7 @@ export default function MessagesView({
     setError(null)
 
     try {
+      shouldFollowGroupLatestRef.current = true
       const sentMessage =
         await sendPlanMessage(
           selectedConversationId,
@@ -403,7 +428,11 @@ export default function MessagesView({
             <strong>GROUP CHAT</strong>
             <span>{messages.length > 0 ? 'LIVE CONVERSATION' : 'START THE CONVERSATION'}</span>
           </div>
-        <div className="messages-thread-feed">
+        <div
+          className="messages-thread-feed"
+          ref={groupFeedRef}
+          onScroll={captureGroupFollowState}
+        >
           {loadingMessages ? (
             <div className="messages-state">
               Loading messages…
@@ -427,6 +456,8 @@ export default function MessagesView({
                 (member) => member.userId === message.senderUserId,
               )
 
+              const sent = formatMessageStamp(message.sentAt)
+
               return (
                 <article
                   key={message.messageId}
@@ -437,14 +468,14 @@ export default function MessagesView({
                   }
                 >
                   <div className="messages-bubble-identity">
-                    {!isMine && (
-                      sender?.avatarUrl ? (
-                        <img src={sender.avatarUrl} alt="" />
-                      ) : (
-                        <span aria-hidden="true">
-                          {(sender?.displayName ?? 'S').slice(0, 1).toUpperCase()}
-                        </span>
-                      )
+                    {isMine && currentUserAvatarUrl ? (
+                      <img src={currentUserAvatarUrl} alt="" />
+                    ) : !isMine && sender?.avatarUrl ? (
+                      <img src={sender.avatarUrl} alt="" />
+                    ) : (
+                      <span aria-hidden="true">
+                        {isMine ? 'Y' : (sender?.displayName ?? 'S').slice(0, 1).toUpperCase()}
+                      </span>
                     )}
                     <small>
                       {isMine ? 'YOU' : sender?.displayName ?? 'SIGNAL MEMBER'}
@@ -452,9 +483,7 @@ export default function MessagesView({
                   </div>
                   <p>{message.body}</p>
                   <time>
-                    {formatMessageTime(
-                      message.sentAt,
-                    )}
+                    {sent.date} · {sent.time}
                   </time>
                 </article>
               )
