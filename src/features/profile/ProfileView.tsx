@@ -139,6 +139,7 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
   const stagedGalleryPreviewUrlsRef = useRef<Set<string>>(
     new Set(),
   )
+  const saveProfileRequestRef = useRef(false)
 
   const [profile, setProfile] = useState<MyProfile | null>(null)
   const [draft, setDraft] = useState<DraftProfile | null>(null)
@@ -607,13 +608,14 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
     if (
       !draft ||
       !profile ||
-      saving ||
+      saveProfileRequestRef.current ||
       uploadingAvatar ||
       uploadingGalleryPhoto
     ) {
       return
     }
 
+    saveProfileRequestRef.current = true
     setSaving(true)
     setSaveMessage(null)
     setError(null)
@@ -835,6 +837,7 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
         toUserFacingError(saveError, 'Unable to update your profile right now.'),
       )
     } finally {
+      saveProfileRequestRef.current = false
       setSaving(false)
       setUploadingAvatar(false)
       setUploadingGalleryPhoto(false)

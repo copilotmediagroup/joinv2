@@ -265,6 +265,9 @@ lock('Own connection refresh ignores stale responses', myConnections,
 lock('Own profile connections remain exact-count clickable', myConnections,
   /getPublicProfileConnectionCount\(userId\)[\s\S]*?setConnectionCount\(exactCount\)[\s\S]*?profile-connections-summary[\s\S]*?setOpen\(true\)[\s\S]*?My SIGNAL connections/,
   'The owner profile must show an exact clickable Connections count and modal list.')
+lock('Own profile save serializes upload and profile mutations', profile,
+  /saveProfileRequestRef[\s\S]*?saveProfile = async[\s\S]*?saveProfileRequestRef\.current[\s\S]*?saveProfileRequestRef\.current = true[\s\S]*?saveProfileRequestRef\.current = false/,
+  'Profile avatar, identity-gallery, and profile writes must remain one client-owned save transaction.')
 lock('My Energy stays out of public profile', publicProfile,
   /^(?![\s\S]*MY ENERGY)(?![\s\S]*SignalPreferencesPanel)[\s\S]*$/,
   'My Energy is private/backend-facing preference data and must not render publicly.')
