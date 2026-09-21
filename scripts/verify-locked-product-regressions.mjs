@@ -43,6 +43,8 @@ const [
   momentModeration,
   signalCompletion,
   userSafetyActions,
+  authGate,
+  onboardingGate,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -85,6 +87,8 @@ const [
   read('src/features/admin/MomentModerationPanel.tsx'),
   read('src/features/outing/SignalCompletionView.tsx'),
   read('src/features/safety/UserSafetyActions.tsx'),
+  read('src/features/onboarding/components/AuthGateView.tsx'),
+  read('src/features/onboarding/components/OnboardingGateView.tsx'),
 ])
 
 const checks = []
@@ -270,6 +274,9 @@ lock('My Energy remains editable only in own profile flow', profile + profilePre
 lock('Profile preference saves serialize rapid mutations', profilePreferences + chillDatingPreferences,
   /saveRequestRef[\s\S]*?save[\s\S]*?saveRequestRef\.current[\s\S]*?saveRequestRef\.current = true[\s\S]*?saveRequestRef\.current = false[\s\S]*?saveRequestRef[\s\S]*?save[\s\S]*?saveRequestRef\.current[\s\S]*?saveRequestRef\.current = true[\s\S]*?saveRequestRef\.current = false/,
   'My Energy and Chill preference writes must not rely only on delayed React saving state.')
+lock('Auth and onboarding submissions serialize rapid submits', authGate + onboardingGate,
+  /submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false[\s\S]*?submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false/,
+  'Authentication and onboarding writes must not rely only on delayed React submitting state.')
 lock('Moderation queues serialize pagination and reject stale tabs', moderationView + momentModeration,
   /queueEpochRef[\s\S]*?pageRequestRef[\s\S]*?requestEpoch = append \? queueEpochRef\.current : \+\+queueEpochRef\.current[\s\S]*?requestEpoch !== queueEpochRef\.current/,
   'People and Moment moderation queues must not duplicate cursor pages or let an older tab response replace the current queue.')

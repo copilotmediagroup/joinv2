@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import {
   signInWithPassword,
   signUpWithPassword,
@@ -19,11 +19,12 @@ export function AuthGateView({
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const submitRequestRef = useRef(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (submitting) return
+    if (submitRequestRef.current) return
 
     const normalizedEmail = email.trim()
 
@@ -32,6 +33,7 @@ export function AuthGateView({
       return
     }
 
+    submitRequestRef.current = true
     setSubmitting(true)
     setMessage(null)
 
@@ -60,6 +62,7 @@ export function AuthGateView({
         toUserFacingError(error, 'SIGNAL could not complete that request. Please try again.'),
       )
     } finally {
+      submitRequestRef.current = false
       setSubmitting(false)
     }
   }

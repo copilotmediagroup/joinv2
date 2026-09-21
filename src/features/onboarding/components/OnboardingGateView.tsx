@@ -84,6 +84,7 @@ export function OnboardingGateView({
   const [message, setMessage] = useState<string | null>(null)
 
   const citySearchSequence = useRef(0)
+  const submitRequestRef = useRef(false)
 
   useEffect(() => {
     return () => {
@@ -208,7 +209,7 @@ export function OnboardingGateView({
   ) {
     event.preventDefault()
 
-    if (submitting) return
+    if (submitRequestRef.current) return
 
     if (!selectedCity) {
       setMessage('Choose your city.')
@@ -220,6 +221,7 @@ export function OnboardingGateView({
       return
     }
 
+    submitRequestRef.current = true
     setSubmitting(true)
     setMessage(null)
 
@@ -250,6 +252,7 @@ export function OnboardingGateView({
         toUserFacingError(error, 'SIGNAL could not finish your profile right now.'),
       )
     } finally {
+      submitRequestRef.current = false
       setSubmitting(false)
     }
   }
