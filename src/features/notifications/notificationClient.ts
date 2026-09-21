@@ -163,13 +163,19 @@ export async function markMyNotificationRead(notificationId: string): Promise<vo
 }
 
 export function subscribeToMyNotifications(userId: string, onInvalidate: () => void): () => void {
-  const channel = supabase
-    .channel(`notifications:${userId}`)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'notifications',
-      filter: `user_id=eq.${userId}`,
-    }, onInvalidate)
-    .subscribe()
+  let cancelled = false
+  let channel: ReturnType<typeof supabase.channel> | null = null
 
-  return () => { void supabase.removeChannel(channel) }
+  void supabase.realtime.setAuth().then(() => {
+    if (cancelled) return
+    channel = supabase
+      .channel(`notifications:${userId}`, { config: { private: true } })
+      .on('broadcast', { event: 'refresh' }, onInvalidate)
+      .subscribe()
+  })
+
+  return () => {
+    cancelled = true
+    if (channel) void supabase.removeChannel(channel)
+  }
 }
