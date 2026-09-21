@@ -181,8 +181,11 @@ lock('Plan attendance polling ignores stale responses', planGovernance,
   /attendanceRefreshEpochRef[\s\S]*?requestEpoch = \+\+attendanceRefreshEpochRef\.current[\s\S]*?requestEpoch === attendanceRefreshEpochRef\.current[\s\S]*?checkInToMyPlan/,
   'Plan attendance polling and check-in must not let an older attendance read overwrite newer authority.')
 lock('Plan governance actions serialize rapid mutations', planGovernance,
-  /governanceActionRef[\s\S]*?attendanceActionRef[\s\S]*?if \(attendanceActionRef\.current \|\| !attendance\?\.canCheckIn\) return[\s\S]*?if \(governanceActionRef\.current\) return[\s\S]*?proposeTime[\s\S]*?governanceActionRef\.current[\s\S]*?leave[\s\S]*?governanceActionRef\.current/,
-  'Check-in, governance votes, time proposals, and leave actions must not depend only on delayed React busy state.')
+  /governanceActionRef[\s\S]*?attendanceActionRef[\s\S]*?if \(attendanceActionRef\.current \|\| governanceActionRef\.current[\s\S]*?runVote[\s\S]*?governanceActionRef\.current \|\| attendanceActionRef\.current[\s\S]*?proposeTime[\s\S]*?governanceActionRef\.current \|\| attendanceActionRef\.current[\s\S]*?leave[\s\S]*?governanceActionRef\.current \|\| attendanceActionRef\.current/,
+  'Check-in, governance votes, time proposals, and leave actions must be mutually exclusive under rapid input.')
+lock('Plan governance controls mirror shared mutation ownership', planGovernance,
+  /disabled=\{attendanceBusy \|\| busy\}[\s\S]*?disabled=\{busy \|\| attendanceBusy\}[\s\S]*?disabled=\{busy \|\| attendanceBusy \|\| changesFrozen/,
+  'Check-in and governance controls must visibly freeze each other while either mutation owns the Plan.')
 lock('Plan governance refresh ignores stale realtime responses', planGovernance,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Overlapping Plan governance refreshes must not let older voting, replacement, or attendance state overwrite newer authority.')
@@ -363,6 +366,9 @@ lock('Safety mode controls stay frozen during mutations', userSafetyActions,
 lock('Unblock action serializes rapid submissions', blockedPeople,
   /actionRequestRef[\s\S]*?unblock[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false/,
   'Rapid unblock taps must not submit duplicate mutations.')
+lock('Blocked people controls mirror shared unblock ownership', blockedPeople,
+  /disabled=\{busyId !== null\}[\s\S]*?busyId === user\.userId \? 'UNBLOCKING…' : 'UNBLOCK'/,
+  'While one unblock owns the panel, other rows must visibly disable instead of accepting dead clicks.')
 lock('Blocked people pagination serializes and rejects stale pages', blockedPeople,
   /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid blocked-user pagination must serialize and an older page must not append after unblock or refresh authority changes.')

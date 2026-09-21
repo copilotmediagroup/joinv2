@@ -131,7 +131,7 @@ export default function BlockedPeoplePanel() {
         </div>
         <button
           type="button"
-          disabled={busyId === user.userId}
+          disabled={busyId !== null}
           onClick={() => { void unblock(user) }}
         >
           <RotateCcw size={13} />
