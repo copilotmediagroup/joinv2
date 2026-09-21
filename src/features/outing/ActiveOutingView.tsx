@@ -36,6 +36,9 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
+  const momentRequestRef = useRef(false)
+  const endRequestRef = useRef(false)
+  const leaveRequestRef = useRef(false)
   const cameraInputId = `live-signal-camera-${planId}`
   const uploadInputId = `live-signal-upload-${planId}`
 
@@ -104,7 +107,8 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   }
 
   const saveMoment = async () => {
-    if (saving || files.length === 0) return
+    if (momentRequestRef.current || files.length === 0) return
+    momentRequestRef.current = true
     setSaving(true); setError(null); setNotice(null)
     try {
       await publishSignalMoment({ planId, caption, files })
@@ -112,22 +116,24 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
       setNotice('Published to Activity · Signal Moments.')
     } catch (saveError) {
       setError(toUserFacingError(saveError, 'Unable to save this Moment right now.'))
-    } finally { setSaving(false) }
+    } finally { momentRequestRef.current = false; setSaving(false) }
   }
 
   const finishOuting = async () => {
-    if (ending) return
+    if (endRequestRef.current) return
+    endRequestRef.current = true
     setEnding(true); setError(null)
     try { await finishMyPlanOuting(planId); onOutingEnded('completed') }
     catch (endError) { setError(toUserFacingError(endError, 'Unable to end your Signal right now.')) }
-    finally { setEnding(false) }
+    finally { endRequestRef.current = false; setEnding(false) }
   }
   const safetyLeave = async () => {
-    if (leaving) return
+    if (leaveRequestRef.current) return
+    leaveRequestRef.current = true
     setLeaving(true); setError(null)
     try { await leaveMyPlan(planId); onOutingEnded('safety') }
     catch (leaveError) { setError(toUserFacingError(leaveError, 'Unable to leave this outing right now.')) }
-    finally { setLeaving(false) }
+    finally { leaveRequestRef.current = false; setLeaving(false) }
   }
 
   return (

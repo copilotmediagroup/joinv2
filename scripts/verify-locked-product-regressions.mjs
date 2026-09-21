@@ -187,6 +187,9 @@ lock('Live route refresh ignores stale origins', details,
 lock('Live details retain route toggle and trip stats', details,
   /route \? ' HIDE ROUTE' : ' DIRECTIONS'[\s\S]*?DISTANCE[\s\S]*?DRIVE[\s\S]*?ETA/,
   'Directions must remain a toggle with distance, drive time, and ETA.')
+lock('Live outing mutations serialize rapid actions', outing,
+  /momentRequestRef[\s\S]*?endRequestRef[\s\S]*?leaveRequestRef[\s\S]*?saveMoment[\s\S]*?momentRequestRef\.current = true[\s\S]*?momentRequestRef\.current = false[\s\S]*?finishOuting[\s\S]*?endRequestRef\.current = true[\s\S]*?endRequestRef\.current = false[\s\S]*?safetyLeave[\s\S]*?leaveRequestRef\.current = true[\s\S]*?leaveRequestRef\.current = false/,
+  'Moment publishing, normal completion, and safety leave must each synchronously own their mutation request.')
 lock('Live outing refresh ignores stale realtime responses', outing,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Overlapping governance and live refreshes must not let older outing state overwrite newer authority.')
