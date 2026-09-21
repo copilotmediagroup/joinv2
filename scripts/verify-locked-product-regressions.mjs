@@ -33,6 +33,7 @@ const [
   adminOpsMigration,
   liveLocationMigration,
   planMembersClient,
+  profileSearchPanel,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -65,6 +66,7 @@ const [
   read('supabase/migrations/20260921081000_scale_admin_operations_snapshot.sql'),
   read('supabase/migrations/20260921083500_fix_live_plan_location_states.sql'),
   read('src/features/plan/planMembersClient.ts'),
+  read('src/features/profile/ProfileSearchPanel.tsx'),
 ])
 
 const checks = []
@@ -148,6 +150,9 @@ lock('Profile reputation stats remain prominent', profile,
 lock('Your Signal Life remains on profile', profile,
   /ProfileSignalLife/,
   'Verified Signal media must retain its profile home.')
+lock('People search ignores stale async responses', profileSearchPanel,
+  /requestEpochRef[\s\S]*?requestEpoch === requestEpochRef\.current[\s\S]*?requestEpochRef\.current \+= 1/,
+  'Fast typing must not let an older search response overwrite the newest query results.')
 lock('Profile identity gallery uses batched private signing', profile,
   /createProfileAvatarSignedUrls[\s\S]*?sourcePhotos\.map\(\(photo\) => photo\.objectPath\)[\s\S]*?signedUrls\.get\(photo\.objectPath\)/,
   'Opening or editing the identity gallery must not create one Storage signing request per profile photo.')
