@@ -16,7 +16,7 @@ import {
   getMyPlanConversation,
   getMyPlanConversationsPage,
   PLAN_CONVERSATION_PAGE_SIZE,
-  getPlanMessages,
+  getPlanMessagesPage,
   sendPlanMessage,
   type PlanConversation,
   type PlanMessage,
@@ -98,6 +98,8 @@ export default function MessagesView({
     useState(true)
   const [loadingMessages, setLoadingMessages] =
     useState(false)
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
+  const [hasOlderMessages, setHasOlderMessages] = useState(false)
   const [loadingMoreConversations, setLoadingMoreConversations] = useState(false)
   const [hasMoreConversations, setHasMoreConversations] = useState(false)
   const [conversationCursor, setConversationCursor] = useState<{ createdAt: string; conversationId: string } | null>(null)
@@ -171,13 +173,14 @@ export default function MessagesView({
       setError(null)
 
       try {
-        const result =
-          await getPlanMessages(
+        const page =
+          await getPlanMessagesPage(
             selectedConversationId,
           )
 
         if (!cancelled) {
-          setMessages(result)
+          setMessages(page.messages)
+          setHasOlderMessages(page.hasOlder)
         }
       } catch (loadError) {
         if (!cancelled) {
@@ -200,7 +203,12 @@ export default function MessagesView({
         {
           onMessages: (nextMessages) => {
             if (!cancelled) {
-              setMessages(nextMessages)
+              setMessages((current) => {
+                const byId = new Map(current.map((message) => [message.messageId, message]))
+                nextMessages.forEach((message) => byId.set(message.messageId, message))
+                return [...byId.values()].sort((left, right) =>
+                  left.sentAt.localeCompare(right.sentAt) || left.messageId.localeCompare(right.messageId))
+              })
             }
           },
           onError: (realtimeError) => {
@@ -287,6 +295,35 @@ export default function MessagesView({
     if (!feed) return
     shouldFollowGroupLatestRef.current =
       feed.scrollHeight - feed.scrollTop - feed.clientHeight < 80
+  }
+
+  const loadOlderMessages = async () => {
+    const oldest = messages[0]
+    if (!selectedConversationId || !oldest || loadingOlderMessages || !hasOlderMessages) return
+    const feed = groupFeedRef.current
+    const previousHeight = feed?.scrollHeight ?? 0
+    setLoadingOlderMessages(true)
+    setError(null)
+    try {
+      const page = await getPlanMessagesPage(selectedConversationId, {
+        sentAt: oldest.sentAt,
+        messageId: oldest.messageId,
+      })
+      setMessages((current) => {
+        const byId = new Map([...page.messages, ...current].map((message) => [message.messageId, message]))
+        return [...byId.values()].sort((left, right) =>
+          left.sentAt.localeCompare(right.sentAt) || left.messageId.localeCompare(right.messageId))
+      })
+      setHasOlderMessages(page.hasOlder)
+      requestAnimationFrame(() => {
+        const currentFeed = groupFeedRef.current
+        if (currentFeed) currentFeed.scrollTop += currentFeed.scrollHeight - previousHeight
+      })
+    } catch (loadError) {
+      setError(toUserFacingError(loadError, 'Unable to load older group messages right now.'))
+    } finally {
+      setLoadingOlderMessages(false)
+    }
   }
 
   const loadMoreConversations = async () => {
@@ -390,6 +427,7 @@ export default function MessagesView({
             className="messages-back-button"
             onClick={() => {
               setMessages([])
+              setHasOlderMessages(false)
               setSelectedConversationId(null)
             }}
           >
@@ -433,6 +471,7 @@ export default function MessagesView({
           ref={groupFeedRef}
           onScroll={captureGroupFollowState}
         >
+          {hasOlderMessages ? <button type="button" className="messages-load-older-thread" disabled={loadingOlderMessages} onClick={() => { void loadOlderMessages() }}>{loadingOlderMessages ? 'LOADING…' : 'LOAD OLDER MESSAGES'}</button> : null}
           {loadingMessages ? (
             <div className="messages-state">
               Loading messages…
@@ -595,6 +634,7 @@ export default function MessagesView({
                 className="messages-conversation-row"
                 onClick={() => {
                   setMessages([])
+                  setHasOlderMessages(false)
                   setSelectedConversationId(
                     conversation.conversationId,
                   )

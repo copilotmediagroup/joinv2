@@ -28,6 +28,7 @@ const [
   momentSocialClient,
   userSafetyClient,
   adminClient,
+  messagingClient,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -55,6 +56,7 @@ const [
   read('src/features/activity/signalMomentSocialClient.ts'),
   read('src/features/safety/userSafetyClient.ts'),
   read('src/features/admin/adminClient.ts'),
+  read('src/features/messaging/messagingClient.ts'),
 ])
 
 const checks = []
@@ -84,6 +86,9 @@ lock('Group chat typing transport remains realtime', messagingRealtime,
 lock('Direct message history stays cursor-paginated', directMessagingClient + directMessagesPanel,
   /get_my_direct_messages_page[\s\S]*?p_before_sent_at[\s\S]*?DIRECT_MESSAGE_PAGE_SIZE \+ 1[\s\S]*?LOAD OLDER MESSAGES/,
   'Long-running direct conversations must preserve older history without eager-loading the entire thread.')
+lock('Group message history stays cursor-paginated', messagingClient + messages,
+  /get_my_plan_messages_page[\s\S]*?PLAN_MESSAGE_PAGE_SIZE \+ 1[\s\S]*?LOAD OLDER MESSAGES/,
+  'Long-running Signal group chats must preserve older history without a fixed 200-message ceiling.')
 lock('Group messages continue following newest messages', messages,
   /shouldFollowGroupLatestRef[\s\S]*?scrollTo\(\{ top: feed\.scrollHeight[\s\S]*?feed\.scrollHeight - feed\.scrollTop - feed\.clientHeight < 80/,
   'New messages must remain visible while preserving deliberate scroll-up.')

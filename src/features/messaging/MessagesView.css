@@ -596,9 +596,11 @@
 .direct-messages-empty { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 10px; opacity: .6; }
 .direct-load-more,
 .messages-load-more { width: 100%; min-height: 42px; margin-top: 2px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; background: rgba(255,255,255,.025); color: inherit; font-size: 10px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }
-.direct-load-older-messages { align-self: center; min-height: 32px; margin: 0 auto 4px; padding: 0 14px; border: 1px solid rgba(98,199,255,.16); border-radius: 999px; background: rgba(98,199,255,.05); color: #79dfff; font-size: 8px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }
+.direct-load-older-messages,
+.messages-load-older-thread { align-self: center; min-height: 32px; margin: 0 auto 4px; padding: 0 14px; border: 1px solid rgba(98,199,255,.16); border-radius: 999px; background: rgba(98,199,255,.05); color: #79dfff; font-size: 8px; font-weight: 900; letter-spacing: .08em; cursor: pointer; }
 .direct-load-more:disabled,
 .direct-load-older-messages:disabled,
+.messages-load-older-thread:disabled,
 .messages-load-more:disabled { opacity: .45; cursor: default; }
 .direct-thread { display: grid; gap: 10px; margin-bottom: 18px; }
 .direct-thread > header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
