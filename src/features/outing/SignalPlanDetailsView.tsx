@@ -35,6 +35,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const detailsRefreshEpochRef = useRef(0)
   const attendanceRefreshEpochRef = useRef(0)
   const locationRefreshEpochRef = useRef(0)
+  const routeRefreshEpochRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -168,19 +169,30 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
 
   const showDirections = async () => {
     if (route) {
+      routeRefreshEpochRef.current += 1
       setRoute(null)
       setRouteError(null)
       return
     }
     if (!userPosition || routeLoading) return
+    const requestEpoch = ++routeRefreshEpochRef.current
+    const requestedOrigin = userPosition
     setRouteLoading(true)
     setRouteError(null)
     try {
-      setRoute(await getSignalRoute(planId, userPosition.latitude, userPosition.longitude))
-      lastRouteOriginRef.current = userPosition
+      const nextRoute = await getSignalRoute(planId, requestedOrigin.latitude, requestedOrigin.longitude)
+      if (requestEpoch !== routeRefreshEpochRef.current) return
+      setRoute(nextRoute)
+      lastRouteOriginRef.current = requestedOrigin
     }
-    catch { setRouteError('Unable to load live directions right now.') }
-    finally { setRouteLoading(false) }
+    catch {
+      if (requestEpoch === routeRefreshEpochRef.current) {
+        setRouteError('Unable to load live directions right now.')
+      }
+    }
+    finally {
+      if (requestEpoch === routeRefreshEpochRef.current) setRouteLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -194,15 +206,22 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
 
     const refreshId = window.setTimeout(() => {
       if (document.visibilityState !== 'visible') return
-      void getSignalRoute(planId, userPosition.latitude, userPosition.longitude)
+      const requestEpoch = ++routeRefreshEpochRef.current
+      const requestedOrigin = userPosition
+      void getSignalRoute(planId, requestedOrigin.latitude, requestedOrigin.longitude)
         .then((nextRoute) => {
+          if (requestEpoch !== routeRefreshEpochRef.current) return
           setRoute(nextRoute)
-          lastRouteOriginRef.current = userPosition
+          lastRouteOriginRef.current = requestedOrigin
         })
         .catch(() => undefined)
     }, 1_500)
     return () => window.clearTimeout(refreshId)
   }, [planId, route, userPosition])
+
+  useEffect(() => () => {
+    routeRefreshEpochRef.current += 1
+  }, [planId])
 
   const meetupTime = useMemo(() => {
     if (!plan?.scheduledStartsAt) return 'Time being finalized'

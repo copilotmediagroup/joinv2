@@ -147,6 +147,9 @@ lock('Live details ignore stale governance and attendance responses', details,
 lock('Live location refresh ignores stale responses', details,
   /locationRefreshEpochRef[\s\S]*?requestEpoch = \+\+locationRefreshEpochRef\.current[\s\S]*?requestEpoch === locationRefreshEpochRef\.current[\s\S]*?locationRefreshEpochRef\.current \+= 1/,
   'Live member locations must not let an older map refresh overwrite newer position authority or survive Plan changes.')
+lock('Live route refresh ignores stale origins', details,
+  /routeRefreshEpochRef[\s\S]*?requestEpoch = \+\+routeRefreshEpochRef\.current[\s\S]*?requestedOrigin = userPosition[\s\S]*?requestEpoch !== routeRefreshEpochRef\.current[\s\S]*?routeRefreshEpochRef\.current \+= 1/,
+  'Directions must not let an older route response overwrite a route calculated from a newer user position or survive route cancellation.')
 lock('Live details retain route toggle and trip stats', details,
   /route \? ' HIDE ROUTE' : ' DIRECTIONS'[\s\S]*?DISTANCE[\s\S]*?DRIVE[\s\S]*?ETA/,
   'Directions must remain a toggle with distance, drive time, and ETA.')
