@@ -261,7 +261,7 @@ function CurrentActivityCard({
           )}
           <div>
             <strong>{moment.authorDisplayName}</strong>
-            <small>{moment.activityName} · {moment.cityName}, {moment.stateCode}{moment.venueName ? ' · ' + moment.venueName : ''}</small><small>{formatMomentTime(moment.publishedAt)}</small>
+            <small>{moment.activityName} · {moment.cityName}, {moment.stateCode}{moment.venueName ? ' ' + moment.venueName : ''}</small><small>{formatMomentTime(moment.publishedAt)}</small>
           </div>
         </div>
         <div className="signal-moment-head-actions">
@@ -320,7 +320,7 @@ function CurrentActivityCard({
       <div className="signal-moment-body">
         {moment.caption ? <p>{moment.caption}</p> : null}
         <div className="signal-moment-proof">
-          <span><MapPin size={13} /> {moment.cityName}, {moment.stateCode}{moment.venueName ? ' · ' + moment.venueName : ''}</span>
+          <span><MapPin size={13} /> {moment.cityName}, {moment.stateCode}{moment.venueName ? ' ' + moment.venueName : ''}</span>
           <span><Users size={13} /> {moment.participantCount} met through SIGNAL</span>
         </div>
         <div className="signal-moment-social">
