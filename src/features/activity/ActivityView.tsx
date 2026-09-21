@@ -159,9 +159,11 @@ function CurrentActivityCard({
   const [reporting, setReporting] = useState(false)
   const [reportStatus, setReportStatus] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [signaled, setSignaled] = useState(moment.didSignal)
-  const [signalCount, setSignalCount] = useState(moment.signalCount)
-  const [commentCount, setCommentCount] = useState(moment.commentCount)
+  const [signalOverride, setSignalOverride] = useState<{ baseCount: number; baseSignaled: boolean; count: number; signaled: boolean } | null>(null)
+  const [commentOverride, setCommentOverride] = useState<{ baseCount: number; count: number } | null>(null)
+  const signaled = signalOverride && signalOverride.baseCount === moment.signalCount && signalOverride.baseSignaled === moment.didSignal ? signalOverride.signaled : moment.didSignal
+  const signalCount = signalOverride && signalOverride.baseCount === moment.signalCount && signalOverride.baseSignaled === moment.didSignal ? signalOverride.count : moment.signalCount
+  const commentCount = commentOverride && commentOverride.baseCount === moment.commentCount ? commentOverride.count : moment.commentCount
   const [comments, setComments] = useState<SignalMomentComment[]>([])
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [commentsHaveMore, setCommentsHaveMore] = useState(false)
@@ -193,7 +195,7 @@ function CurrentActivityCard({
     setSocialBusy(true)
     try {
       const next = await toggleMomentSignal(moment.momentId)
-      setSignaled(next.signaled); setSignalCount(next.signalCount)
+      setSignalOverride({ baseCount: moment.signalCount, baseSignaled: moment.didSignal, count: next.signalCount, signaled: next.signaled })
     } finally { setSocialBusy(false) }
   }
 
@@ -202,7 +204,7 @@ function CurrentActivityCard({
     setSocialBusy(true)
     try {
       await addMomentComment(moment.momentId, commentBody, replyTo?.commentId ?? null)
-      setCommentCount((current) => current + 1)
+      setCommentOverride({ baseCount: moment.commentCount, count: commentCount + 1 })
       setCommentBody('')
       setReplyTo(null)
       await loadComments()
@@ -331,7 +333,7 @@ function CurrentActivityCard({
           {commentsHaveMore ? <button type="button" className="signal-moment-comments-more" disabled={commentsLoading} onClick={() => void loadComments(true)}>{commentsLoading ? 'LOADING…' : 'LOAD OLDER COMMENTS'}</button> : null}
           {comments.map((comment) => <div key={comment.commentId} className={comment.parentCommentId ? 'signal-moment-comment is-reply' : 'signal-moment-comment'}>
             {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt=""/> : <i>{comment.authorDisplayName.slice(0,1)}</i>}
-            <div><p><strong>{comment.authorDisplayName}</strong> {comment.body}</p><span><button type="button" onClick={() => setReplyTo(comment.parentCommentId ? comments.find((item) => item.commentId === comment.parentCommentId) ?? comment : comment)}>REPLY</button>{comment.isMine ? <button type="button" onClick={async () => { await deleteMyMomentComment(comment.commentId); setCommentCount((current) => Math.max(0, current - 1)); await loadComments() }}>DELETE</button> : null}</span></div>
+            <div><p><strong>{comment.authorDisplayName}</strong> {comment.body}</p><span><button type="button" onClick={() => setReplyTo(comment.parentCommentId ? comments.find((item) => item.commentId === comment.parentCommentId) ?? comment : comment)}>REPLY</button>{comment.isMine ? <button type="button" onClick={async () => { await deleteMyMomentComment(comment.commentId); setCommentOverride({ baseCount: moment.commentCount, count: Math.max(0, commentCount - 1) }); await loadComments() }}>DELETE</button> : null}</span></div>
           </div>)}
           {replyTo ? <div className="signal-moment-replying">Replying to {replyTo.authorDisplayName}<button type="button" onClick={() => setReplyTo(null)}>×</button></div> : null}
           <div className="signal-moment-comment-compose"><input maxLength={1000} value={commentBody} placeholder={replyTo ? 'Reply to ' + replyTo.authorDisplayName + '…' : 'Add a comment…'} onChange={(e) => setCommentBody(e.target.value)} onKeyDown={(e) => { if(e.key==='Enter') void handleComment() }}/><button type="button" disabled={socialBusy || !commentBody.trim()} onClick={() => void handleComment()}>POST</button></div>
