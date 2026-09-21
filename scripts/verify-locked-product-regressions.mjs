@@ -305,6 +305,9 @@ lock('Post-Signal connection refresh ignores stale responses', stayConnected,
 lock('Declined post-Signal connections remain retryable', stayConnected,
   /person\.state === 'none' \|\| person\.state === 'declined'[\s\S]*?CONNECT AGAIN/,
   'A declined request must not permanently remove the ability to reconnect after the Signal.')
+lock('Own connection navigation and pagination freeze during mutations', myConnections,
+  /loadMore[\s\S]*?pageRequestRef\.current \|\| actionRequestRef\.current[\s\S]*?profile-connection-identity[\s\S]*?disabled=\{busyId !== null\}[\s\S]*?profile-connections-load-more[\s\S]*?disabled=\{loadingMore \|\| busyId !== null\}/,
+  'Connection mutation ownership must freeze profile navigation and pagination so disconnect/message cannot race stale list actions.')
 lock('Own connection pagination serializes and rejects stale pages', myConnections,
   /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid connection pagination must serialize and an older page must not append after a newer full refresh.')
