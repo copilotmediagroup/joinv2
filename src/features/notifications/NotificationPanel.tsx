@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, MessageCircle, Zap } from 'lucide-react'
 import {
   getMyNotificationsPage,
@@ -42,6 +42,7 @@ export default function NotificationPanel({
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const refreshEpochRef = useRef(0)
 
   const unreadCount = useMemo(
     () => items.filter((item) => item.state === 'unread').length,
@@ -50,15 +51,18 @@ export default function NotificationPanel({
 
 
   const refresh = useCallback(async () => {
+    const requestEpoch = ++refreshEpochRef.current
     try {
       const page = await getMyNotificationsPage()
+      if (requestEpoch !== refreshEpochRef.current) return
       setItems(page.notifications)
       setHasMore(page.hasMore)
       setError(null)
     } catch (loadError) {
+      if (requestEpoch !== refreshEpochRef.current) return
       setError(toUserFacingError(loadError, 'Unable to load notifications right now.'))
     } finally {
-      setLoading(false)
+      if (requestEpoch === refreshEpochRef.current) setLoading(false)
     }
   }, [])
 
