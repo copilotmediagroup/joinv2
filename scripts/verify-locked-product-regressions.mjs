@@ -31,6 +31,7 @@ const [
   messagingClient,
   notificationPanel,
   adminOpsMigration,
+  liveLocationMigration,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -61,6 +62,7 @@ const [
   read('src/features/messaging/messagingClient.ts'),
   read('src/features/notifications/NotificationPanel.tsx'),
   read('supabase/migrations/20260921081000_scale_admin_operations_snapshot.sql'),
+  read('supabase/migrations/20260921083500_fix_live_plan_location_states.sql'),
 ])
 
 const checks = []
@@ -114,6 +116,9 @@ lock('Locked Signal retains Open Details entry point', signalTimeStage,
 lock('Live details retain route toggle and trip stats', details,
   /route \? ' HIDE ROUTE' : ' DIRECTIONS'[\s\S]*?DISTANCE[\s\S]*?DRIVE[\s\S]*?ETA/,
   'Directions must remain a toggle with distance, drive time, and ETA.')
+lock('Live location publishing accepts real live Plan states', liveLocationMigration,
+  /set_my_plan_location[\s\S]*?'locked'::public\.plan_state[\s\S]*?'recovery_required'::public\.plan_state[\s\S]*?'active_outing'::public\.plan_state/,
+  'The live map must never regress to the obsolete Plan state literal that blocked location publishing after check-in.')
 lock('Live map retains fixed destination and user markers', liveMap,
   /destination\.latitude[\s\S]*?destination\.longitude[\s\S]*?redIcon[\s\S]*?userPosition[\s\S]*?blueIcon/,
   'The destination and current-user positions must remain distinct map authorities.')
