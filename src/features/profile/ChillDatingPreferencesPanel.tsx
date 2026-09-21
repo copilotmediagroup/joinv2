@@ -26,8 +26,9 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
 
   if (loading || !gender) return null
 
+  const hasExplicitSeekingPreference = preferences !== null
   const draft = preferences ?? {
-    seekingGender: gender === 'male' ? 'female' : 'male',
+    seekingGender: 'male' as ProfileGender,
     minAge: 18,
     maxAge: 80,
     isEnabled: false,
@@ -63,14 +64,14 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
         <strong>Looking to meet</strong>
         <div className="chill-dating-gender-options">
           {(['male', 'female'] as ProfileGender[]).map((option) => {
-            const isSelected = draft.seekingGender === option
+            const isSelected = hasExplicitSeekingPreference && draft.seekingGender === option
             return (
               <button
                 key={option}
                 type="button"
                 className={isSelected ? 'active' : ''}
                 disabled={saving}
-                onClick={() => setPreferences({ ...draft, seekingGender: option })}
+                onClick={() => void save({ ...draft, seekingGender: option })}
               >
                 {option === 'male' ? 'MEN' : 'WOMEN'}
               </button>
@@ -87,7 +88,7 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
         <button
           type="button"
           className={draft.isEnabled ? 'active' : ''}
-          disabled={saving}
+          disabled={saving || !hasExplicitSeekingPreference}
           onClick={() => void save({ ...draft, isEnabled: !draft.isEnabled })}
         >
           {saving ? <LoaderCircle size={14} className="chill-dating-spinner" /> : draft.isEnabled ? 'ON' : 'OFF'}
