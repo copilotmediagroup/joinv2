@@ -251,6 +251,9 @@ lock('Social list avatars use batched private signing', signalConnectionsClient 
 lock('Moment comment pagination serializes requests', activityView,
   /commentsRequestRef[\s\S]*?commentsRequestRef\.current[\s\S]*?commentsRequestRef\.current = true[\s\S]*?setComments[\s\S]*?loadOlder[\s\S]*?commentsRequestRef\.current = false/,
   'Comment refresh and LOAD OLDER must not overlap and overwrite or duplicate the paginated thread.')
+lock('Blocked people pagination serializes and rejects stale pages', blockedPeople,
+  /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
+  'Rapid blocked-user pagination must serialize and an older page must not append after unblock or refresh authority changes.')
 lock('Blocked people refresh cannot resurrect unblocked users', blockedPeople,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current[\s\S]*?unblockUser[\s\S]*?refreshEpochRef\.current \+= 1/,
   'An older blocked-people read must not restore a user after a successful unblock.')

@@ -20,6 +20,7 @@ export default function BlockedPeoplePanel() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
+  const pageRequestRef = useRef(false)
 
   const refresh = useCallback(async () => {
     const requestEpoch = ++refreshEpochRef.current
@@ -54,11 +55,14 @@ export default function BlockedPeoplePanel() {
   }, [refresh])
 
   const loadMore = async () => {
-    if (!cursor || loadingMore) return
+    if (!cursor || pageRequestRef.current) return
+    const requestEpoch = refreshEpochRef.current
+    pageRequestRef.current = true
     setLoadingMore(true)
     setError(null)
     try {
       const page = await getMyBlockedUsersPage(cursor)
+      if (requestEpoch !== refreshEpochRef.current) return
       setItems((current) => [
         ...current,
         ...page.filter((next) =>
@@ -72,12 +76,15 @@ export default function BlockedPeoplePanel() {
         blockId: last.blockId,
       } : null)
     } catch (value) {
-      setError(toUserFacingError(
-        value,
-        'Unable to load older blocked people right now.',
-      ))
+      if (requestEpoch === refreshEpochRef.current) {
+        setError(toUserFacingError(
+          value,
+          'Unable to load older blocked people right now.',
+        ))
+      }
     } finally {
-      setLoadingMore(false)
+      pageRequestRef.current = false
+      if (requestEpoch === refreshEpochRef.current) setLoadingMore(false)
     }
   }
 
