@@ -32,37 +32,55 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const [routeError, setRouteError] = useState<string | null>(null)
   const lastLocationPublishRef = useRef<{ latitude: number; longitude: number; at: number } | null>(null)
   const lastRouteOriginRef = useRef<{ latitude: number; longitude: number } | null>(null)
+  const detailsRefreshEpochRef = useRef(0)
+  const attendanceRefreshEpochRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
     const refreshPlanAndMembers = () => {
+      const requestEpoch = ++detailsRefreshEpochRef.current
       void Promise.all([getMyPlanGovernance(planId), getMyPlanMembers(planId)])
         .then(([nextPlan, nextMembers]) => {
-          if (cancelled) return
+          if (cancelled || requestEpoch !== detailsRefreshEpochRef.current) return
           setPlan(nextPlan)
           setMembers(nextMembers)
           setError(null)
         })
         .catch((loadError) => {
-          if (!cancelled) setError(toUserFacingError(loadError, 'Unable to refresh meetup details right now.'))
+          if (!cancelled && requestEpoch === detailsRefreshEpochRef.current) setError(toUserFacingError(loadError, 'Unable to refresh meetup details right now.'))
         })
     }
 
+    const initialDetailsEpoch = ++detailsRefreshEpochRef.current
+    const initialAttendanceEpoch = ++attendanceRefreshEpochRef.current
     void Promise.all([getMyPlanGovernance(planId), getMyPlanMembers(planId), getMyPlanAttendanceStatus(planId)])
       .then(([nextPlan, nextMembers, nextAttendance]) => {
-        if (cancelled) return
+        if (
+          cancelled
+          || initialDetailsEpoch !== detailsRefreshEpochRef.current
+          || initialAttendanceEpoch !== attendanceRefreshEpochRef.current
+        ) return
         setPlan(nextPlan)
         setMembers(nextMembers)
         setAttendance(nextAttendance)
         setError(null)
       })
       .catch((loadError) => {
-        if (!cancelled) setError(toUserFacingError(loadError, 'Unable to load meetup details right now.'))
+        if (
+          !cancelled
+          && initialDetailsEpoch === detailsRefreshEpochRef.current
+          && initialAttendanceEpoch === attendanceRefreshEpochRef.current
+        ) setError(toUserFacingError(loadError, 'Unable to load meetup details right now.'))
       })
 
     const unsubscribeGovernance = subscribeToPlanGovernance(planId, refreshPlanAndMembers)
     const unsubscribeLive = subscribeToLivePlanRefresh(planId, () => {
-      void getMyPlanAttendanceStatus(planId).then(setAttendance).catch(() => undefined)
+      const requestEpoch = ++attendanceRefreshEpochRef.current
+      void getMyPlanAttendanceStatus(planId)
+        .then((nextAttendance) => {
+          if (!cancelled && requestEpoch === attendanceRefreshEpochRef.current) setAttendance(nextAttendance)
+        })
+        .catch(() => undefined)
     })
     return () => {
       cancelled = true
@@ -103,7 +121,12 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     if (!attendance?.windowOpensAt || !attendance.windowClosesAt || attendance.checkedIn) return
     const timer = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return
-      void getMyPlanAttendanceStatus(planId).then(setAttendance).catch(() => undefined)
+      const requestEpoch = ++attendanceRefreshEpochRef.current
+      void getMyPlanAttendanceStatus(planId)
+        .then((nextAttendance) => {
+          if (requestEpoch === attendanceRefreshEpochRef.current) setAttendance(nextAttendance)
+        })
+        .catch(() => undefined)
     }, 30_000)
     return () => window.clearInterval(timer)
   }, [attendance?.checkedIn, attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
@@ -111,7 +134,12 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const checkIn = async () => {
     if (attendanceBusy || !attendance?.canCheckIn) return
     setAttendanceBusy(true); setError(null)
-    try { const next = await checkInToMyPlan(planId); setAttendance(next); if (next.checkedIn) onCheckedIn(planId) }
+    const requestEpoch = ++attendanceRefreshEpochRef.current
+    try {
+      const next = await checkInToMyPlan(planId)
+      if (requestEpoch === attendanceRefreshEpochRef.current) setAttendance(next)
+      if (next.checkedIn) onCheckedIn(planId)
+    }
     catch (e) { setError(toUserFacingError(e, 'Unable to check you in right now. Please try again.')) }
     finally { setAttendanceBusy(false) }
   }

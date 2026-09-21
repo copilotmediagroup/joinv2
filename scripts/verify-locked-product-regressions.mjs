@@ -127,6 +127,9 @@ lock('Plan Options remains lazy mounted', details,
 lock('Locked Signal retains Open Details entry point', signalTimeStage,
   /OPEN DETAILS/,
   'The verified live journey uses details/map separately from group messaging.')
+lock('Live details ignore stale governance and attendance responses', details,
+  /detailsRefreshEpochRef[\s\S]*?attendanceRefreshEpochRef[\s\S]*?requestEpoch !== detailsRefreshEpochRef\.current[\s\S]*?initialDetailsEpoch[\s\S]*?initialAttendanceEpoch[\s\S]*?requestEpoch === attendanceRefreshEpochRef\.current/,
+  'Open Details must not let older governance, member, or attendance reads overwrite newer realtime authority.')
 lock('Live details retain route toggle and trip stats', details,
   /route \? ' HIDE ROUTE' : ' DIRECTIONS'[\s\S]*?DISTANCE[\s\S]*?DRIVE[\s\S]*?ETA/,
   'Directions must remain a toggle with distance, drive time, and ETA.')
