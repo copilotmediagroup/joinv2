@@ -59,6 +59,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
   const [attendance, setAttendance] = useState<PlanAttendanceStatus | null>(null)
   const [attendanceBusy, setAttendanceBusy] = useState(false)
   const refreshEpochRef = useRef(0)
+  const attendanceRefreshEpochRef = useRef(0)
 
   const refresh = useCallback(async () => {
     const requestEpoch = ++refreshEpochRef.current
@@ -71,6 +72,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
       if (requestEpoch !== refreshEpochRef.current) return
       setSnapshot(next)
       setReplacement(replacementStatus)
+      attendanceRefreshEpochRef.current += 1
       setAttendance(attendanceStatus)
       setReplacementSeconds(
         replacementStatus?.state === 'open'
@@ -130,8 +132,11 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
 
     const refreshAttendance = () => {
       if (document.visibilityState !== 'visible') return
+      const requestEpoch = ++attendanceRefreshEpochRef.current
       void getMyPlanAttendanceStatus(planId)
-        .then(setAttendance)
+        .then((nextAttendance) => {
+          if (requestEpoch === attendanceRefreshEpochRef.current) setAttendance(nextAttendance)
+        })
         .catch(() => undefined)
     }
     const timer = window.setInterval(refreshAttendance, 10_000)
@@ -149,9 +154,10 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
     if (attendanceBusy || !attendance?.canCheckIn) return
     setAttendanceBusy(true)
     setError(null)
+    const requestEpoch = ++attendanceRefreshEpochRef.current
     try {
       const nextAttendance = await checkInToMyPlan(planId)
-      setAttendance(nextAttendance)
+      if (requestEpoch === attendanceRefreshEpochRef.current) setAttendance(nextAttendance)
       if (nextAttendance.checkedIn) onCheckedIn?.(planId)
     } catch (checkInError) {
       setError(toUserFacingError(checkInError, 'Unable to check you in right now. Please try again.'))

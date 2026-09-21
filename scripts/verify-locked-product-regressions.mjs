@@ -127,6 +127,9 @@ lock('Live capture remains check-in gated', outing,
 lock('DONE HERE remains separate from safety leave', outing,
   /DONE HERE[\s\S]*?I DON'T FEEL SAFE/,
   'Normal completion and emergency departure are intentionally distinct actions.')
+lock('Plan attendance polling ignores stale responses', planGovernance,
+  /attendanceRefreshEpochRef[\s\S]*?requestEpoch = \+\+attendanceRefreshEpochRef\.current[\s\S]*?requestEpoch === attendanceRefreshEpochRef\.current[\s\S]*?checkInToMyPlan/,
+  'Plan attendance polling and check-in must not let an older attendance read overwrite newer authority.')
 lock('Plan governance refresh ignores stale realtime responses', planGovernance,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Overlapping Plan governance refreshes must not let older voting, replacement, or attendance state overwrite newer authority.')
