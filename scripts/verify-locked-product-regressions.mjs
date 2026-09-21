@@ -298,6 +298,9 @@ lock('Plan member avatars use batched private signing', planMembersClient,
 lock('Social list avatars use batched private signing', signalConnectionsClient + signalParticipantsClient + profileSearchClient + directMessagingClient,
   /createProfileAvatarSignedUrls[\s\S]*?getMySignalParticipants[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?searchSignalProfiles[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyDirectThreadsPage[\s\S]*?createProfileAvatarSignedUrls/,
   'Search, participants, connections, and inbox pages must not create one Storage signing request per person.')
+lock('Moment social mutations serialize rapid actions', activityView,
+  /socialMutationRef[\s\S]*?deleteRequestRef[\s\S]*?reportRequestRef[\s\S]*?handleSignal[\s\S]*?socialMutationRef\.current = true[\s\S]*?socialMutationRef\.current = false[\s\S]*?handleComment[\s\S]*?socialMutationRef\.current = true[\s\S]*?socialMutationRef\.current = false[\s\S]*?handleDelete[\s\S]*?deleteRequestRef\.current = true[\s\S]*?deleteRequestRef\.current = false[\s\S]*?handleReport[\s\S]*?reportRequestRef\.current = true[\s\S]*?reportRequestRef\.current = false/,
+  'Moment signals, comments, deletes, and reports must synchronously own their mutation request.')
 lock('Moment comment pagination serializes requests', activityView,
   /commentsRequestRef[\s\S]*?commentsRequestRef\.current[\s\S]*?commentsRequestRef\.current = true[\s\S]*?setComments[\s\S]*?loadOlder[\s\S]*?commentsRequestRef\.current = false/,
   'Comment refresh and LOAD OLDER must not overlap and overwrite or duplicate the paginated thread.')

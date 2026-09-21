@@ -172,6 +172,9 @@ function CurrentActivityCard({
   const [replyTo, setReplyTo] = useState<SignalMomentComment | null>(null)
   const [socialBusy, setSocialBusy] = useState(false)
   const commentsRequestRef = useRef(false)
+  const socialMutationRef = useRef(false)
+  const deleteRequestRef = useRef(false)
+  const reportRequestRef = useRef(false)
 
   const loadComments = async (loadOlder = false) => {
     if (commentsRequestRef.current) return
@@ -194,16 +197,18 @@ function CurrentActivityCard({
   }
 
   const handleSignal = async () => {
-    if (socialBusy) return
+    if (socialMutationRef.current) return
+    socialMutationRef.current = true
     setSocialBusy(true)
     try {
       const next = await toggleMomentSignal(moment.momentId)
       setSignalOverride({ baseCount: moment.signalCount, baseSignaled: moment.didSignal, count: next.signalCount, signaled: next.signaled })
-    } finally { setSocialBusy(false) }
+    } finally { socialMutationRef.current = false; setSocialBusy(false) }
   }
 
   const handleComment = async () => {
-    if (socialBusy || !commentBody.trim()) return
+    if (socialMutationRef.current || !commentBody.trim()) return
+    socialMutationRef.current = true
     setSocialBusy(true)
     try {
       await addMomentComment(moment.momentId, commentBody, replyTo?.commentId ?? null)
@@ -211,11 +216,12 @@ function CurrentActivityCard({
       setCommentBody('')
       setReplyTo(null)
       await loadComments()
-    } finally { setSocialBusy(false) }
+    } finally { socialMutationRef.current = false; setSocialBusy(false) }
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this Signal Moment?')) return
+    if (deleteRequestRef.current || !window.confirm('Delete this Signal Moment?')) return
+    deleteRequestRef.current = true
     setDeleting(true)
     setReportStatus(null)
     try {
@@ -226,11 +232,14 @@ function CurrentActivityCard({
         toUserFacingError(error, 'Unable to delete this Moment right now.'),
       )
     } finally {
+      deleteRequestRef.current = false
       setDeleting(false)
     }
   }
 
   const handleReport = async () => {
+    if (reportRequestRef.current) return
+    reportRequestRef.current = true
     setReporting(true)
     setReportStatus(null)
     try {
@@ -247,6 +256,7 @@ function CurrentActivityCard({
         toUserFacingError(error, 'Unable to report this Moment right now.'),
       )
     } finally {
+      reportRequestRef.current = false
       setReporting(false)
     }
   }
