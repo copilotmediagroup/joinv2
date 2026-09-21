@@ -565,6 +565,8 @@ function App() {
     let stopped = false
     let unsubscribe: (() => void) | null = null
     let refreshTimer: ReturnType<typeof setTimeout> | null = null
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let reconnectAttempt = 0
 
     const refreshLiveCounts = () => {
       if (stopped || refreshTimer) return
@@ -580,27 +582,65 @@ function App() {
       }, 80)
     }
 
-    void subscribeToSignalDiscovery(refreshLiveCounts)
-      .then((stop) => {
-        if (stopped) {
-          stop()
-          return
-        }
-        unsubscribe = stop
-      })
-      .catch(() => undefined)
+    const connectDiscoveryRealtime = () => {
+      if (stopped) return
 
-    const expiryRefresh = window.setInterval(refreshLiveCounts, 60_000)
+      void subscribeToSignalDiscovery(refreshLiveCounts, () => {
+        if (stopped || reconnectTimer) return
+        unsubscribe?.()
+        unsubscribe = null
+        const delay = Math.min(1_000 * (2 ** reconnectAttempt), 15_000)
+        reconnectAttempt += 1
+        reconnectTimer = setTimeout(() => {
+          reconnectTimer = null
+          connectDiscoveryRealtime()
+        }, delay)
+      })
+        .then((stop) => {
+          if (stopped) {
+            stop()
+            return
+          }
+          unsubscribe?.()
+          unsubscribe = stop
+          reconnectAttempt = 0
+          refreshLiveCounts()
+        })
+        .catch(() => {
+          if (stopped || reconnectTimer) return
+          const delay = Math.min(1_000 * (2 ** reconnectAttempt), 15_000)
+          reconnectAttempt += 1
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null
+            connectDiscoveryRealtime()
+          }, delay)
+        })
+    }
+
+    connectDiscoveryRealtime()
+
+    // Realtime is the primary authority. This bounded reconciliation is a
+    // self-healing backstop for sleeping laptops, transient WebSocket loss,
+    // browser throttling, and deployments; it prevents stale social proof
+    // from surviving until a manual reload.
+    const reconciliationRefresh = window.setInterval(refreshLiveCounts, 5_000)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') refreshLiveCounts()
     }
+    const handleOnline = () => {
+      refreshLiveCounts()
+      if (!unsubscribe && !reconnectTimer) connectDiscoveryRealtime()
+    }
     document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('online', handleOnline)
 
     return () => {
       stopped = true
       if (refreshTimer) clearTimeout(refreshTimer)
-      window.clearInterval(expiryRefresh)
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      window.clearInterval(reconciliationRefresh)
       document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('online', handleOnline)
       unsubscribe?.()
     }
   }, [])

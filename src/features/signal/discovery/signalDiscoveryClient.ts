@@ -118,6 +118,7 @@ Promise<SignalDiscoveryActivity[]> {
 
 export async function subscribeToSignalDiscovery(
   onRefresh: () => void,
+  onDisconnected?: () => void,
 ): Promise<() => void> {
   const { data, error } =
     await supabase.rpc('get_my_signal_discovery_realtime_topic')
@@ -136,14 +137,21 @@ export async function subscribeToSignalDiscovery(
     .channel(data, { config: { private: true } })
     .on('broadcast', { event: 'refresh' }, () => onRefresh())
 
+  let subscribed = false
+
   await new Promise<void>((resolve, reject) => {
     channel.subscribe((status, error) => {
       if (status === 'SUBSCRIBED') {
+        subscribed = true
         resolve()
         return
       }
 
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        if (subscribed) {
+          onDisconnected?.()
+          return
+        }
         reject(error ?? new Error(`Signal discovery realtime subscription failed: ${status}`))
       }
     })
