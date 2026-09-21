@@ -55,15 +55,30 @@ export async function getMyUnreadNotificationCount(): Promise<number> {
   return count ?? 0
 }
 
-export async function getMyNotifications(limit = 30): Promise<SignalNotification[]> {
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('id,type,title,body,state,related_plan_id,related_signal_group_id,related_entity_id,created_at,read_at')
-    .order('created_at', { ascending: false })
-    .limit(limit)
+export const NOTIFICATION_PAGE_SIZE = 30
+export type NotificationCursor = { createdAt: string; notificationId: string }
+export type NotificationPage = { notifications: SignalNotification[]; hasMore: boolean }
 
+export async function getMyNotificationsPage(
+  cursor: NotificationCursor | null = null,
+  limit = NOTIFICATION_PAGE_SIZE,
+): Promise<NotificationPage> {
+  const boundedLimit = Math.min(Math.max(limit, 1), NOTIFICATION_PAGE_SIZE)
+  const { data, error } = await supabase.rpc('get_my_notifications_page', {
+    p_before_created_at: cursor?.createdAt ?? null,
+    p_before_id: cursor?.notificationId ?? null,
+    p_limit: boundedLimit + 1,
+  })
   if (error) throw new Error(error.message || 'Unable to load notifications')
-  return (data ?? []).map((row) => mapRow(row as NotificationRow))
+  if (!Array.isArray(data)) throw new Error('Invalid notifications response')
+  return {
+    notifications: (data as NotificationRow[]).slice(0, boundedLimit).map(mapRow),
+    hasMore: data.length > boundedLimit,
+  }
+}
+
+export async function getMyNotifications(limit = NOTIFICATION_PAGE_SIZE): Promise<SignalNotification[]> {
+  return (await getMyNotificationsPage(null, limit)).notifications
 }
 
 

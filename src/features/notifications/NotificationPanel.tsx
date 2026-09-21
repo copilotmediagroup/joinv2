@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Bell, MessageCircle, Zap } from 'lucide-react'
 import {
-  getMyNotifications,
+  getMyNotificationsPage,
   markMyNotificationRead,
   resolveMyNotificationTarget,
   type NotificationTarget,
@@ -39,6 +39,8 @@ export default function NotificationPanel({
 }: NotificationPanelProps) {
   const [items, setItems] = useState<SignalNotification[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const unreadCount = useMemo(
@@ -49,8 +51,9 @@ export default function NotificationPanel({
 
   const refresh = useCallback(async () => {
     try {
-      const next = await getMyNotifications()
-      setItems(next)
+      const page = await getMyNotificationsPage()
+      setItems(page.notifications)
+      setHasMore(page.hasMore)
       setError(null)
     } catch (loadError) {
       setError(toUserFacingError(loadError, 'Unable to load notifications right now.'))
@@ -64,6 +67,22 @@ export default function NotificationPanel({
     queueMicrotask(() => { if (active) void refresh() })
     return () => { active = false }
   }, [refresh, userId, refreshToken])
+
+  const loadMore = async () => {
+    const last = items[items.length - 1]
+    if (!last || loadingMore || !hasMore) return
+    setLoadingMore(true)
+    try {
+      const page = await getMyNotificationsPage({ createdAt: last.createdAt, notificationId: last.id })
+      setItems((current) => [...current, ...page.notifications])
+      setHasMore(page.hasMore)
+      setError(null)
+    } catch (loadError) {
+      setError(toUserFacingError(loadError, 'Unable to load older notifications right now.'))
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const openItem = async (item: SignalNotification) => {
     if (item.state === 'unread') {
@@ -126,6 +145,7 @@ export default function NotificationPanel({
             <time>{relativeTime(item.createdAt)}</time>
           </button>
         ))}
+        {hasMore ? <button type="button" className="notification-load-more" disabled={loadingMore} onClick={() => { void loadMore() }}>{loadingMore ? 'LOADING…' : 'LOAD OLDER ALERTS'}</button> : null}
       </div>
     </aside>
   )

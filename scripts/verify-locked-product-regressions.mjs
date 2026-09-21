@@ -29,6 +29,7 @@ const [
   userSafetyClient,
   adminClient,
   messagingClient,
+  notificationPanel,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -57,6 +58,7 @@ const [
   read('src/features/safety/userSafetyClient.ts'),
   read('src/features/admin/adminClient.ts'),
   read('src/features/messaging/messagingClient.ts'),
+  read('src/features/notifications/NotificationPanel.tsx'),
 ])
 
 const checks = []
@@ -119,6 +121,9 @@ lock('Pre-lock formation keeps joined participant proof', app,
 lock('Notification unread authority remains server counted', notifications,
   /head: true[\s\S]*?state[\s\S]*?unread|state[\s\S]*?unread[\s\S]*?head: true/,
   'Unread badges must not be inferred only from a bounded notification page.')
+lock('Notification history stays cursor-paginated', notifications + notificationPanel,
+  /get_my_notifications_page[\s\S]*?p_before_created_at[\s\S]*?LOAD OLDER ALERTS/,
+  'Notification history must remain bounded while allowing users to reach older alerts.')
 lock('Notification realtime toast remains wired', app,
   /notification-toast[\s\S]*?setNotificationsOpen\(true\)/,
   'Peer events must remain visible without requiring navigation/reload.')
