@@ -213,9 +213,12 @@ lock('Live details retain route toggle and trip stats', details,
 lock('Live outing mutations serialize rapid actions', outing,
   /momentRequestRef[\s\S]*?outingExitRequestRef[\s\S]*?saveMoment[\s\S]*?momentRequestRef\.current = true[\s\S]*?momentRequestRef\.current = false[\s\S]*?finishOuting[\s\S]*?outingExitRequestRef\.current = true[\s\S]*?outingExitRequestRef\.current = false[\s\S]*?safetyLeave[\s\S]*?outingExitRequestRef\.current = true[\s\S]*?outingExitRequestRef\.current = false/,
   'Moment publishing must serialize, while normal completion and safety leave must share one terminal mutation owner.')
+lock('Live outing media and exit mutations are mutually exclusive', outing,
+  /saveMoment[\s\S]*?momentRequestRef\.current \|\| outingExitRequestRef\.current[\s\S]*?finishOuting[\s\S]*?outingExitRequestRef\.current \|\| momentRequestRef\.current[\s\S]*?safetyLeave[\s\S]*?outingExitRequestRef\.current \|\| momentRequestRef\.current/,
+  'Publishing live media must not race normal completion or safety departure on the same outing.')
 lock('Live outing terminal controls disable across exit modes', outing,
-  /disabled=\{ending \|\| leaving\}[\s\S]*?disabled=\{leaving \|\| ending\}/,
-  'Normal completion and safety leave controls must visibly lock each other while terminal ownership is active.')
+  /disabled=\{saving \|\| ending \|\| leaving[\s\S]*?disabled=\{ending \|\| leaving \|\| saving\}[\s\S]*?disabled=\{leaving \|\| ending \|\| saving\}/,
+  'Moment publishing, normal completion, and safety leave controls must visibly lock conflicting terminal actions.')
 lock('Live outing refresh ignores stale realtime responses', outing,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Overlapping governance and live refreshes must not let older outing state overwrite newer authority.')
