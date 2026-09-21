@@ -366,13 +366,22 @@ export default function ActivityView({
   const [momentsError, setMomentsError] = useState<string | null>(null)
   const momentRealtimeTimerRef = useRef<number | null>(null)
   const momentRefreshPendingRef = useRef(false)
+  const momentRefreshEpochRef = useRef(0)
 
   const refreshMomentFeed = useCallback(async () => {
+    const requestEpoch = ++momentRefreshEpochRef.current
     try {
       const nextMoments = await getSignalMomentsPage()
-      setMoments(nextMoments)
-      setHasMoreMoments(nextMoments.length === SIGNAL_MOMENT_PAGE_SIZE)
+      if (requestEpoch !== momentRefreshEpochRef.current) return
+      setMoments((current) => {
+        const latestIds = new Set(nextMoments.map((moment) => moment.momentId))
+        const retainedOlder = current.filter((moment) => !latestIds.has(moment.momentId))
+        return [...nextMoments, ...retainedOlder]
+      })
+      setHasMoreMoments((currentHasMore) =>
+        currentHasMore || nextMoments.length === SIGNAL_MOMENT_PAGE_SIZE)
     } catch (loadError) {
+      if (requestEpoch !== momentRefreshEpochRef.current) return
       setMomentsError(
         toUserFacingError(loadError, 'Unable to refresh Signal Moments right now.'),
       )
@@ -380,18 +389,21 @@ export default function ActivityView({
   }, [])
 
   const refreshMoments = useCallback(async () => {
+    const requestEpoch = ++momentRefreshEpochRef.current
     setMomentsLoading(true)
     setMomentsError(null)
     try {
       const nextMoments = await getSignalMomentsPage()
+      if (requestEpoch !== momentRefreshEpochRef.current) return
       setMoments(nextMoments)
       setHasMoreMoments(nextMoments.length === SIGNAL_MOMENT_PAGE_SIZE)
     } catch (loadError) {
+      if (requestEpoch !== momentRefreshEpochRef.current) return
       setMomentsError(
         toUserFacingError(loadError, 'Unable to load Signal Moments right now.'),
       )
     } finally {
-      setMomentsLoading(false)
+      if (requestEpoch === momentRefreshEpochRef.current) setMomentsLoading(false)
     }
   }, [])
 
@@ -399,20 +411,21 @@ export default function ActivityView({
     let cancelled = false
 
     const loadInitialMoments = async () => {
+      const requestEpoch = ++momentRefreshEpochRef.current
       try {
         const nextMoments = await getSignalMomentsPage()
-        if (!cancelled) {
+        if (!cancelled && requestEpoch === momentRefreshEpochRef.current) {
           setMoments(nextMoments)
           setHasMoreMoments(nextMoments.length === SIGNAL_MOMENT_PAGE_SIZE)
         }
       } catch (loadError) {
-        if (!cancelled) {
+        if (!cancelled && requestEpoch === momentRefreshEpochRef.current) {
           setMomentsError(
             toUserFacingError(loadError, 'Unable to load Signal Moments right now.'),
           )
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && requestEpoch === momentRefreshEpochRef.current) {
           setMomentsLoading(false)
         }
       }
@@ -461,6 +474,7 @@ export default function ActivityView({
     const last = moments[moments.length - 1]
     if (!last || momentsLoadingMore) return
 
+    const requestEpoch = momentRefreshEpochRef.current
     setMomentsLoadingMore(true)
     setMomentsError(null)
     try {
@@ -469,15 +483,17 @@ export default function ActivityView({
         publishedAt: last.publishedAt,
         momentId: last.momentId,
       })
+      if (requestEpoch !== momentRefreshEpochRef.current) return
       setMoments((current) => {
         const existing = new Set(current.map((moment) => moment.momentId))
         return [...current, ...page.filter((moment) => !existing.has(moment.momentId))]
       })
       setHasMoreMoments(page.length === SIGNAL_MOMENT_PAGE_SIZE)
     } catch (loadError) {
+      if (requestEpoch !== momentRefreshEpochRef.current) return
       setMomentsError(toUserFacingError(loadError, 'Unable to load older Signal Moments right now.'))
     } finally {
-      setMomentsLoadingMore(false)
+      if (requestEpoch === momentRefreshEpochRef.current) setMomentsLoadingMore(false)
     }
   }
 

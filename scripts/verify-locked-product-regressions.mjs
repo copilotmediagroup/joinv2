@@ -229,6 +229,9 @@ lock('Moment comment pagination serializes requests', activityView,
 lock('Comments, blocked users, and moderation evidence batch signing', momentSocialClient + userSafetyClient + adminClient,
   /getMomentCommentsPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyBlockedUsersPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getModerationMomentEvidence[\s\S]*?createSignedUrls/,
   'Bounded social and moderation pages must avoid per-row Storage signing fan-out.')
+lock('Activity feed refresh ordering preserves loaded history', activityView,
+  /momentRefreshEpochRef[\s\S]*?requestEpoch = \+\+momentRefreshEpochRef\.current[\s\S]*?retainedOlder[\s\S]*?requestEpoch !== momentRefreshEpochRef\.current[\s\S]*?momentsLoadingMore/,
+  'Realtime and manual Activity refreshes must reject stale responses without discarding already-loaded older pages.')
 lock('Activity realtime defers hidden-tab refreshes', activityView,
   /document\.visibilityState !== 'visible'[\s\S]*?momentRefreshPendingRef\.current = true[\s\S]*?visibilitychange[\s\S]*?refreshMomentFeed/,
   'Hidden Activity tabs must defer realtime feed reads and catch up once when visible again.')
