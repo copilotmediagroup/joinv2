@@ -623,7 +623,9 @@ function App() {
     // self-healing backstop for sleeping laptops, transient WebSocket loss,
     // browser throttling, and deployments; it prevents stale social proof
     // from surviving until a manual reload.
-    const reconciliationRefresh = window.setInterval(refreshLiveCounts, 5_000)
+    const reconciliationRefresh = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshLiveCounts()
+    }, 30_000)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') refreshLiveCounts()
     }

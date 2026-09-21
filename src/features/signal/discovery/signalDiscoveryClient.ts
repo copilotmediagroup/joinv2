@@ -1,5 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient'
-import { createProfileAvatarSignedUrl } from '../../onboarding/avatarClient'
+import { createProfileAvatarSignedUrls } from '../../onboarding/avatarClient'
 
 export type SignalDiscoveryActivity = {
   activityId: string
@@ -51,48 +51,22 @@ function normalizeAvatarPaths(
   return result
 }
 
-async function resolveAvatarUrls(
-  avatarPaths: string[],
-): Promise<string[]> {
-  const results = await Promise.allSettled(
-    avatarPaths.map((avatarPath) =>
-      createProfileAvatarSignedUrl(
-        avatarPath,
-        AVATAR_SIGNED_URL_SECONDS,
-      ),
-    ),
-  )
-
-  const urls: string[] = []
-
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      urls.push(result.value)
-    }
-  }
-
-  return urls
-}
-
-async function mapDiscoveryRow(
+function mapDiscoveryRow(
   row: SignalDiscoveryRpcRow,
-): Promise<SignalDiscoveryActivity> {
-  const avatarPaths =
-    normalizeAvatarPaths(row.preview_avatar_paths)
-
-  const previewAvatarUrls =
-    await resolveAvatarUrls(avatarPaths)
-
+  avatarUrlByPath: Map<string, string>,
+): SignalDiscoveryActivity {
+  const avatarPaths = normalizeAvatarPaths(row.preview_avatar_paths)
   return {
     activityId: row.activity_id,
     activitySlug: row.activity_slug,
     activityName: row.activity_name,
     activeCount:
-      Number.isFinite(row.active_count) &&
-      row.active_count >= 0
+      Number.isFinite(row.active_count) && row.active_count >= 0
         ? row.active_count
         : 0,
-    previewAvatarUrls,
+    previewAvatarUrls: avatarPaths
+      .map((path) => avatarUrlByPath.get(path))
+      .filter((url): url is string => Boolean(url)),
   }
 }
 
@@ -109,11 +83,17 @@ Promise<SignalDiscoveryActivity[]> {
     return []
   }
 
-  return Promise.all(
-    (data as SignalDiscoveryRpcRow[]).map(
-      mapDiscoveryRow,
-    ),
-  )
+  const rows = data as SignalDiscoveryRpcRow[]
+  const avatarPaths = [...new Set(rows.flatMap((row) => normalizeAvatarPaths(row.preview_avatar_paths)))]
+  let avatarUrlByPath = new Map<string, string>()
+  if (avatarPaths.length) {
+    try {
+      avatarUrlByPath = await createProfileAvatarSignedUrls(avatarPaths, AVATAR_SIGNED_URL_SECONDS)
+    } catch {
+      avatarUrlByPath = new Map()
+    }
+  }
+  return rows.map((row) => mapDiscoveryRow(row, avatarUrlByPath))
 }
 
 export async function subscribeToSignalDiscovery(

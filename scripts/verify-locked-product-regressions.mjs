@@ -75,8 +75,11 @@ const lock = (name, source, pattern, reason) => {
 // ownership/structure rather than snapshots so visual refactors can continue
 // without silently deleting or bypassing finished behavior.
 lock('Discovery counts remain live without manual reload', app,
-  /subscribeToSignalDiscovery\(refreshLiveCounts,[\s\S]*?setInterval\(refreshLiveCounts, 5_000\)[\s\S]*?visibilitychange[\s\S]*?online/,
+  /subscribeToSignalDiscovery\(refreshLiveCounts,[\s\S]*?setInterval\([\s\S]*?visibilityState === 'visible'[\s\S]*?30_000[\s\S]*?visibilitychange[\s\S]*?online/,
   'Realtime + self-healing reconciliation must remain installed.')
+lock('Discovery preview avatars remain batch signed', discovery,
+  /createProfileAvatarSignedUrls[\s\S]*?new Set\(rows\.flatMap[\s\S]*?return rows\.map/,
+  'Discovery reconciliation must not fan out one Storage signing request per preview avatar.')
 lock('Discovery realtime remains authenticated/private', discovery,
   /realtime\.setAuth\(\)[\s\S]*?channel\(data, \{ config: \{ private: true \} \}\)[\s\S]*?broadcast[\s\S]*?refresh/,
   'Live category social proof must not regress to reload-only or public delivery.')
