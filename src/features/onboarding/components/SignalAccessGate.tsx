@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { signOut } from '../../auth/authClient'
 import { useAuthSession } from '../../auth/useAuthSession'
 import {
@@ -37,8 +37,10 @@ export function SignalAccessGate({
   const [gateState, setGateState] = useState<GateState>({
     kind: 'loading',
   })
+  const resolveEpochRef = useRef(0)
 
   const resolveGate = useCallback(async () => {
+    const requestEpoch = ++resolveEpochRef.current
     if (auth.loading) {
       setGateState({ kind: 'loading' })
       return
@@ -61,6 +63,7 @@ export function SignalAccessGate({
 
     try {
       const onboarding = await getMyOnboardingState()
+      if (requestEpoch !== resolveEpochRef.current) return
 
       if (
         onboarding?.completionState === 'complete'
@@ -77,6 +80,7 @@ export function SignalAccessGate({
         onboarding,
       })
     } catch (error) {
+      if (requestEpoch !== resolveEpochRef.current) return
       setGateState({
         kind: 'error',
         message:
