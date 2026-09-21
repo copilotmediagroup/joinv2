@@ -433,6 +433,7 @@ function App() {
   const [notificationMomentId, setNotificationMomentId] = useState<string | null>(null)
   const [logoutSubmitting, setLogoutSubmitting] = useState(false)
   const logoutRequestRef = useRef(false)
+  const planDetailsOpenRequestRef = useRef(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
 
@@ -1125,15 +1126,21 @@ function App() {
   }
 
   const handleOpenPlanDetails = async (planId: string) => {
-    await openMySignalPlanDetails(planId)
-    setActivePlanId(planId)
+    if (planDetailsOpenRequestRef.current) return
+    planDetailsOpenRequestRef.current = true
+    try {
+      await openMySignalPlanDetails(planId)
+      setActivePlanId(planId)
     setMessagePlanId(planId)
     setMessageDirectConversationId(null)
     setNotificationsOpen(false)
     setSignalThreshold(false)
     setActiveOutingPlanId(null)
-    setActiveSignalResume((current) => current && current.planId === planId ? { ...current, planDetailsOpened: true } : current)
-    setActiveSurface('discover')
+      setActiveSignalResume((current) => current && current.planId === planId ? { ...current, planDetailsOpened: true } : current)
+      setActiveSurface('discover')
+    } finally {
+      planDetailsOpenRequestRef.current = false
+    }
   }
 
   const handleOpenPlanChat = (planId: string) => {

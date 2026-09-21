@@ -189,6 +189,9 @@ lock('Plan governance refresh ignores stale realtime responses', planGovernance,
 lock('Plan Options remains lazy mounted', details,
   /planOptionsMounted[\s\S]*?PlanGovernancePanel[\s\S]*?PLAN OPTIONS/,
   'Opening Plan Options must not reintroduce the prior always-mounted governance collision.')
+lock('Open Details serializes rapid plan transitions', app,
+  /planDetailsOpenRequestRef[\s\S]*?handleOpenPlanDetails[\s\S]*?planDetailsOpenRequestRef\.current[\s\S]*?planDetailsOpenRequestRef\.current = true[\s\S]*?openMySignalPlanDetails[\s\S]*?planDetailsOpenRequestRef\.current = false/,
+  'Rapid Open Details actions must not race plan acknowledgement and cross local plan navigation state.')
 lock('Locked Signal retains Open Details entry point', signalTimeStage,
   /OPEN DETAILS/,
   'The verified live journey uses details/map separately from group messaging.')
@@ -345,6 +348,9 @@ lock('Moment social mutations serialize rapid actions', activityView,
 lock('Moment comment deletion serializes rapid actions', activityView,
   /commentDeleteRequestRef[\s\S]*?handleCommentDelete[\s\S]*?commentDeleteRequestRef\.current[\s\S]*?commentDeleteRequestRef\.current = true[\s\S]*?deleteMyMomentComment[\s\S]*?commentDeleteRequestRef\.current = false/,
   'Rapid comment delete taps must not issue duplicate destructive mutations.')
+lock('Deleted comments disappear without refresh races', activityView,
+  /deleteMyMomentComment\(commentId\)[\s\S]*?setComments\(\(current\) => current\.filter\(\(comment\) => comment\.commentId !== commentId\)\)[\s\S]*?loadComments\(\)/,
+  'A successful delete must remove the comment locally even when comment refresh serialization is already occupied.')
 lock('Moment comment pagination serializes requests', activityView,
   /commentsRequestRef[\s\S]*?commentsRequestRef\.current[\s\S]*?commentsRequestRef\.current = true[\s\S]*?setComments[\s\S]*?loadOlder[\s\S]*?commentsRequestRef\.current = false/,
   'Comment refresh and LOAD OLDER must not overlap and overwrite or duplicate the paginated thread.')

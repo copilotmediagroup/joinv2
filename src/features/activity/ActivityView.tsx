@@ -225,6 +225,7 @@ function CurrentActivityCard({
     commentDeleteRequestRef.current = true
     try {
       await deleteMyMomentComment(commentId)
+      setComments((current) => current.filter((comment) => comment.commentId !== commentId))
       setCommentOverride({ baseCount: moment.commentCount, count: Math.max(0, commentCount - 1) })
       await loadComments()
     } catch (deleteError) {
