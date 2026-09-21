@@ -20,6 +20,8 @@ const [
   publicProfileClient,
   avatarClient,
   stayConnected,
+  directMessagingClient,
+  directMessagesPanel,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -39,6 +41,8 @@ const [
   read('src/features/profile/publicProfileClient.ts'),
   read('src/features/onboarding/avatarClient.ts'),
   read('src/features/activity/StayConnectedPanel.tsx'),
+  read('src/features/messaging/directMessagingClient.ts'),
+  read('src/features/messaging/DirectMessagesPanel.tsx'),
 ])
 
 const checks = []
@@ -65,6 +69,9 @@ lock('Group chat typing presence remains present', messages,
 lock('Group chat typing transport remains realtime', messagingRealtime,
   /plan-typing:[\s\S]*?broadcast[\s\S]*?typing[\s\S]*?2200/,
   'Typing presence must retain realtime publish and idle clearing.')
+lock('Direct message history stays cursor-paginated', directMessagingClient + directMessagesPanel,
+  /get_my_direct_messages_page[\s\S]*?p_before_sent_at[\s\S]*?DIRECT_MESSAGE_PAGE_SIZE \+ 1[\s\S]*?LOAD OLDER MESSAGES/,
+  'Long-running direct conversations must preserve older history without eager-loading the entire thread.')
 lock('Group messages continue following newest messages', messages,
   /shouldFollowGroupLatestRef[\s\S]*?scrollTo\(\{ top: feed\.scrollHeight[\s\S]*?feed\.scrollHeight - feed\.scrollTop - feed\.clientHeight < 80/,
   'New messages must remain visible while preserving deliberate scroll-up.')

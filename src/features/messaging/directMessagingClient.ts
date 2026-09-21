@@ -113,15 +113,33 @@ export async function getOrCreateDirectConversation(connectionId: string): Promi
   throw new Error(lastMessage)
 }
 
-export async function getMyDirectMessages(conversationId: string): Promise<DirectMessage[]> {
-  const { data, error } = await supabase.rpc('get_my_direct_messages', { p_conversation_id: conversationId, p_limit: 100 })
+export const DIRECT_MESSAGE_PAGE_SIZE = 50
+export type DirectMessageCursor = { sentAt: string; messageId: string }
+export type DirectMessagePage = { messages: DirectMessage[]; hasOlder: boolean }
+
+export async function getMyDirectMessagesPage(
+  conversationId: string,
+  cursor: DirectMessageCursor | null = null,
+): Promise<DirectMessagePage> {
+  const { data, error } = await supabase.rpc('get_my_direct_messages_page', {
+    p_conversation_id: conversationId,
+    p_before_sent_at: cursor?.sentAt ?? null,
+    p_before_id: cursor?.messageId ?? null,
+    p_limit: DIRECT_MESSAGE_PAGE_SIZE + 1,
+  })
   if (error) throw new Error(error.message || 'Unable to load direct messages')
   if (!Array.isArray(data)) throw new Error('Invalid direct messages response')
-  return (data as Record<string, unknown>[]).map((row) => ({
-    messageId: req(row.message_id, 'message_id'), conversationId,
-    senderUserId: req(row.sender_user_id, 'sender_user_id'), body: req(row.body, 'body'),
-    sentAt: req(row.sent_at, 'sent_at'), readAt: nullable(row.read_at),
-  }))
+  const rows = (data as Record<string, unknown>[])
+  const hasOlder = rows.length > DIRECT_MESSAGE_PAGE_SIZE
+  const visibleRows = hasOlder ? rows.slice(1) : rows
+  return {
+    hasOlder,
+    messages: visibleRows.map((row) => ({
+      messageId: req(row.message_id, 'message_id'), conversationId,
+      senderUserId: req(row.sender_user_id, 'sender_user_id'), body: req(row.body, 'body'),
+      sentAt: req(row.sent_at, 'sent_at'), readAt: nullable(row.read_at),
+    })),
+  }
 }
 
 const DIRECT_SEND_TIMEOUT_MS = 12_000

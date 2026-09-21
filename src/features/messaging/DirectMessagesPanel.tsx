@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
   DIRECT_THREAD_PAGE_SIZE,
-  getMyDirectMessages,
+  getMyDirectMessagesPage,
   getMyDirectThread,
   getMyDirectThreadsPage,
   markMyDirectConversationRead,
@@ -49,6 +49,8 @@ export default function DirectMessagesPanel({
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [sending, setSending] = useState(false)
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false)
+  const [hasOlderMessages, setHasOlderMessages] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [otherUserTyping, setOtherUserTyping] = useState(false)
   const typingPublisherRef = useRef<((typing: boolean) => void) | null>(null)
@@ -89,10 +91,18 @@ export default function DirectMessagesPanel({
     if (thread) setThreads((current) => mergeThreads(current, [thread]))
   }, [])
 
-  const refreshMessages = useCallback(async () => {
+  const refreshMessages = useCallback(async (reset = false) => {
     if (!selectedId) return
     try {
-      setMessages(await getMyDirectMessages(selectedId))
+      const page = await getMyDirectMessagesPage(selectedId)
+      setMessages((current) => {
+        if (reset || current.some((message) => message.conversationId !== selectedId)) return page.messages
+        const byId = new Map(current.map((message) => [message.messageId, message]))
+        page.messages.forEach((message) => byId.set(message.messageId, message))
+        return [...byId.values()].sort((left, right) =>
+          left.sentAt.localeCompare(right.sentAt) || left.messageId.localeCompare(right.messageId))
+      })
+      if (reset) setHasOlderMessages(page.hasOlder)
       await markMyDirectConversationRead(selectedId)
       await hydrateSelectedThread(selectedId)
       setError(null)
@@ -100,6 +110,32 @@ export default function DirectMessagesPanel({
       setError(toUserFacingError(loadError, 'Unable to load this conversation right now.'))
     }
   }, [hydrateSelectedThread, selectedId])
+
+  const loadOlderMessages = async () => {
+    const oldest = messages[0]
+    if (!selectedId || !oldest || loadingOlderMessages || !hasOlderMessages) return
+    const feed = feedRef.current
+    const previousHeight = feed?.scrollHeight ?? 0
+    setLoadingOlderMessages(true)
+    try {
+      const page = await getMyDirectMessagesPage(selectedId, { sentAt: oldest.sentAt, messageId: oldest.messageId })
+      setMessages((current) => {
+        const byId = new Map([...page.messages, ...current].map((message) => [message.messageId, message]))
+        return [...byId.values()].sort((left, right) =>
+          left.sentAt.localeCompare(right.sentAt) || left.messageId.localeCompare(right.messageId))
+      })
+      setHasOlderMessages(page.hasOlder)
+      requestAnimationFrame(() => {
+        const currentFeed = feedRef.current
+        if (currentFeed) currentFeed.scrollTop += currentFeed.scrollHeight - previousHeight
+      })
+      setError(null)
+    } catch (loadError) {
+      setError(toUserFacingError(loadError, 'Unable to load older messages right now.'))
+    } finally {
+      setLoadingOlderMessages(false)
+    }
+  }
 
   const loadMore = async () => {
     const last = threads[threads.length - 1]
@@ -137,9 +173,9 @@ export default function DirectMessagesPanel({
   useEffect(() => {
     if (!selectedId) return
     let active = true
-    queueMicrotask(() => { if (active) void refreshMessages() })
+    queueMicrotask(() => { if (active) void refreshMessages(true) })
     const stop = subscribeToDirectMessages(selectedId, () => {
-      if (active) void refreshMessages()
+      if (active) void refreshMessages(false)
     })
     return () => { active = false; stop() }
   }, [refreshMessages, selectedId])
@@ -201,6 +237,7 @@ export default function DirectMessagesPanel({
         }}
       /> : null}
       <div className="messages-thread-feed" ref={feedRef} onScroll={captureFollowState}>
+        {hasOlderMessages ? <button type="button" className="direct-load-older-messages" disabled={loadingOlderMessages} onClick={() => { void loadOlderMessages() }}>{loadingOlderMessages ? 'LOADING…' : 'LOAD OLDER MESSAGES'}</button> : null}
         {messages.length === 0 ? <div className="messages-empty-thread">
           <MessageCircle size={26}/><strong>Start the conversation</strong>
           <span>You connected through SIGNAL.</span>
@@ -255,7 +292,7 @@ export default function DirectMessagesPanel({
           type="button"
           className="direct-thread-row"
           key={thread.conversationId}
-          onClick={() => { shouldFollowLatestRef.current = true; setOtherUserTyping(false); setSelectedId(thread.conversationId) }}
+          onClick={() => { shouldFollowLatestRef.current = true; setOtherUserTyping(false); setMessages([]); setHasOlderMessages(false); setSelectedId(thread.conversationId) }}
         >
           {thread.avatarUrl ? <img src={thread.avatarUrl} alt=""/>
             : <span>{thread.displayName.slice(0, 1).toUpperCase()}</span>}
