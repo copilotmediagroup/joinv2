@@ -1,5 +1,5 @@
 import { Link2, MessageCircle, Unlink, Users } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import {
   disconnectMySignalConnection,
@@ -27,13 +27,16 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   const [hasMore, setHasMore] = useState(false)
   const [cursor, setCursor] = useState<{ connectedAt: string; connectionId: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const refreshEpochRef = useRef(0)
 
   const refresh = useCallback(async () => {
+    const requestEpoch = ++refreshEpochRef.current
     try {
       const [page, exactCount] = await Promise.all([
         getMySignalConnectionsPage(),
         getPublicProfileConnectionCount(userId),
       ])
+      if (requestEpoch !== refreshEpochRef.current) return
       setConnections(page)
       setConnectionCount(exactCount)
       setHasMore(page.length === SIGNAL_CONNECTION_PAGE_SIZE)
@@ -41,9 +44,10 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
       setCursor(last ? { connectedAt: last.connectedAt, connectionId: last.connectionId } : null)
       setError(null)
     } catch (loadError) {
+      if (requestEpoch !== refreshEpochRef.current) return
       setError(toUserFacingError(loadError, 'Unable to load your connections right now.'))
     } finally {
-      setLoading(false)
+      if (requestEpoch === refreshEpochRef.current) setLoading(false)
     }
   }, [userId])
 

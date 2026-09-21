@@ -185,6 +185,9 @@ lock('Post-Signal connection refresh ignores stale responses', stayConnected,
 lock('Declined post-Signal connections remain retryable', stayConnected,
   /person\.state === 'none' \|\| person\.state === 'declined'[\s\S]*?CONNECT AGAIN/,
   'A declined request must not permanently remove the ability to reconnect after the Signal.')
+lock('Own connection refresh ignores stale responses', myConnections,
+  /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
+  'Disconnect and block refreshes must not let older connection pages restore stale state.')
 lock('Own profile connections remain exact-count clickable', myConnections,
   /getPublicProfileConnectionCount\(userId\)[\s\S]*?setConnectionCount\(exactCount\)[\s\S]*?profile-connections-summary[\s\S]*?setOpen\(true\)[\s\S]*?My SIGNAL connections/,
   'The owner profile must show an exact clickable Connections count and modal list.')
