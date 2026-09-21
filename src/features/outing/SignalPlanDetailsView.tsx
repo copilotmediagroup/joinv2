@@ -101,7 +101,10 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
 
   useEffect(() => {
     if (!attendance?.windowOpensAt || !attendance.windowClosesAt || attendance.checkedIn) return
-    const timer = window.setInterval(() => { void getMyPlanAttendanceStatus(planId).then(setAttendance).catch(() => undefined) }, 30_000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
+      void getMyPlanAttendanceStatus(planId).then(setAttendance).catch(() => undefined)
+    }, 30_000)
     return () => window.clearInterval(timer)
   }, [attendance?.checkedIn, attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
 

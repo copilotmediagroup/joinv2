@@ -121,6 +121,9 @@ lock('Locked Signal retains Open Details entry point', signalTimeStage,
 lock('Live details retain route toggle and trip stats', details,
   /route \? ' HIDE ROUTE' : ' DIRECTIONS'[\s\S]*?DISTANCE[\s\S]*?DRIVE[\s\S]*?ETA/,
   'Directions must remain a toggle with distance, drive time, and ETA.')
+lock('Live Plan fallback polling sleeps in hidden tabs', outing + details,
+  /visibilityState !== 'visible'[\s\S]*?getMyPlanAttendanceStatus[\s\S]*?visibilityState !== 'visible'[\s\S]*?getMyPlanAttendanceStatus/,
+  'Hidden live-Signal tabs must not keep issuing fallback attendance requests while realtime remains authoritative.')
 lock('Live location publishing accepts real live Plan states', liveLocationMigration,
   /set_my_plan_location[\s\S]*?'locked'::public\.plan_state[\s\S]*?'recovery_required'::public\.plan_state[\s\S]*?'active_outing'::public\.plan_state/,
   'The live map must never regress to the obsolete Plan state literal that blocked location publishing after check-in.')

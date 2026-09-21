@@ -73,6 +73,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
 
   useEffect(() => {
     const timer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return
       void getMyPlanAttendanceStatus(planId)
         .then((nextAttendance) => {
           if (!nextAttendance.checkedIn || !['locked', 'recovery_required', 'active_outing'].includes(nextAttendance.planState)) {
