@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Check, MapPin, Sparkles, Users, Zap } from 'lucide-react'
 import StayConnectedPanel from '../activity/StayConnectedPanel'
 import { getMySignalCompletion, submitSignalCompletionFeedback, type SignalCompletion, type SignalCompletionRating } from './signalCompletionClient'
@@ -13,21 +13,41 @@ export default function SignalCompletionView({ planId, onDone }: Props) {
   const [rating, setRating] = useState<SignalCompletionRating | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const feedbackRequestRef = useRef(false)
+  const planEpochRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
+    const planEpoch = ++planEpochRef.current
+    feedbackRequestRef.current = false
     void getMySignalCompletion(planId).then((next) => {
-      if (!cancelled) { setSummary(next); setRating(next.experienceRating) }
-    }).catch((e) => { if (!cancelled) setError(toUserFacingError(e, 'Unable to load your completed Signal.')) })
-    return () => { cancelled = true }
+      if (!cancelled && planEpoch === planEpochRef.current) { setSummary(next); setRating(next.experienceRating) }
+    }).catch((e) => {
+      if (!cancelled && planEpoch === planEpochRef.current) setError(toUserFacingError(e, 'Unable to load your completed Signal.'))
+    })
+    return () => {
+      cancelled = true
+      planEpochRef.current += 1
+    }
   }, [planId])
 
   const choose = async (next: SignalCompletionRating) => {
-    if (saving) return
+    if (feedbackRequestRef.current) return
+    const requestPlanId = planId
+    const planEpoch = planEpochRef.current
+    feedbackRequestRef.current = true
     setSaving(true); setError(null)
-    try { await submitSignalCompletionFeedback(planId, next); setRating(next) }
-    catch (e) { setError(toUserFacingError(e, 'Unable to save your feedback.')) }
-    finally { setSaving(false) }
+    try {
+      await submitSignalCompletionFeedback(requestPlanId, next)
+      if (requestPlanId === planId && planEpoch === planEpochRef.current) setRating(next)
+    } catch (e) {
+      if (requestPlanId === planId && planEpoch === planEpochRef.current) {
+        setError(toUserFacingError(e, 'Unable to save your feedback.'))
+      }
+    } finally {
+      feedbackRequestRef.current = false
+      if (requestPlanId === planId && planEpoch === planEpochRef.current) setSaving(false)
+    }
   }
 
   if (!summary) return <section className="signal-complete-shell"><div className="signal-complete-loading">{error ?? 'Closing out your Signal…'}</div></section>

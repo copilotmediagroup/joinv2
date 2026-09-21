@@ -40,6 +40,7 @@ const [
   profileSignalLife,
   moderationView,
   momentModeration,
+  signalCompletion,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -79,6 +80,7 @@ const [
   read('src/features/profile/ProfileSignalLife.tsx'),
   read('src/features/admin/ModerationView.tsx'),
   read('src/features/admin/MomentModerationPanel.tsx'),
+  read('src/features/outing/SignalCompletionView.tsx'),
 ])
 
 const checks = []
@@ -144,6 +146,9 @@ lock('I AM HERE remains explicit check-in', details + outing,
 lock('Live capture remains check-in gated', outing,
   /!nextAttendance\.checkedIn[\s\S]*?publishSignalMoment[\s\S]*?TAKE PHOTO \/ VIDEO[\s\S]*?UPLOAD[\s\S]*?SAVE TO THIS SIGNAL/,
   'Signal Moments must remain tied to checked-in live outings.')
+lock('Completion feedback serializes rapid rating choices', signalCompletion,
+  /feedbackRequestRef[\s\S]*?if \(feedbackRequestRef\.current\) return[\s\S]*?requestPlanId = planId[\s\S]*?planEpoch = planEpochRef\.current[\s\S]*?feedbackRequestRef\.current = true[\s\S]*?planEpoch === planEpochRef\.current/,
+  'Rapid completion-rating taps must not submit competing feedback writes or let an older Plan response change the current receipt.')
 lock('DONE HERE remains separate from safety leave', outing,
   /DONE HERE[\s\S]*?I DON'T FEEL SAFE/,
   'Normal completion and emergency departure are intentionally distinct actions.')
