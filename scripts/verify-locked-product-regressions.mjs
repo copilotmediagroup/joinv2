@@ -381,6 +381,9 @@ lock('Blocked people controls mirror shared unblock ownership', blockedPeople,
 lock('Blocked people pagination serializes and rejects stale pages', blockedPeople,
   /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid blocked-user pagination must serialize and an older page must not append after unblock or refresh authority changes.')
+lock('Blocked people pagination pauses during unblock', blockedPeople,
+  /loadMore[\s\S]*?pageRequestRef\.current \|\| actionRequestRef\.current[\s\S]*?blocked-people-load-more[\s\S]*?disabled=\{loadingMore \|\| busyId !== null\}/,
+  'Pagination must not race an unblock mutation or offer a dead LOAD OLDER action while unblock owns the panel.')
 lock('Blocked people refresh cannot resurrect unblocked users', blockedPeople,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current[\s\S]*?unblockUser[\s\S]*?refreshEpochRef\.current \+= 1/,
   'An older blocked-people read must not restore a user after a successful unblock.')

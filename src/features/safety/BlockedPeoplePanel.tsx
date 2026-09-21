@@ -56,7 +56,7 @@ export default function BlockedPeoplePanel() {
   }, [refresh])
 
   const loadMore = async () => {
-    if (!cursor || pageRequestRef.current) return
+    if (!cursor || pageRequestRef.current || actionRequestRef.current) return
     const requestEpoch = refreshEpochRef.current
     pageRequestRef.current = true
     setLoadingMore(true)
@@ -144,7 +144,7 @@ export default function BlockedPeoplePanel() {
         type="button"
         className="blocked-people-load-more"
         onClick={() => { void loadMore() }}
-        disabled={loadingMore}
+        disabled={loadingMore || busyId !== null}
       >
         {loadingMore ? 'LOADING…' : 'LOAD OLDER BLOCKS'}
       </button>
