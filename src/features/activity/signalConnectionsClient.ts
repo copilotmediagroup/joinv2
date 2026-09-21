@@ -176,10 +176,18 @@ export function subscribeToSignalConnections(userId: string, onInvalidate: () =>
     if (refreshTimer !== null) window.clearTimeout(refreshTimer)
     refreshTimer = window.setTimeout(onInvalidate, 80)
   }
-  const low = supabase.channel(`signal-connections-low:${userId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'signal_connections', filter: `user_low_id=eq.${userId}` }, schedule).subscribe()
-  const high = supabase.channel(`signal-connections-high:${userId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'signal_connections', filter: `user_high_id=eq.${userId}` }, schedule).subscribe()
+  let cancelled = false
+  let channel: ReturnType<typeof supabase.channel> | null = null
+  void supabase.realtime.setAuth().then(() => {
+    if (cancelled) return
+    channel = supabase
+      .channel(`signal-connections:${userId}`, { config: { private: true } })
+      .on('broadcast', { event: 'refresh' }, schedule)
+      .subscribe()
+  })
   return () => {
+    cancelled = true
     if (refreshTimer !== null) window.clearTimeout(refreshTimer)
-    void supabase.removeChannel(low); void supabase.removeChannel(high)
+    if (channel) void supabase.removeChannel(channel)
   }
 }
