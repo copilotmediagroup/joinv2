@@ -24,7 +24,14 @@ import {
 import './ActivityView.css'
 import { toUserFacingError } from '../../lib/userFacingError'
 import StayConnectedPanel from './StayConnectedPanel'
-import { addMomentComment, deleteMyMomentComment, getMomentComments, toggleMomentSignal, type SignalMomentComment } from './signalMomentSocialClient'
+import {
+  addMomentComment,
+  deleteMyMomentComment,
+  getMomentCommentsPage,
+  MOMENT_COMMENT_PAGE_SIZE,
+  toggleMomentSignal,
+  type SignalMomentComment,
+} from './signalMomentSocialClient'
 
 type ActivityViewProps = {
   items: ActivityItem[]
@@ -157,13 +164,28 @@ function CurrentActivityCard({
   const [commentCount, setCommentCount] = useState(moment.commentCount)
   const [comments, setComments] = useState<SignalMomentComment[]>([])
   const [commentsOpen, setCommentsOpen] = useState(false)
+  const [commentsHaveMore, setCommentsHaveMore] = useState(false)
+  const [commentsLoading, setCommentsLoading] = useState(false)
   const [commentBody, setCommentBody] = useState('')
   const [replyTo, setReplyTo] = useState<SignalMomentComment | null>(null)
   const [socialBusy, setSocialBusy] = useState(false)
 
-  const loadComments = async () => {
-    const next = await getMomentComments(moment.momentId)
-    setComments(next); setCommentCount(next.length)
+  const loadComments = async (loadOlder = false) => {
+    if (commentsLoading) return
+    setCommentsLoading(true)
+    try {
+      const oldest = loadOlder ? comments[0] ?? null : null
+      const next = await getMomentCommentsPage(
+        moment.momentId,
+        oldest
+          ? { createdAt: oldest.createdAt, commentId: oldest.commentId }
+          : null,
+      )
+      setComments((current) => loadOlder ? [...next, ...current] : next)
+      setCommentsHaveMore(next.length === MOMENT_COMMENT_PAGE_SIZE)
+    } finally {
+      setCommentsLoading(false)
+    }
   }
 
   const handleSignal = async () => {
@@ -180,7 +202,10 @@ function CurrentActivityCard({
     setSocialBusy(true)
     try {
       await addMomentComment(moment.momentId, commentBody, replyTo?.commentId ?? null)
-      setCommentBody(''); setReplyTo(null); await loadComments()
+      setCommentCount((current) => current + 1)
+      setCommentBody('')
+      setReplyTo(null)
+      await loadComments()
     } finally { setSocialBusy(false) }
   }
 
@@ -303,9 +328,10 @@ function CurrentActivityCard({
           <button type="button" onClick={() => { const next=!commentsOpen; setCommentsOpen(next); if(next) void loadComments() }}><span>◯</span> <strong>{commentCount}</strong> COMMENT{commentCount === 1 ? '' : 'S'}</button>
         </div>
         {commentsOpen ? <div className="signal-moment-comments">
+          {commentsHaveMore ? <button type="button" className="signal-moment-comments-more" disabled={commentsLoading} onClick={() => void loadComments(true)}>{commentsLoading ? 'LOADING…' : 'LOAD OLDER COMMENTS'}</button> : null}
           {comments.map((comment) => <div key={comment.commentId} className={comment.parentCommentId ? 'signal-moment-comment is-reply' : 'signal-moment-comment'}>
             {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt=""/> : <i>{comment.authorDisplayName.slice(0,1)}</i>}
-            <div><p><strong>{comment.authorDisplayName}</strong> {comment.body}</p><span><button type="button" onClick={() => setReplyTo(comment.parentCommentId ? comments.find((item) => item.commentId === comment.parentCommentId) ?? comment : comment)}>REPLY</button>{comment.isMine ? <button type="button" onClick={async () => { await deleteMyMomentComment(comment.commentId); await loadComments() }}>DELETE</button> : null}</span></div>
+            <div><p><strong>{comment.authorDisplayName}</strong> {comment.body}</p><span><button type="button" onClick={() => setReplyTo(comment.parentCommentId ? comments.find((item) => item.commentId === comment.parentCommentId) ?? comment : comment)}>REPLY</button>{comment.isMine ? <button type="button" onClick={async () => { await deleteMyMomentComment(comment.commentId); setCommentCount((current) => Math.max(0, current - 1)); await loadComments() }}>DELETE</button> : null}</span></div>
           </div>)}
           {replyTo ? <div className="signal-moment-replying">Replying to {replyTo.authorDisplayName}<button type="button" onClick={() => setReplyTo(null)}>×</button></div> : null}
           <div className="signal-moment-comment-compose"><input maxLength={1000} value={commentBody} placeholder={replyTo ? 'Reply to ' + replyTo.authorDisplayName + '…' : 'Add a comment…'} onChange={(e) => setCommentBody(e.target.value)} onKeyDown={(e) => { if(e.key==='Enter') void handleComment() }}/><button type="button" disabled={socialBusy || !commentBody.trim()} onClick={() => void handleComment()}>POST</button></div>

@@ -65,11 +65,27 @@ export async function deleteMyMomentComment(commentId: string) {
   if (error) throw new Error(error.message || 'Unable to delete comment.')
 }
 
-export async function getMomentComments(momentId: string): Promise<SignalMomentComment[]> {
-  const { data, error } = await supabase.rpc('get_signal_moment_comments', { p_moment_id: momentId })
+export const MOMENT_COMMENT_PAGE_SIZE = 50
+
+export type MomentCommentCursor = {
+  createdAt: string
+  commentId: string
+}
+
+export async function getMomentCommentsPage(
+  momentId: string,
+  cursor: MomentCommentCursor | null = null,
+): Promise<SignalMomentComment[]> {
+  const { data, error } = await supabase.rpc('get_signal_moment_comments_page', {
+    p_moment_id: momentId,
+    p_before_created_at: cursor?.createdAt ?? null,
+    p_before_id: cursor?.commentId ?? null,
+    p_limit: MOMENT_COMMENT_PAGE_SIZE,
+  })
   if (error) throw new Error(error.message || 'Unable to load comments.')
   if (!Array.isArray(data)) throw new Error('Invalid Moment comments response.')
-  return Promise.all(data.map(async (raw) => {
+
+  const newestFirst = await Promise.all(data.map(async (raw) => {
     const row = raw as CommentRow
     const avatarPath = row.author_avatar_path === null ? null : text(row.author_avatar_path, 'avatar')
     return {
@@ -83,4 +99,6 @@ export async function getMomentComments(momentId: string): Promise<SignalMomentC
       isMine: row.is_mine === true,
     }
   }))
+
+  return newestFirst.reverse()
 }
