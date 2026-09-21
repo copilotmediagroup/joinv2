@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Heart, LoaderCircle } from 'lucide-react'
 import {
   getMyChillDatingPreferences,
@@ -14,6 +14,7 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const saveRequestRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -35,7 +36,8 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
   }
 
   const save = async (next: ChillDatingPreferences) => {
-    if (saving) return
+    if (saveRequestRef.current) return
+    saveRequestRef.current = true
     setSaving(true)
     setError(null)
     try {
@@ -43,6 +45,7 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
     } catch (value) {
       setError(toUserFacingError(value, 'Unable to save Chill preferences.'))
     } finally {
+      saveRequestRef.current = false
       setSaving(false)
     }
   }

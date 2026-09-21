@@ -12,6 +12,7 @@ const [
   profile,
   publicProfile,
   profilePreferences,
+  chillDatingPreferences,
   discovery,
   signalTimeStage,
   liveMap,
@@ -53,6 +54,7 @@ const [
   read('src/features/profile/ProfileView.tsx'),
   read('src/features/profile/PublicProfileView.tsx'),
   read('src/features/profile/SignalPreferencesPanel.tsx'),
+  read('src/features/profile/ChillDatingPreferencesPanel.tsx'),
   read('src/features/signal/discovery/signalDiscoveryClient.ts'),
   read('src/features/signal/SignalTimeStage.tsx'),
   read('src/features/outing/SignalLiveMap.tsx'),
@@ -265,6 +267,9 @@ lock('My Energy stays out of public profile', publicProfile,
 lock('My Energy remains editable only in own profile flow', profile + profilePreferences,
   /SignalPreferencesPanel[\s\S]*?MY ENERGY[\s\S]*?SAVE MY ENERGY/,
   'Private preference editing must remain available to the owner.')
+lock('Profile preference saves serialize rapid mutations', profilePreferences + chillDatingPreferences,
+  /saveRequestRef[\s\S]*?save[\s\S]*?saveRequestRef\.current[\s\S]*?saveRequestRef\.current = true[\s\S]*?saveRequestRef\.current = false[\s\S]*?saveRequestRef[\s\S]*?save[\s\S]*?saveRequestRef\.current[\s\S]*?saveRequestRef\.current = true[\s\S]*?saveRequestRef\.current = false/,
+  'My Energy and Chill preference writes must not rely only on delayed React saving state.')
 lock('Moderation queues serialize pagination and reject stale tabs', moderationView + momentModeration,
   /queueEpochRef[\s\S]*?pageRequestRef[\s\S]*?requestEpoch = append \? queueEpochRef\.current : \+\+queueEpochRef\.current[\s\S]*?requestEpoch !== queueEpochRef\.current/,
   'People and Moment moderation queues must not duplicate cursor pages or let an older tab response replace the current queue.')

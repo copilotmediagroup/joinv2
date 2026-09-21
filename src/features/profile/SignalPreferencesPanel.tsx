@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Pencil, Sparkles } from 'lucide-react'
 import {
   getMySignalPreferences,
@@ -79,6 +79,7 @@ export default function SignalPreferencesPanel() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const saveRequestRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -106,7 +107,8 @@ export default function SignalPreferencesPanel() {
   }), [saved])
 
   const save = async () => {
-    if (saving) return
+    if (saveRequestRef.current) return
+    saveRequestRef.current = true
     setSaving(true)
     setError(null)
     try {
@@ -117,6 +119,7 @@ export default function SignalPreferencesPanel() {
     } catch (saveError) {
       setError(toUserFacingError(saveError, 'Unable to save energy preferences right now.'))
     } finally {
+      saveRequestRef.current = false
       setSaving(false)
     }
   }
