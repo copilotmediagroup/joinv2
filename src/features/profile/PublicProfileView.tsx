@@ -1,6 +1,6 @@
 import { ArrowLeft, MapPin, MessageCircle, Play, Zap } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { getPublicProfileConnections, getPublicProfileMoments, getPublicSignalProfile, type PublicProfileConnection, type PublicProfileMoment, type PublicSignalProfile } from './publicProfileClient'
+import { getPublicProfileConnectionCount, getPublicProfileConnections, getPublicProfileMoments, getPublicSignalProfile, type PublicProfileConnection, type PublicProfileMoment, type PublicSignalProfile } from './publicProfileClient'
 import UserSafetyActions from '../safety/UserSafetyActions'
 import './ProfileView.css'
 
@@ -15,14 +15,15 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
   const [profile, setProfile] = useState<PublicSignalProfile | null>(null)
   const [moments, setMoments] = useState<PublicProfileMoment[]>([])
   const [connections, setConnections] = useState<PublicProfileConnection[]>([])
+  const [connectionCount, setConnectionCount] = useState(0)
   const [selected, setSelected] = useState<Tile | null>(null)
   const [connectionsOpen, setConnectionsOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
-    void Promise.all([getPublicSignalProfile(userId), getPublicProfileMoments(userId), getPublicProfileConnections(userId)])
-      .then(([nextProfile, nextMoments, nextConnections]) => { if (active) { setProfile(nextProfile); setMoments(nextMoments); setConnections(nextConnections) } })
+    void Promise.all([getPublicSignalProfile(userId), getPublicProfileMoments(userId), getPublicProfileConnections(userId), getPublicProfileConnectionCount(userId)])
+      .then(([nextProfile, nextMoments, nextConnections, nextConnectionCount]) => { if (active) { setProfile(nextProfile); setMoments(nextMoments); setConnections(nextConnections); setConnectionCount(nextConnectionCount) } })
       .catch((loadError) => { if (active) setError(loadError instanceof Error ? loadError.message : 'Unable to load profile') })
     return () => { active = false }
   }, [userId])
@@ -40,7 +41,7 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
         <div><h2>{profile.displayName}</h2>{profile.age !== null ? <span>{profile.age}</span> : null}</div>
         {(profile.cityName || profile.stateCode) ? <small><MapPin size={12}/>{[profile.cityName, profile.stateCode].filter(Boolean).join(', ')}</small> : null}
         {profile.bio ? <p>{profile.bio}</p> : null}
-        <button type="button" className="public-profile-connections-link" onClick={() => setConnectionsOpen(true)}>{connections.length} {connections.length === 1 ? 'Connection' : 'Connections'}</button>
+        <button type="button" className="public-profile-connections-link" onClick={() => setConnectionsOpen(true)}>{connectionCount} {connectionCount === 1 ? 'Connection' : 'Connections'}</button>
       </div>
       <UserSafetyActions userId={profile.userId} displayName={profile.displayName} onBlocked={onBack}/>
     </header>

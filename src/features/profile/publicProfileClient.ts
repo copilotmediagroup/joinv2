@@ -87,6 +87,14 @@ export type PublicProfileConnection = {
   connectedAt: string
 }
 
+export async function getPublicProfileConnectionCount(userId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('get_signal_public_profile_connection_count', { p_user_id: userId })
+  if (error) throw new Error(error.message || 'Unable to load connection count')
+  const count = Number(data)
+  if (!Number.isInteger(count) || count < 0) throw new Error('Invalid public connection count response')
+  return count
+}
+
 export async function getPublicProfileConnections(userId: string): Promise<PublicProfileConnection[]> {
   const { data, error } = await supabase.rpc('get_signal_public_profile_connections', { p_user_id: userId, p_limit: 24 })
   if (error) throw new Error(error.message || 'Unable to load connections')
