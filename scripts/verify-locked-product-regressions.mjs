@@ -100,6 +100,9 @@ lock('Group chat typing presence remains present', messages,
 lock('Group chat typing transport remains realtime', messagingRealtime,
   /plan-typing:[\s\S]*?broadcast[\s\S]*?typing[\s\S]*?2200/,
   'Typing presence must retain realtime publish and idle clearing.')
+lock('Direct message refresh ignores stale conversation responses', directMessagesPanel,
+  /messageRefreshEpochRef[\s\S]*?requestedConversationId = selectedId[\s\S]*?requestEpoch = \+\+messageRefreshEpochRef\.current[\s\S]*?requestEpoch !== messageRefreshEpochRef\.current[\s\S]*?messageRefreshEpochRef\.current \+= 1/,
+  'Switching or closing a direct conversation must invalidate older message refresh responses.')
 lock('Direct message history stays cursor-paginated', directMessagingClient + directMessagesPanel,
   /get_my_direct_messages_page[\s\S]*?p_before_sent_at[\s\S]*?DIRECT_MESSAGE_PAGE_SIZE \+ 1[\s\S]*?LOAD OLDER MESSAGES/,
   'Long-running direct conversations must preserve older history without eager-loading the entire thread.')

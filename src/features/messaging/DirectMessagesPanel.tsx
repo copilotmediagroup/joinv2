@@ -56,6 +56,7 @@ export default function DirectMessagesPanel({
   const typingPublisherRef = useRef<((typing: boolean) => void) | null>(null)
   const feedRef = useRef<HTMLDivElement | null>(null)
   const shouldFollowLatestRef = useRef(true)
+  const messageRefreshEpochRef = useRef(0)
 
   const scrollToLatest = useCallback((behavior: ScrollBehavior = 'auto') => {
     const feed = feedRef.current
@@ -93,20 +94,34 @@ export default function DirectMessagesPanel({
 
   const refreshMessages = useCallback(async (reset = false) => {
     if (!selectedId) return
+    const requestedConversationId = selectedId
+    const requestEpoch = ++messageRefreshEpochRef.current
     try {
-      const page = await getMyDirectMessagesPage(selectedId)
+      const page = await getMyDirectMessagesPage(requestedConversationId)
+      if (
+        requestedConversationId !== selectedId
+        || requestEpoch !== messageRefreshEpochRef.current
+      ) return
       setMessages((current) => {
-        if (reset || current.some((message) => message.conversationId !== selectedId)) return page.messages
+        if (reset || current.some((message) => message.conversationId !== requestedConversationId)) return page.messages
         const byId = new Map(current.map((message) => [message.messageId, message]))
         page.messages.forEach((message) => byId.set(message.messageId, message))
         return [...byId.values()].sort((left, right) =>
           left.sentAt.localeCompare(right.sentAt) || left.messageId.localeCompare(right.messageId))
       })
       if (reset) setHasOlderMessages(page.hasOlder)
-      await markMyDirectConversationRead(selectedId)
-      await hydrateSelectedThread(selectedId)
+      await markMyDirectConversationRead(requestedConversationId)
+      await hydrateSelectedThread(requestedConversationId)
+      if (
+        requestedConversationId !== selectedId
+        || requestEpoch !== messageRefreshEpochRef.current
+      ) return
       setError(null)
     } catch (loadError) {
+      if (
+        requestedConversationId !== selectedId
+        || requestEpoch !== messageRefreshEpochRef.current
+      ) return
       setError(toUserFacingError(loadError, 'Unable to load this conversation right now.'))
     }
   }, [hydrateSelectedThread, selectedId])
@@ -218,7 +233,7 @@ export default function DirectMessagesPanel({
   if (selectedId) {
     return <section className="direct-thread">
       <header>
-        <button type="button" onClick={() => { setSelectedId(null); setMessages([]); setOtherUserTyping(false) }}>
+        <button type="button" onClick={() => { messageRefreshEpochRef.current += 1; setSelectedId(null); setMessages([]); setOtherUserTyping(false) }}>
           <ArrowLeft size={16}/> DIRECT
         </button>
         <div>
