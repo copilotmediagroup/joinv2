@@ -68,7 +68,7 @@ export function AuthGateView({
   }
 
   function switchMode(nextMode: AuthMode) {
-    if (submitting) return
+    if (submitRequestRef.current) return
 
     setMode(nextMode)
     setMessage(null)
