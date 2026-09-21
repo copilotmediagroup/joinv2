@@ -106,7 +106,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   }
 
   const saveMoment = async () => {
-    if (momentRequestRef.current || files.length === 0) return
+    if (momentRequestRef.current || outingExitRequestRef.current || files.length === 0) return
     momentRequestRef.current = true
     setSaving(true); setError(null); setNotice(null)
     try {
@@ -119,7 +119,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   }
 
   const finishOuting = async () => {
-    if (outingExitRequestRef.current) return
+    if (outingExitRequestRef.current || momentRequestRef.current) return
     outingExitRequestRef.current = true
     setEnding(true); setError(null)
     try { await finishMyPlanOuting(planId); onOutingEnded('completed') }
@@ -127,7 +127,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
     finally { outingExitRequestRef.current = false; setEnding(false) }
   }
   const safetyLeave = async () => {
-    if (outingExitRequestRef.current) return
+    if (outingExitRequestRef.current || momentRequestRef.current) return
     outingExitRequestRef.current = true
     setLeaving(true); setError(null)
     try { await leaveMyPlan(planId); onOutingEnded('safety') }
@@ -181,7 +181,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
         <div className="active-outing-selection"><span><ImagePlus size={15}/> {selectedLabel}</span>{files.length > 0 && <button type="button" onClick={() => setFiles([])}><X size={14}/> CLEAR</button>}</div>
         {files.length > 0 && <div className="active-outing-file-list">{files.map((file,index) => <span key={`${file.name}-${file.size}-${index}`}>{file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO'} · {file.name}</span>)}</div>}
         <textarea value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={500} placeholder="Add a caption to this Signal…"/>
-        <button type="button" className="active-outing-save" disabled={saving || files.length === 0} onClick={() => { void saveMoment() }}>
+        <button type="button" className="active-outing-save" disabled={saving || ending || leaving || files.length === 0} onClick={() => { void saveMoment() }}>
           <CheckCircle2 size={17}/> {saving ? 'SAVING…' : 'SAVE TO THIS SIGNAL'}
         </button>
         {notice && <div className="active-outing-notice" role="status">{notice}</div>}
@@ -195,12 +195,12 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
         ) : (
           <div className="active-outing-confirm">
             <strong>END YOUR SIGNAL?</strong><span>Your check-in and Moments stay with this outing.</span>
-            <div><button type="button" className="confirm" disabled={ending || leaving} onClick={() => { void finishOuting() }}>{ending ? 'ENDING…' : 'YES · GOOD NIGHT'}</button><button type="button" onClick={() => setConfirmEnd(false)}>NOT YET</button></div>
+            <div><button type="button" className="confirm" disabled={ending || leaving || saving} onClick={() => { void finishOuting() }}>{ending ? 'ENDING…' : 'YES · GOOD NIGHT'}</button><button type="button" onClick={() => setConfirmEnd(false)}>NOT YET</button></div>
           </div>
         )}
       </section>
 
-      <button type="button" className="active-outing-safety" disabled={leaving || ending} onClick={() => { void safetyLeave() }}>
+      <button type="button" className="active-outing-safety" disabled={leaving || ending || saving} onClick={() => { void safetyLeave() }}>
         <ShieldAlert size={17}/><span><strong>{leaving ? 'LEAVING…' : "I DON'T FEEL SAFE"}</strong><small>Leave this Signal immediately</small></span>
       </button>
       {error && <div className="active-outing-error" role="alert">{error}</div>}
