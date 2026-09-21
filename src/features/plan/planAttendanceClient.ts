@@ -79,11 +79,21 @@ export async function getMyPlanAttendanceStatus(
 }
 
 export function subscribeToLivePlanRefresh(planId: string, onInvalidate: () => void): () => void {
-  const channel = supabase
-    .channel(`plan-live:${planId}`)
-    .on('broadcast', { event: 'refresh' }, onInvalidate)
-    .subscribe()
-  return () => { void supabase.removeChannel(channel) }
+  let cancelled = false
+  let channel: ReturnType<typeof supabase.channel> | null = null
+
+  void supabase.realtime.setAuth().then(() => {
+    if (cancelled) return
+    channel = supabase
+      .channel(`plan-live:${planId}`, { config: { private: true } })
+      .on('broadcast', { event: 'refresh' }, onInvalidate)
+      .subscribe()
+  })
+
+  return () => {
+    cancelled = true
+    if (channel) void supabase.removeChannel(channel)
+  }
 }
 
 export async function checkInToMyPlan(
