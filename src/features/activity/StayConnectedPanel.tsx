@@ -92,11 +92,11 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
               <small>{person.state === 'connected' ? 'CONNECTED' : person.direction === 'outgoing' ? 'REQUEST SENT' : person.direction === 'incoming' ? 'WANTS TO CONNECT' : person.state === 'declined' ? 'DECLINED' : 'FROM THIS SIGNAL'}</small>
             </div>
             {person.state === 'none' || person.state === 'declined' ? (
-              <button disabled={busyUserId === person.userId} onClick={() => { void connect(person) }}><UserPlus size={13} /> {person.state === 'declined' ? 'CONNECT AGAIN' : 'CONNECT'}</button>
+              <button disabled={busyUserId !== null} onClick={() => { void connect(person) }}><UserPlus size={13} /> {person.state === 'declined' ? 'CONNECT AGAIN' : 'CONNECT'}</button>
             ) : person.state === 'pending' && person.direction === 'incoming' ? (
               <div className="stay-connected-actions">
-                <button disabled={busyUserId === person.userId} onClick={() => { void respond(person, true) }}><Check size={13} /> ACCEPT</button>
-                <button disabled={busyUserId === person.userId} onClick={() => { void respond(person, false) }}><X size={13} /> DECLINE</button>
+                <button disabled={busyUserId !== null} onClick={() => { void respond(person, true) }}><Check size={13} /> ACCEPT</button>
+                <button disabled={busyUserId !== null} onClick={() => { void respond(person, false) }}><X size={13} /> DECLINE</button>
               </div>
             ) : person.state === 'connected' ? <span className="stay-connected-badge"><Check size={13} /> CONNECTED</span> : null}
           </div>

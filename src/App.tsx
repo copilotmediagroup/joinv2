@@ -307,6 +307,7 @@ function App() {
     useState(false)
   const [activityError, setActivityError] =
     useState<string | null>(null)
+  const activityRequestEpochRef = useRef(0)
   const [profileSearchOpen, setProfileSearchOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] =
     useState(false)
@@ -431,6 +432,7 @@ function App() {
     useState<string | null>(null)
   const [notificationMomentId, setNotificationMomentId] = useState<string | null>(null)
   const [logoutSubmitting, setLogoutSubmitting] = useState(false)
+  const logoutRequestRef = useRef(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
 
@@ -519,13 +521,15 @@ function App() {
       const result =
         await getMySignalDiscovery()
 
+      if (requestEpoch !== discoveryRequestEpochRef.current) return
       setDiscovery(result)
     } catch (error) {
+      if (requestEpoch !== discoveryRequestEpochRef.current) return
       setDiscoveryError(
         toUserFacingError(error, 'Unable to load live Signal activity.'),
       )
     } finally {
-      setDiscoveryLoading(false)
+      if (requestEpoch === discoveryRequestEpochRef.current) setDiscoveryLoading(false)
     }
   }
 
@@ -533,6 +537,7 @@ function App() {
     let cancelled = false
 
     const loadDiscovery = async () => {
+      const requestEpoch = ++discoveryRequestEpochRef.current
       setDiscoveryLoading(true)
       setDiscoveryError(null)
 
@@ -540,18 +545,18 @@ function App() {
         const result =
           await getMySignalDiscovery()
 
-        if (!cancelled) {
+        if (!cancelled && requestEpoch === discoveryRequestEpochRef.current) {
           setDiscovery(result)
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && requestEpoch === discoveryRequestEpochRef.current) {
           setDiscovery([])
           setDiscoveryError(
             toUserFacingError(error, 'Unable to load live Signal activity.'),
           )
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && requestEpoch === discoveryRequestEpochRef.current) {
           setDiscoveryLoading(false)
         }
       }
@@ -577,9 +582,10 @@ function App() {
       refreshTimer = setTimeout(() => {
         refreshTimer = null
 
+        const requestEpoch = ++discoveryRequestEpochRef.current
         void getMySignalDiscovery()
           .then((result) => {
-            if (!stopped) setDiscovery(result)
+            if (!stopped && requestEpoch === discoveryRequestEpochRef.current) setDiscovery(result)
           })
           .catch(() => undefined)
       }, 80)
@@ -1079,18 +1085,21 @@ function App() {
                 : 'Finding your people...'
 
   const refreshActivity = async () => {
+    const requestEpoch = ++activityRequestEpochRef.current
     setActivityLoading(true)
     setActivityError(null)
 
     try {
       const result = await getMyActivity()
+      if (requestEpoch !== activityRequestEpochRef.current) return
       setActivityItems(result)
     } catch (error) {
+      if (requestEpoch !== activityRequestEpochRef.current) return
       setActivityError(
         toUserFacingError(error, 'Unable to load Activity.'),
       )
     } finally {
-      setActivityLoading(false)
+      if (requestEpoch === activityRequestEpochRef.current) setActivityLoading(false)
     }
   }
 
@@ -1195,7 +1204,8 @@ function App() {
   }
 
   const handleLogout = async () => {
-    if (logoutSubmitting) return
+    if (logoutRequestRef.current) return
+    logoutRequestRef.current = true
     setLogoutSubmitting(true)
     setLogoutError(null)
     try {
@@ -1209,6 +1219,7 @@ function App() {
       journeyRestorePromiseRef.current = null
       await signOutCurrentUser()
     } catch {
+      logoutRequestRef.current = false
       setLogoutError('Unable to log out right now. Please try again.')
       setLogoutSubmitting(false)
     }

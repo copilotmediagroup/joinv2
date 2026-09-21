@@ -105,6 +105,9 @@ const lock = (name, source, pattern, reason) => {
 lock('Discovery counts remain live without manual reload', app,
   /subscribeToSignalDiscovery\(refreshLiveCounts,[\s\S]*?setInterval\([\s\S]*?visibilityState === 'visible'[\s\S]*?30_000[\s\S]*?visibilitychange[\s\S]*?online/,
   'Realtime + self-healing reconciliation must remain installed.')
+lock('Discovery refresh rejects stale count responses', app,
+  /discoveryRequestEpochRef[\s\S]*?refreshDiscovery[\s\S]*?requestEpoch = \+\+discoveryRequestEpochRef\.current[\s\S]*?requestEpoch !== discoveryRequestEpochRef\.current[\s\S]*?refreshLiveCounts[\s\S]*?requestEpoch = \+\+discoveryRequestEpochRef\.current[\s\S]*?requestEpoch === discoveryRequestEpochRef\.current/,
+  'Older discovery reads must never overwrite newer realtime social-proof counts and force users to reload.')
 lock('Discovery preview avatars remain batch signed', discovery,
   /createProfileAvatarSignedUrls[\s\S]*?new Set\(rows\.flatMap[\s\S]*?return rows\.map/,
   'Discovery reconciliation must not fan out one Storage signing request per preview avatar.')
@@ -279,6 +282,9 @@ lock('Connection actions release synchronous ownership', stayConnected + myConne
 lock('Connection actions serialize rapid mutations', stayConnected + myConnections,
   /actionRequestRef[\s\S]*?connect[\s\S]*?actionRequestRef\.current[\s\S]*?respond[\s\S]*?actionRequestRef\.current[\s\S]*?message[\s\S]*?actionRequestRef\.current[\s\S]*?disconnect[\s\S]*?actionRequestRef\.current/,
   'Connect, accept/decline, message-open, and disconnect actions must not rely only on delayed React busy state.')
+lock('Connection controls mirror shared mutation ownership', stayConnected + myConnections,
+  /disabled=\{busyUserId !== null\}[\s\S]*?disabled=\{busyId !== null\}/,
+  'When one connection mutation owns the panel, other rows must visibly disable instead of accepting dead clicks.')
 lock('Post-Signal connection refresh ignores stale responses', stayConnected,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Realtime and action-triggered refreshes must not let an older post-Signal connection response overwrite newer state.')
@@ -306,6 +312,9 @@ lock('My Energy remains editable only in own profile flow', profile + profilePre
 lock('Profile preference saves serialize rapid mutations', profilePreferences + chillDatingPreferences,
   /saveRequestRef[\s\S]*?save[\s\S]*?saveRequestRef\.current[\s\S]*?saveRequestRef\.current = true[\s\S]*?saveRequestRef\.current = false[\s\S]*?saveRequestRef[\s\S]*?save[\s\S]*?saveRequestRef\.current[\s\S]*?saveRequestRef\.current = true[\s\S]*?saveRequestRef\.current = false/,
   'My Energy and Chill preference writes must not rely only on delayed React saving state.')
+lock('Logout serializes rapid sign-out actions', app,
+  /logoutRequestRef[\s\S]*?handleLogout[\s\S]*?logoutRequestRef\.current[\s\S]*?logoutRequestRef\.current = true[\s\S]*?signOutCurrentUser[\s\S]*?logoutRequestRef\.current = false/,
+  'Rapid logout taps must not issue duplicate sign-out mutations; failure must release ownership for retry.')
 lock('Auth and onboarding submissions serialize rapid submits', authGate + onboardingGate,
   /submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false[\s\S]*?submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false/,
   'Authentication and onboarding writes must not rely only on delayed React submitting state.')

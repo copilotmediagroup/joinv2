@@ -124,7 +124,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
         <div className="profile-connection-person" key={connection.connectionId}>
           {connection.avatarUrl ? <img src={connection.avatarUrl} alt="" /> : <div className="profile-connection-fallback">{connection.displayName.slice(0, 1).toUpperCase()}</div>}
           <button type="button" className="profile-connection-identity" onClick={() => onOpenProfile?.(connection.userId)}><strong>{connection.displayName}</strong><small>CONNECTED {formatConnectedAt(connection.connectedAt)}</small></button>
-          <div className="profile-connection-actions"><button type="button" disabled={busyId === connection.connectionId} onClick={() => { void message(connection) }}><MessageCircle size={13} /> MESSAGE</button><button type="button" disabled={busyId === connection.connectionId} onClick={() => { void disconnect(connection) }}><Unlink size={13} /> DISCONNECT</button></div>
+          <div className="profile-connection-actions"><button type="button" disabled={busyId !== null} onClick={() => { void message(connection) }}><MessageCircle size={13} /> MESSAGE</button><button type="button" disabled={busyId !== null} onClick={() => { void disconnect(connection) }}><Unlink size={13} /> DISCONNECT</button></div>
           <UserSafetyActions userId={connection.userId} displayName={connection.displayName} onBlocked={() => { void refresh() }} />
         </div>
       ))}
