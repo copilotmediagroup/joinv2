@@ -109,6 +109,12 @@ lock('Direct message history stays cursor-paginated', directMessagingClient + di
 lock('Group message history stays cursor-paginated', messagingClient + messages,
   /get_my_plan_messages_page[\s\S]*?PLAN_MESSAGE_PAGE_SIZE \+ 1[\s\S]*?LOAD OLDER MESSAGES/,
   'Long-running Signal group chats must preserve older history without a fixed 200-message ceiling.')
+lock('Group chat member refresh ignores stale realtime responses', messages,
+  /refreshEpoch = 0[\s\S]*?requestEpoch = \+\+refreshEpoch[\s\S]*?requestEpoch === refreshEpoch/,
+  'Group chat member lists must not let older realtime reads overwrite newer membership state.')
+lock('Time-stage member refresh ignores stale realtime responses', signalTimeStage,
+  /refreshEpoch = 0[\s\S]*?requestEpoch = \+\+refreshEpoch[\s\S]*?requestEpoch === refreshEpoch/,
+  'Time-stage member lists must not let older realtime reads overwrite newer membership state.')
 lock('Group messages continue following newest messages', messages,
   /shouldFollowGroupLatestRef[\s\S]*?scrollTo\(\{ top: feed\.scrollHeight[\s\S]*?feed\.scrollHeight - feed\.scrollTop - feed\.clientHeight < 80/,
   'New messages must remain visible while preserving deliberate scroll-up.')

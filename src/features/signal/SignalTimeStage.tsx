@@ -189,12 +189,14 @@ export default function SignalTimeStage({
     if (!planId) return
 
     let cancelled = false
+    let refreshEpoch = 0
     const refreshMembers = async () => {
+      const requestEpoch = ++refreshEpoch
       try {
         const members = await getMyPlanMembers(planId)
-        if (!cancelled) setPlanMembers(members)
+        if (!cancelled && requestEpoch === refreshEpoch) setPlanMembers(members)
       } catch (memberError) {
-        if (!cancelled) {
+        if (!cancelled && requestEpoch === refreshEpoch) {
           setPlanError(
             toUserFacingError(memberError, 'Unable to load the group right now.'),
           )

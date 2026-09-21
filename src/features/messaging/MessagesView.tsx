@@ -229,13 +229,15 @@ export default function MessagesView({
     if (!selectedPlanId) return
 
     let cancelled = false
+    let refreshEpoch = 0
 
     const refreshMembers = async () => {
+      const requestEpoch = ++refreshEpoch
       try {
         const next = await getMyPlanMembers(selectedPlanId)
-        if (!cancelled) setPlanMembers(next)
+        if (!cancelled && requestEpoch === refreshEpoch) setPlanMembers(next)
       } catch (memberError) {
-        if (!cancelled) {
+        if (!cancelled && requestEpoch === refreshEpoch) {
           setError(
             toUserFacingError(memberError, 'Unable to load Plan members right now.'),
           )
