@@ -142,6 +142,9 @@ lock('Locked Signal retains Open Details entry point', signalTimeStage,
 lock('Live details ignore stale governance and attendance responses', details,
   /detailsRefreshEpochRef[\s\S]*?attendanceRefreshEpochRef[\s\S]*?requestEpoch !== detailsRefreshEpochRef\.current[\s\S]*?initialDetailsEpoch[\s\S]*?initialAttendanceEpoch[\s\S]*?requestEpoch === attendanceRefreshEpochRef\.current/,
   'Open Details must not let older governance, member, or attendance reads overwrite newer realtime authority.')
+lock('Live location refresh ignores stale responses', details,
+  /locationRefreshEpochRef[\s\S]*?requestEpoch = \+\+locationRefreshEpochRef\.current[\s\S]*?requestEpoch === locationRefreshEpochRef\.current[\s\S]*?locationRefreshEpochRef\.current \+= 1/,
+  'Live member locations must not let an older map refresh overwrite newer position authority or survive Plan changes.')
 lock('Live details retain route toggle and trip stats', details,
   /route \? ' HIDE ROUTE' : ' DIRECTIONS'[\s\S]*?DISTANCE[\s\S]*?DRIVE[\s\S]*?ETA/,
   'Directions must remain a toggle with distance, drive time, and ETA.')

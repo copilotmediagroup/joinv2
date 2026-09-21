@@ -34,6 +34,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const lastRouteOriginRef = useRef<{ latitude: number; longitude: number } | null>(null)
   const detailsRefreshEpochRef = useRef(0)
   const attendanceRefreshEpochRef = useRef(0)
+  const locationRefreshEpochRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -91,7 +92,17 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
 
   useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return
-    const refreshLocations = () => void getMyPlanMemberLocations(planId).then(setLiveLocations).catch(() => undefined)
+    let cancelled = false
+    const refreshLocations = () => {
+      const requestEpoch = ++locationRefreshEpochRef.current
+      void getMyPlanMemberLocations(planId)
+        .then((nextLocations) => {
+          if (!cancelled && requestEpoch === locationRefreshEpochRef.current) {
+            setLiveLocations(nextLocations)
+          }
+        })
+        .catch(() => undefined)
+    }
     refreshLocations()
     const refreshId = window.setInterval(() => {
       if (document.visibilityState === 'visible') refreshLocations()
@@ -114,7 +125,12 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       () => setUserPosition(null),
       { enableHighAccuracy: true, maximumAge: 15_000, timeout: 10_000 },
     )
-    return () => { navigator.geolocation.clearWatch(watchId); window.clearInterval(refreshId) }
+    return () => {
+      cancelled = true
+      locationRefreshEpochRef.current += 1
+      navigator.geolocation.clearWatch(watchId)
+      window.clearInterval(refreshId)
+    }
   }, [planId])
 
   useEffect(() => {
