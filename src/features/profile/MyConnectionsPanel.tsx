@@ -28,6 +28,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   const [cursor, setCursor] = useState<{ connectedAt: string; connectionId: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
+  const pageRequestRef = useRef(false)
 
   const refresh = useCallback(async () => {
     const requestEpoch = ++refreshEpochRef.current
@@ -52,11 +53,14 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   }, [userId])
 
   const loadMore = async () => {
-    if (!cursor || loadingMore) return
+    if (!cursor || pageRequestRef.current) return
+    const requestEpoch = refreshEpochRef.current
+    pageRequestRef.current = true
     setLoadingMore(true)
     setError(null)
     try {
       const page = await getMySignalConnectionsPage(cursor)
+      if (requestEpoch !== refreshEpochRef.current) return
       setConnections((current) => [...current, ...page.filter((next) =>
         !current.some((item) => item.connectionId === next.connectionId),
       )])
@@ -64,9 +68,12 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
       const last = page[page.length - 1]
       setCursor(last ? { connectedAt: last.connectedAt, connectionId: last.connectionId } : null)
     } catch (loadError) {
-      setError(toUserFacingError(loadError, 'Unable to load older connections right now.'))
+      if (requestEpoch === refreshEpochRef.current) {
+        setError(toUserFacingError(loadError, 'Unable to load older connections right now.'))
+      }
     } finally {
-      setLoadingMore(false)
+      pageRequestRef.current = false
+      if (requestEpoch === refreshEpochRef.current) setLoadingMore(false)
     }
   }
 

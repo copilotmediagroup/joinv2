@@ -24,6 +24,8 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
   const [connectionsHaveMore, setConnectionsHaveMore] = useState(false)
   const [connectionsLoadingMore, setConnectionsLoadingMore] = useState(false)
   const activeUserIdRef = useRef(userId)
+  const momentsPageRequestRef = useRef(false)
+  const connectionsPageRequestRef = useRef(false)
 
   useEffect(() => {
     activeUserIdRef.current = userId
@@ -45,7 +47,8 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
   async function loadMoreMoments() {
     const requestedUserId = userId
     const last = moments[moments.length - 1]
-    if (!last || momentsLoadingMore || !momentsHaveMore) return
+    if (!last || momentsPageRequestRef.current || !momentsHaveMore) return
+    momentsPageRequestRef.current = true
     setMomentsLoadingMore(true)
     try {
       const page = await getPublicProfileMoments(requestedUserId, { publishedAt: last.publishedAt, momentId: last.momentId })
@@ -53,6 +56,7 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
       setMoments((current) => [...current, ...page.moments])
       setMomentsHaveMore(page.hasMore)
     } finally {
+      momentsPageRequestRef.current = false
       if (requestedUserId === activeUserIdRef.current) setMomentsLoadingMore(false)
     }
   }
@@ -60,7 +64,8 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
   async function loadMoreConnections() {
     const requestedUserId = userId
     const last = connections[connections.length - 1]
-    if (!last || connectionsLoadingMore || !connectionsHaveMore) return
+    if (!last || connectionsPageRequestRef.current || !connectionsHaveMore) return
+    connectionsPageRequestRef.current = true
     setConnectionsLoadingMore(true)
     try {
       const page = await getPublicProfileConnections(requestedUserId, { connectedAt: last.connectedAt, connectionId: last.connectionId })
@@ -68,6 +73,7 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
       setConnections((current) => [...current, ...page.connections])
       setConnectionsHaveMore(page.hasMore)
     } finally {
+      connectionsPageRequestRef.current = false
       if (requestedUserId === activeUserIdRef.current) setConnectionsLoadingMore(false)
     }
   }

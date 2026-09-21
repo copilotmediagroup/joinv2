@@ -200,6 +200,9 @@ lock('Own Signal Life pagination serializes requests', profileSignalLife,
 lock('Signal Life stays cursor-paginated with batched media signing', profileMomentClient + publicProfileClient + publicProfile,
   /createSignedUrls[\s\S]*?get_my_profile_signal_moments_page[\s\S]*?get_signal_public_profile_moments_page[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE SIGNAL LIFE/,
   'Profile growth must not restore the old 60-Moment eager load or one signing request per media object.')
+lock('Public profile pagination serializes rapid requests', publicProfile,
+  /momentsPageRequestRef[\s\S]*?momentsPageRequestRef\.current = true[\s\S]*?connectionsPageRequestRef[\s\S]*?connectionsPageRequestRef\.current = true/,
+  'Rapid public-profile LOAD MORE actions must not issue duplicate Moment or connection cursor requests.')
 lock('Public profile pagination stays bound to viewed user', publicProfile,
   /activeUserIdRef[\s\S]*?requestedUserId !== activeUserIdRef\.current[\s\S]*?getPublicProfileConnections\(requestedUserId[\s\S]*?requestedUserId !== activeUserIdRef\.current/,
   'Navigating between profiles must not append an older profile pagination response into the newly viewed person.')
@@ -215,6 +218,9 @@ lock('Post-Signal connection refresh ignores stale responses', stayConnected,
 lock('Declined post-Signal connections remain retryable', stayConnected,
   /person\.state === 'none' \|\| person\.state === 'declined'[\s\S]*?CONNECT AGAIN/,
   'A declined request must not permanently remove the ability to reconnect after the Signal.')
+lock('Own connection pagination serializes and rejects stale pages', myConnections,
+  /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
+  'Rapid connection pagination must serialize and an older page must not append after a newer full refresh.')
 lock('Own connection refresh ignores stale responses', myConnections,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Disconnect and block refreshes must not let older connection pages restore stale state.')
