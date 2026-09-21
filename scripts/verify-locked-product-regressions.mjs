@@ -366,6 +366,9 @@ lock('Blocked people refresh cannot resurrect unblocked users', blockedPeople,
 lock('Comments, blocked users, and moderation evidence batch signing', momentSocialClient + userSafetyClient + adminClient,
   /getMomentCommentsPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyBlockedUsersPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getModerationMomentEvidence[\s\S]*?createSignedUrls/,
   'Bounded social and moderation pages must avoid per-row Storage signing fan-out.')
+lock('App activity refresh rejects stale responses', app,
+  /activityRequestEpochRef[\s\S]*?refreshActivity[\s\S]*?requestEpoch = \+\+activityRequestEpochRef\.current[\s\S]*?requestEpoch !== activityRequestEpochRef\.current[\s\S]*?requestEpoch === activityRequestEpochRef\.current/,
+  'Overlapping app-level Activity refreshes must not let an older response overwrite newer feed authority.')
 lock('Activity feed refresh ordering preserves loaded history', activityView,
   /momentRefreshEpochRef[\s\S]*?requestEpoch = \+\+momentRefreshEpochRef\.current[\s\S]*?retainedOlder[\s\S]*?requestEpoch !== momentRefreshEpochRef\.current[\s\S]*?momentsLoadingMore/,
   'Realtime and manual Activity refreshes must reject stale responses without discarding already-loaded older pages.')
