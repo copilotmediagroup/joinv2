@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabaseClient'
-import { createProfileAvatarSignedUrl } from '../onboarding/avatarClient'
+import { createProfileAvatarSignedUrls } from '../onboarding/avatarClient'
 
 export type UserReportReason =
   | 'harassment' | 'threats' | 'hate' | 'sexual'
@@ -113,19 +113,18 @@ export async function getMyBlockedUsersPage(
   if (error) throw new Error(error.message || 'Unable to load blocked people')
   if (!Array.isArray(data)) throw new Error('Invalid blocked users response')
 
-  return Promise.all(data.map(async (raw) => {
-    const row = raw as Record<string, unknown>
-    const avatarPath = typeof row.avatar_path === 'string' && row.avatar_path.trim()
-      ? row.avatar_path
-      : null
+  const rows = data as Record<string, unknown>[]
+  const paths = [...new Set(rows.flatMap((row) =>
+    typeof row.avatar_path === 'string' && row.avatar_path.trim() ? [row.avatar_path] : []))]
+  const avatarUrls = await createProfileAvatarSignedUrls(paths).catch(() => new Map<string, string>())
+  return rows.map((row) => {
+    const avatarPath = typeof row.avatar_path === 'string' && row.avatar_path.trim() ? row.avatar_path : null
     return {
       blockId: required(row.block_id, 'block id'),
       userId: required(row.user_id, 'user id'),
       displayName: required(row.display_name, 'display name'),
-      avatarUrl: avatarPath
-        ? await createProfileAvatarSignedUrl(avatarPath).catch(() => null)
-        : null,
+      avatarUrl: avatarPath ? avatarUrls.get(avatarPath) ?? null : null,
       blockedAt: required(row.blocked_at, 'blocked at'),
     }
-  }))
+  })
 }

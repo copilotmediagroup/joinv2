@@ -344,27 +344,27 @@ export async function getModerationMomentEvidence(
   const row = Array.isArray(data) && data[0] ? data[0] as Record<string, unknown> : null
   if (!row || !Array.isArray(row.media)) return []
 
-  return Promise.all(row.media.map(async (raw) => {
+  const described = row.media.map((raw) => {
     const media = raw as Record<string, unknown>
     const storagePath = required(media.storagePath, 'evidence storage path')
     const mediaKind = required(media.mediaKind, 'evidence media kind')
     const mimeType = required(media.mimeType, 'evidence mime type')
-    if (mediaKind !== 'image' && mediaKind !== 'video') {
-      throw new Error('Invalid Moment evidence media kind')
-    }
-    const { data: signed, error: signedError } = await supabase.storage
-      .from('signal-moments')
-      .createSignedUrl(storagePath, 60 * 15)
-    if (signedError || !signed?.signedUrl) {
-      throw new Error(signedError?.message || 'Unable to sign Moment evidence')
-    }
-    return {
-      storagePath,
-      mediaKind,
-      mimeType,
-      url: signed.signedUrl,
-    } as ModerationMomentEvidenceMedia
-  }))
+    if (mediaKind !== 'image' && mediaKind !== 'video') throw new Error('Invalid Moment evidence media kind')
+    return { storagePath, mediaKind: mediaKind as 'image' | 'video', mimeType }
+  })
+  if (!described.length) return []
+  const paths = described.map((media) => media.storagePath)
+  const { data: signed, error: signedError } = await supabase.storage
+    .from('signal-moments')
+    .createSignedUrls(paths, 60 * 15)
+  if (signedError || !signed || signed.length !== paths.length) {
+    throw new Error(signedError?.message || 'Unable to sign Moment evidence')
+  }
+  return described.map((media, index) => {
+    const url = signed[index]?.signedUrl
+    if (!url) throw new Error('Unable to sign Moment evidence')
+    return { ...media, url } as ModerationMomentEvidenceMedia
+  })
 }
 
 export async function enforceMomentAuthorAccount(input: {

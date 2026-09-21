@@ -25,6 +25,9 @@ const [
   signalConnectionsClient,
   signalParticipantsClient,
   profileSearchClient,
+  momentSocialClient,
+  userSafetyClient,
+  adminClient,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -49,6 +52,9 @@ const [
   read('src/features/activity/signalConnectionsClient.ts'),
   read('src/features/signal/participants/signalParticipantsClient.ts'),
   read('src/features/profile/profileSearchClient.ts'),
+  read('src/features/activity/signalMomentSocialClient.ts'),
+  read('src/features/safety/userSafetyClient.ts'),
+  read('src/features/admin/adminClient.ts'),
 ])
 
 const checks = []
@@ -144,6 +150,9 @@ lock('Admin-authorized users retain user/admin mode switch', app,
 lock('Social list avatars use batched private signing', signalConnectionsClient + signalParticipantsClient + profileSearchClient + directMessagingClient,
   /createProfileAvatarSignedUrls[\s\S]*?getMySignalParticipants[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?searchSignalProfiles[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyDirectThreadsPage[\s\S]*?createProfileAvatarSignedUrls/,
   'Search, participants, connections, and inbox pages must not create one Storage signing request per person.')
+lock('Comments, blocked users, and moderation evidence batch signing', momentSocialClient + userSafetyClient + adminClient,
+  /getMomentCommentsPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyBlockedUsersPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getModerationMomentEvidence[\s\S]*?createSignedUrls/,
+  'Bounded social and moderation pages must avoid per-row Storage signing fan-out.')
 lock('Activity feed batches private media and avatar signing', moments,
   /createProfileAvatarSignedUrls[\s\S]*?createSignedUrls\(mediaPaths[\s\S]*?mediaUrls/,
   'A feed page must not fan out into one Storage signing request per avatar or media object.')

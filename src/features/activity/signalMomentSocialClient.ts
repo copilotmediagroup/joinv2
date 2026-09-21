@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabaseClient'
-import { createProfileAvatarSignedUrl } from '../onboarding/avatarClient'
+import { createProfileAvatarSignedUrls } from '../onboarding/avatarClient'
 
 export type SignalMomentComment = {
   commentId: string
@@ -85,20 +85,22 @@ export async function getMomentCommentsPage(
   if (error) throw new Error(error.message || 'Unable to load comments.')
   if (!Array.isArray(data)) throw new Error('Invalid Moment comments response.')
 
-  const newestFirst = await Promise.all(data.map(async (raw) => {
-    const row = raw as CommentRow
+  const rows = data as CommentRow[]
+  const paths = [...new Set(rows.flatMap((row) => row.author_avatar_path === null ? [] : [text(row.author_avatar_path, 'avatar')]))]
+  const avatarUrls = await createProfileAvatarSignedUrls(paths).catch(() => new Map<string, string>())
+  const newestFirst = rows.map((row) => {
     const avatarPath = row.author_avatar_path === null ? null : text(row.author_avatar_path, 'avatar')
     return {
       commentId: text(row.comment_id, 'comment_id'),
       parentCommentId: row.parent_comment_id === null ? null : text(row.parent_comment_id, 'parent_comment_id'),
       authorUserId: text(row.author_user_id, 'author_user_id'),
       authorDisplayName: text(row.author_display_name, 'author_display_name'),
-      authorAvatarUrl: avatarPath ? await createProfileAvatarSignedUrl(avatarPath).catch(() => null) : null,
+      authorAvatarUrl: avatarPath ? avatarUrls.get(avatarPath) ?? null : null,
       body: text(row.body, 'body'),
       createdAt: text(row.created_at, 'created_at'),
       isMine: row.is_mine === true,
     }
-  }))
+  })
 
   return newestFirst.reverse()
 }
