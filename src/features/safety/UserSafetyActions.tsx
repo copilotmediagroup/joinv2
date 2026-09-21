@@ -64,11 +64,11 @@ export default function UserSafetyActions({ userId, displayName, onBlocked }: Pr
 
   return <div className="user-safety-actions">
     <div className="user-safety-buttons">
-      <button type="button" onClick={() => setMode(mode === 'report' ? 'closed' : 'report')}><Flag size={13}/> REPORT</button>
-      <button type="button" onClick={() => setMode(mode === 'block' ? 'closed' : 'block')}><Ban size={13}/> BLOCK</button>
+      <button type="button" disabled={busy} onClick={() => setMode(mode === 'report' ? 'closed' : 'report')}><Flag size={13}/> REPORT</button>
+      <button type="button" disabled={busy} onClick={() => setMode(mode === 'block' ? 'closed' : 'block')}><Ban size={13}/> BLOCK</button>
     </div>
     {mode === 'report' ? <div className="user-safety-sheet">
-      <header><span><ShieldAlert size={14}/> REPORT {displayName.toUpperCase()}</span><button type="button" onClick={() => setMode('closed')}><X size={14}/></button></header>
+      <header><span><ShieldAlert size={14}/> REPORT {displayName.toUpperCase()}</span><button type="button" disabled={busy} onClick={() => setMode('closed')}><X size={14}/></button></header>
       <select value={reason} onChange={(event) => setReason(event.target.value as UserReportReason)}>{reasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
       <textarea maxLength={2000} value={details} placeholder="What happened? (optional)" onChange={(event) => setDetails(event.target.value)} />
       <button type="button" disabled={busy} onClick={() => void submitReport()}>{busy ? 'SENDING…' : 'SEND REPORT'}</button>
@@ -76,7 +76,7 @@ export default function UserSafetyActions({ userId, displayName, onBlocked }: Pr
     {mode === 'block' ? <div className="user-safety-sheet user-safety-block">
       <strong>Block {displayName}?</strong>
       <span>You’ll disconnect, private messages will close, and they won’t be able to reconnect while blocked.</span>
-      <div><button type="button" onClick={() => setMode('closed')}>CANCEL</button><button type="button" disabled={busy} onClick={() => void confirmBlock()}>{busy ? 'BLOCKING…' : 'BLOCK'}</button></div>
+      <div><button type="button" disabled={busy} onClick={() => setMode('closed')}>CANCEL</button><button type="button" disabled={busy} onClick={() => void confirmBlock()}>{busy ? 'BLOCKING…' : 'BLOCK'}</button></div>
     </div> : null}
     {message ? <p className="user-safety-message">{message}</p> : null}
     {error ? <p className="user-safety-error" role="alert">{error}</p> : null}

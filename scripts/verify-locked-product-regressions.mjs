@@ -201,6 +201,9 @@ lock('Live details retain route toggle and trip stats', details,
 lock('Live outing mutations serialize rapid actions', outing,
   /momentRequestRef[\s\S]*?outingExitRequestRef[\s\S]*?saveMoment[\s\S]*?momentRequestRef\.current = true[\s\S]*?momentRequestRef\.current = false[\s\S]*?finishOuting[\s\S]*?outingExitRequestRef\.current = true[\s\S]*?outingExitRequestRef\.current = false[\s\S]*?safetyLeave[\s\S]*?outingExitRequestRef\.current = true[\s\S]*?outingExitRequestRef\.current = false/,
   'Moment publishing must serialize, while normal completion and safety leave must share one terminal mutation owner.')
+lock('Live outing terminal controls disable across exit modes', outing,
+  /disabled=\{ending \|\| leaving\}[\s\S]*?disabled=\{leaving \|\| ending\}/,
+  'Normal completion and safety leave controls must visibly lock each other while terminal ownership is active.')
 lock('Live outing refresh ignores stale realtime responses', outing,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Overlapping governance and live refreshes must not let older outing state overwrite newer authority.')
@@ -300,6 +303,9 @@ lock('Profile preference saves serialize rapid mutations', profilePreferences + 
 lock('Auth and onboarding submissions serialize rapid submits', authGate + onboardingGate,
   /submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false[\s\S]*?submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false/,
   'Authentication and onboarding writes must not rely only on delayed React submitting state.')
+lock('Auth mode remains stable during submission', authGate,
+  /switchMode[\s\S]*?submitRequestRef\.current[\s\S]*?setMode\(nextMode\)/,
+  'Sign-in/sign-up mode must not switch underneath an in-flight authentication request.')
 lock('Moderation actions serialize rapid admin mutations', moderationView + momentModeration,
   /actionRequestRef[\s\S]*?takeNext[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?releaseSelected[\s\S]*?actionRequestRef\.current[\s\S]*?runEnforcement[\s\S]*?actionRequestRef\.current[\s\S]*?finishSelected[\s\S]*?actionRequestRef\.current[\s\S]*?actionRequestRef[\s\S]*?takeNext[\s\S]*?actionRequestRef\.current = true/,
   'Moderation claim, release, enforcement, and resolution actions must not overlap under rapid admin input.')
@@ -330,6 +336,9 @@ lock('Moment comment pagination serializes requests', activityView,
 lock('Safety report and block actions serialize rapid submissions', userSafetyActions,
   /actionRequestRef[\s\S]*?submitReport[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?confirmBlock[\s\S]*?if \(actionRequestRef\.current\) return/,
   'Rapid report/block actions must share synchronous request ownership instead of relying on delayed React busy state.')
+lock('Safety mode controls stay frozen during mutations', userSafetyActions,
+  /disabled=\{busy\}[\s\S]*?REPORT[\s\S]*?disabled=\{busy\}[\s\S]*?BLOCK[\s\S]*?disabled=\{busy\}[\s\S]*?SEND REPORT[\s\S]*?disabled=\{busy\}[\s\S]*?CANCEL/,
+  'Report/block sheets must not switch or close underneath an in-flight safety mutation.')
 lock('Unblock action serializes rapid submissions', blockedPeople,
   /actionRequestRef[\s\S]*?unblock[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false/,
   'Rapid unblock taps must not submit duplicate mutations.')

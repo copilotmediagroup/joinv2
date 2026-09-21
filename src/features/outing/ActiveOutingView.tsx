@@ -195,12 +195,12 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
         ) : (
           <div className="active-outing-confirm">
             <strong>END YOUR SIGNAL?</strong><span>Your check-in and Moments stay with this outing.</span>
-            <div><button type="button" className="confirm" disabled={ending} onClick={() => { void finishOuting() }}>{ending ? 'ENDING…' : 'YES · GOOD NIGHT'}</button><button type="button" onClick={() => setConfirmEnd(false)}>NOT YET</button></div>
+            <div><button type="button" className="confirm" disabled={ending || leaving} onClick={() => { void finishOuting() }}>{ending ? 'ENDING…' : 'YES · GOOD NIGHT'}</button><button type="button" onClick={() => setConfirmEnd(false)}>NOT YET</button></div>
           </div>
         )}
       </section>
 
-      <button type="button" className="active-outing-safety" disabled={leaving} onClick={() => { void safetyLeave() }}>
+      <button type="button" className="active-outing-safety" disabled={leaving || ending} onClick={() => { void safetyLeave() }}>
         <ShieldAlert size={17}/><span><strong>{leaving ? 'LEAVING…' : "I DON'T FEEL SAFE"}</strong><small>Leave this Signal immediately</small></span>
       </button>
       {error && <div className="active-outing-error" role="alert">{error}</div>}
