@@ -82,8 +82,10 @@ export default function SignalPlaceStage({
   const deadlockRestartingRef = useRef(false)
   const deadlockRetryCountRef = useRef(0)
   const locationPreparedRef = useRef(false)
+  const roundRequestIdRef = useRef(0)
 
   const loadRound = useCallback(async () => {
+    const requestId = ++roundRequestIdRef.current
     try {
       let allowCityFallback = true
       if (!locationPreparedRef.current) {
@@ -115,18 +117,20 @@ export default function SignalPlaceStage({
           allowCityFallback: true,
         })
       }
+      if (requestId !== roundRequestIdRef.current) return
       setSnapshot(next)
       setNoUsableVenue(next.places.length === 0)
       setPlacesError(null)
       setSecondsLeft(secondsUntil(next.round.closesAt))
     } catch (error) {
+      if (requestId !== roundRequestIdRef.current) return
       const terminalVenueFailure = error instanceof SignalNoUsableVenueError
       setNoUsableVenue(terminalVenueFailure)
       setPlacesError(
         toUserFacingError(error, 'Unable to load places right now.'),
       )
     } finally {
-      setPlacesLoading(false)
+      if (requestId === roundRequestIdRef.current) setPlacesLoading(false)
     }
   }, [signalGroupId])
 

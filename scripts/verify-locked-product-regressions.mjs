@@ -150,6 +150,9 @@ lock('Group chat member refresh ignores stale realtime responses', messages,
 lock('Signal venue and time choices serialize rapid submissions', signalPlaceStage + signalTimeStage,
   /voteRequestRef[\s\S]*?castVote[\s\S]*?voteRequestRef\.current[\s\S]*?voteRequestRef\.current = true[\s\S]*?voteRequestRef\.current = false[\s\S]*?availabilityRequestRef[\s\S]*?toggleAvailability[\s\S]*?availabilityRequestRef\.current[\s\S]*?availabilityRequestRef\.current = true[\s\S]*?availabilityRequestRef\.current = false[\s\S]*?choosePreference[\s\S]*?availabilityRequestRef\.current/,
   'Rapid venue votes and time choices must preserve one client-owned mutation at a time.')
+lock('Venue-stage refresh ignores stale realtime responses', signalPlaceStage,
+  /roundRequestIdRef[\s\S]*?requestId = \+\+roundRequestIdRef\.current[\s\S]*?requestId !== roundRequestIdRef\.current[\s\S]*?requestId === roundRequestIdRef\.current/,
+  'Overlapping initial, realtime, and post-vote venue reads must not let an older response overwrite newer round authority.')
 lock('Time-stage member refresh ignores stale realtime responses', signalTimeStage,
   /refreshEpoch = 0[\s\S]*?requestEpoch = \+\+refreshEpoch[\s\S]*?requestEpoch === refreshEpoch/,
   'Time-stage member lists must not let older realtime reads overwrite newer membership state.')
@@ -216,6 +219,9 @@ lock('Live location publishing accepts real live Plan states', liveLocationMigra
 lock('Live map retains fixed destination and user markers', liveMap,
   /destination\.latitude[\s\S]*?destination\.longitude[\s\S]*?redIcon[\s\S]*?userPosition[\s\S]*?blueIcon/,
   'The destination and current-user positions must remain distinct map authorities.')
+lock('Signal withdrawal serializes rapid leave actions', app,
+  /withdrawalRequestRef[\s\S]*?handleLeaveSignal[\s\S]*?withdrawalRequestRef\.current[\s\S]*?withdrawalRequestRef\.current = true[\s\S]*?withdrawMySignal[\s\S]*?withdrawalRequestRef\.current = false/,
+  'Rapid Leave Signal taps must not issue duplicate withdrawal mutations or race local journey reset.')
 lock('Pre-lock formation keeps joined participant proof', app,
   /signalParticipants\.slice\(0, 4\)[\s\S]*?participant\.displayName[\s\S]*?\+ JOINED/,
   'Users must see who is joining before the Signal locks instead of jumping blindly to coordination.')

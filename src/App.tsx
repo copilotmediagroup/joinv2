@@ -292,6 +292,7 @@ function App() {
     useState(true)
   const [discoveryError, setDiscoveryError] =
     useState<string | null>(null)
+  const discoveryRequestEpochRef = useRef(0)
 
   const [activeSurface, setActiveSurface] =
     useState<'discover' | 'activity' | 'messages' | 'profile' | 'public-profile' | 'admin'>('discover')
@@ -381,6 +382,7 @@ function App() {
     useState<string | null>(null)
   const [withdrawalSubmitting, setWithdrawalSubmitting] =
     useState(false)
+  const withdrawalRequestRef = useRef(false)
   const [withdrawalError, setWithdrawalError] =
     useState<string | null>(null)
 
@@ -509,6 +511,7 @@ function App() {
   }, [currentUser.avatarPath])
 
   const refreshDiscovery = async () => {
+    const requestEpoch = ++discoveryRequestEpochRef.current
     setDiscoveryLoading(true)
     setDiscoveryError(null)
 
@@ -1261,7 +1264,7 @@ function App() {
 
   const handleLeaveSignal = async () => {
     if (
-      withdrawalSubmitting ||
+      withdrawalRequestRef.current ||
       !canWithdrawSignal
     ) {
       return
@@ -1279,6 +1282,7 @@ function App() {
       return
     }
 
+    withdrawalRequestRef.current = true
     setWithdrawalSubmitting(true)
     setWithdrawalError(null)
 
@@ -1332,6 +1336,7 @@ function App() {
         toUserFacingError(error, 'Unable to leave this Signal right now.'),
       )
     } finally {
+      withdrawalRequestRef.current = false
       setWithdrawalSubmitting(false)
     }
   }
