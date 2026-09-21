@@ -1,5 +1,5 @@
 import { ArrowLeft, MapPin, MessageCircle, Play, Zap } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getPublicProfileConnectionCount, getPublicProfileConnections, getPublicProfileMoments, getPublicSignalProfile, type PublicProfileConnection, type PublicProfileMoment, type PublicSignalProfile } from './publicProfileClient'
 import UserSafetyActions from '../safety/UserSafetyActions'
 import './ProfileView.css'
@@ -23,6 +23,11 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
   const [momentsLoadingMore, setMomentsLoadingMore] = useState(false)
   const [connectionsHaveMore, setConnectionsHaveMore] = useState(false)
   const [connectionsLoadingMore, setConnectionsLoadingMore] = useState(false)
+  const activeUserIdRef = useRef(userId)
+
+  useEffect(() => {
+    activeUserIdRef.current = userId
+  }, [userId])
 
   useEffect(() => {
     let active = true
@@ -38,28 +43,32 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
   }, [userId])
 
   async function loadMoreMoments() {
+    const requestedUserId = userId
     const last = moments[moments.length - 1]
     if (!last || momentsLoadingMore || !momentsHaveMore) return
     setMomentsLoadingMore(true)
     try {
-      const page = await getPublicProfileMoments(userId, { publishedAt: last.publishedAt, momentId: last.momentId })
+      const page = await getPublicProfileMoments(requestedUserId, { publishedAt: last.publishedAt, momentId: last.momentId })
+      if (requestedUserId !== activeUserIdRef.current) return
       setMoments((current) => [...current, ...page.moments])
       setMomentsHaveMore(page.hasMore)
     } finally {
-      setMomentsLoadingMore(false)
+      if (requestedUserId === activeUserIdRef.current) setMomentsLoadingMore(false)
     }
   }
 
   async function loadMoreConnections() {
+    const requestedUserId = userId
     const last = connections[connections.length - 1]
     if (!last || connectionsLoadingMore || !connectionsHaveMore) return
     setConnectionsLoadingMore(true)
     try {
-      const page = await getPublicProfileConnections(userId, { connectedAt: last.connectedAt, connectionId: last.connectionId })
+      const page = await getPublicProfileConnections(requestedUserId, { connectedAt: last.connectedAt, connectionId: last.connectionId })
+      if (requestedUserId !== activeUserIdRef.current) return
       setConnections((current) => [...current, ...page.connections])
       setConnectionsHaveMore(page.hasMore)
     } finally {
-      setConnectionsLoadingMore(false)
+      if (requestedUserId === activeUserIdRef.current) setConnectionsLoadingMore(false)
     }
   }
 

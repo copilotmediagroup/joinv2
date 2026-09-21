@@ -159,6 +159,9 @@ lock('Profile identity gallery uses batched private signing', profile,
 lock('Signal Life stays cursor-paginated with batched media signing', profileMomentClient + publicProfileClient + publicProfile,
   /createSignedUrls[\s\S]*?get_my_profile_signal_moments_page[\s\S]*?get_signal_public_profile_moments_page[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE SIGNAL LIFE/,
   'Profile growth must not restore the old 60-Moment eager load or one signing request per media object.')
+lock('Public profile pagination stays bound to viewed user', publicProfile,
+  /activeUserIdRef[\s\S]*?requestedUserId !== activeUserIdRef\.current[\s\S]*?getPublicProfileConnections\(requestedUserId[\s\S]*?requestedUserId !== activeUserIdRef\.current/,
+  'Navigating between profiles must not append an older profile pagination response into the newly viewed person.')
 lock('Public connections remain clickable and exact-count driven', publicProfile,
   /getPublicProfileConnectionCount[\s\S]*?connectionCount[\s\S]*?setConnectionsOpen\(true\)[\s\S]*?SIGNAL CONNECTIONS/,
   'Connections count/list/profile navigation is a locked profile behavior.')
