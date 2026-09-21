@@ -83,8 +83,8 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
 
     <div className="profile-view-clout">
       <div><strong>{profile.signalsJoined}</strong><span>Signals</span></div>
-      <div><strong>{profile.completedMeetups}</strong><span>Meetups</span></div>
-      <div><strong>{profile.verifiedShowUps}</strong><span>Show-ups</span></div>
+      <div><strong>{profile.completedMeetups}</strong><span>Meet ups</span></div>
+      <div><strong>{profile.verifiedShowUps}</strong><span>Verified showups</span></div>
     </div>
 
     {profile.connectionState === 'connected' && onMessage ? <button className="public-profile-message" type="button" onClick={onMessage}><MessageCircle size={15}/> MESSAGE</button> : null}

@@ -97,7 +97,7 @@ lock('Notification realtime toast remains wired', app,
   /notification-toast[\s\S]*?setNotificationsOpen\(true\)/,
   'Peer events must remain visible without requiring navigation/reload.')
 lock('Profile reputation stats remain prominent', profile,
-  /signalsJoined[\s\S]*?Signals[\s\S]*?completedMeetups[\s\S]*?Meetups[\s\S]*?verifiedShowUps[\s\S]*?Show-ups/,
+  /signalsJoined[\s\S]*?Signals[\s\S]*?completedMeetups[\s\S]*?Meet ups[\s\S]*?verifiedShowUps[\s\S]*?Verified showups/,
   'Signals, Meetups, and verified show-ups are locked profile product requirements.')
 lock('Your Signal Life remains on profile', profile,
   /ProfileSignalLife/,

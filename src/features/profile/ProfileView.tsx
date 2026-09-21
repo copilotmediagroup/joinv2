@@ -1050,8 +1050,8 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
         {signalHistory ? (
           <div className="profile-view-clout" aria-label="Signal history">
             <div><strong>{signalHistory.signalsJoined}</strong><span>Signals</span></div>
-            <div><strong>{signalHistory.completedMeetups}</strong><span>Meetups</span></div>
-            <div><strong>{signalHistory.verifiedShowUps}</strong><span>Show-ups</span></div>
+            <div><strong>{signalHistory.completedMeetups}</strong><span>Meet ups</span></div>
+            <div><strong>{signalHistory.verifiedShowUps}</strong><span>Verified showups</span></div>
           </div>
         ) : null}
 
