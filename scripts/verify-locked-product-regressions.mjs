@@ -261,6 +261,9 @@ lock('Public connections remain clickable and exact-count driven', publicProfile
 lock('Public connection modal stays paginated with batched avatars', publicProfileClient + avatarClient + publicProfile,
   /get_signal_public_profile_connections_page[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE CONNECTIONS/,
   'Large social graphs must remain cursor-paginated and avoid one avatar-signing request per connection.')
+lock('Connection actions release synchronous ownership', stayConnected + myConnections,
+  /connect[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?respond[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?message[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?disconnect[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false/,
+  'Connection request ownership must release after every success or failure so later actions cannot deadlock.')
 lock('Connection actions serialize rapid mutations', stayConnected + myConnections,
   /actionRequestRef[\s\S]*?connect[\s\S]*?actionRequestRef\.current[\s\S]*?respond[\s\S]*?actionRequestRef\.current[\s\S]*?message[\s\S]*?actionRequestRef\.current[\s\S]*?disconnect[\s\S]*?actionRequestRef\.current/,
   'Connect, accept/decline, message-open, and disconnect actions must not rely only on delayed React busy state.')
@@ -294,6 +297,9 @@ lock('Profile preference saves serialize rapid mutations', profilePreferences + 
 lock('Auth and onboarding submissions serialize rapid submits', authGate + onboardingGate,
   /submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false[\s\S]*?submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false/,
   'Authentication and onboarding writes must not rely only on delayed React submitting state.')
+lock('Moderation actions serialize rapid admin mutations', moderationView + momentModeration,
+  /actionRequestRef[\s\S]*?takeNext[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?releaseSelected[\s\S]*?actionRequestRef\.current[\s\S]*?runEnforcement[\s\S]*?actionRequestRef\.current[\s\S]*?finishSelected[\s\S]*?actionRequestRef\.current[\s\S]*?actionRequestRef[\s\S]*?takeNext[\s\S]*?actionRequestRef\.current = true/,
+  'Moderation claim, release, enforcement, and resolution actions must not overlap under rapid admin input.')
 lock('Moderation queues serialize pagination and reject stale tabs', moderationView + momentModeration,
   /queueEpochRef[\s\S]*?pageRequestRef[\s\S]*?requestEpoch = append \? queueEpochRef\.current : \+\+queueEpochRef\.current[\s\S]*?requestEpoch !== queueEpochRef\.current/,
   'People and Moment moderation queues must not duplicate cursor pages or let an older tab response replace the current queue.')
@@ -312,6 +318,9 @@ lock('Social list avatars use batched private signing', signalConnectionsClient 
 lock('Moment social mutations serialize rapid actions', activityView,
   /socialMutationRef[\s\S]*?deleteRequestRef[\s\S]*?reportRequestRef[\s\S]*?handleSignal[\s\S]*?socialMutationRef\.current = true[\s\S]*?socialMutationRef\.current = false[\s\S]*?handleComment[\s\S]*?socialMutationRef\.current = true[\s\S]*?socialMutationRef\.current = false[\s\S]*?handleDelete[\s\S]*?deleteRequestRef\.current = true[\s\S]*?deleteRequestRef\.current = false[\s\S]*?handleReport[\s\S]*?reportRequestRef\.current = true[\s\S]*?reportRequestRef\.current = false/,
   'Moment signals, comments, deletes, and reports must synchronously own their mutation request.')
+lock('Moment comment deletion serializes rapid actions', activityView,
+  /commentDeleteRequestRef[\s\S]*?handleCommentDelete[\s\S]*?commentDeleteRequestRef\.current[\s\S]*?commentDeleteRequestRef\.current = true[\s\S]*?deleteMyMomentComment[\s\S]*?commentDeleteRequestRef\.current = false/,
+  'Rapid comment delete taps must not issue duplicate destructive mutations.')
 lock('Moment comment pagination serializes requests', activityView,
   /commentsRequestRef[\s\S]*?commentsRequestRef\.current[\s\S]*?commentsRequestRef\.current = true[\s\S]*?setComments[\s\S]*?loadOlder[\s\S]*?commentsRequestRef\.current = false/,
   'Comment refresh and LOAD OLDER must not overlap and overwrite or duplicate the paginated thread.')

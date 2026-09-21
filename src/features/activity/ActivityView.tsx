@@ -175,6 +175,7 @@ function CurrentActivityCard({
   const socialMutationRef = useRef(false)
   const deleteRequestRef = useRef(false)
   const reportRequestRef = useRef(false)
+  const commentDeleteRequestRef = useRef(false)
 
   const loadComments = async (loadOlder = false) => {
     if (commentsRequestRef.current) return
@@ -217,6 +218,20 @@ function CurrentActivityCard({
       setReplyTo(null)
       await loadComments()
     } finally { socialMutationRef.current = false; setSocialBusy(false) }
+  }
+
+  const handleCommentDelete = async (commentId: string) => {
+    if (commentDeleteRequestRef.current) return
+    commentDeleteRequestRef.current = true
+    try {
+      await deleteMyMomentComment(commentId)
+      setCommentOverride({ baseCount: moment.commentCount, count: Math.max(0, commentCount - 1) })
+      await loadComments()
+    } catch (deleteError) {
+      setReportStatus(toUserFacingError(deleteError, 'Unable to delete that comment right now.'))
+    } finally {
+      commentDeleteRequestRef.current = false
+    }
   }
 
   const handleDelete = async () => {
@@ -346,7 +361,7 @@ function CurrentActivityCard({
           {commentsHaveMore ? <button type="button" className="signal-moment-comments-more" disabled={commentsLoading} onClick={() => void loadComments(true)}>{commentsLoading ? 'LOADING…' : 'LOAD OLDER COMMENTS'}</button> : null}
           {comments.map((comment) => <div key={comment.commentId} className={comment.parentCommentId ? 'signal-moment-comment is-reply' : 'signal-moment-comment'}>
             {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt=""/> : <i>{comment.authorDisplayName.slice(0,1)}</i>}
-            <div><p><strong>{comment.authorDisplayName}</strong> {comment.body}</p><span><button type="button" onClick={() => setReplyTo(comment.parentCommentId ? comments.find((item) => item.commentId === comment.parentCommentId) ?? comment : comment)}>REPLY</button>{comment.isMine ? <button type="button" onClick={async () => { await deleteMyMomentComment(comment.commentId); setCommentOverride({ baseCount: moment.commentCount, count: Math.max(0, commentCount - 1) }); await loadComments() }}>DELETE</button> : null}</span></div>
+            <div><p><strong>{comment.authorDisplayName}</strong> {comment.body}</p><span><button type="button" onClick={() => setReplyTo(comment.parentCommentId ? comments.find((item) => item.commentId === comment.parentCommentId) ?? comment : comment)}>REPLY</button>{comment.isMine ? <button type="button" onClick={() => void handleCommentDelete(comment.commentId)}>DELETE</button> : null}</span></div>
           </div>)}
           {replyTo ? <div className="signal-moment-replying">Replying to {replyTo.authorDisplayName}<button type="button" onClick={() => setReplyTo(null)}>×</button></div> : null}
           <div className="signal-moment-comment-compose"><input maxLength={1000} value={commentBody} placeholder={replyTo ? 'Reply to ' + replyTo.authorDisplayName + '…' : 'Add a comment…'} onChange={(e) => setCommentBody(e.target.value)} onKeyDown={(e) => { if(e.key==='Enter') void handleComment() }}/><button type="button" disabled={socialBusy || !commentBody.trim()} onClick={() => void handleComment()}>POST</button></div>

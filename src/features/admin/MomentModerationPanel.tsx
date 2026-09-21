@@ -46,6 +46,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
   const [suspensionMinutes, setSuspensionMinutes] = useState(1440)
   const queueEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
+  const actionRequestRef = useRef(false)
 
   const selected = useMemo(
     () => items.find((item) => item.reportId === selectedId) ?? null,
@@ -110,6 +111,8 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
   }, [selected])
 
   const takeNext = async () => {
+    if (actionRequestRef.current) return
+    actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
@@ -130,11 +133,13 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
     } catch (claimError) {
       setError(toUserFacingError(claimError, 'Unable to take the next Moment report.'))
     } finally {
+      actionRequestRef.current = false
       setActionLoading(false)
     }
   }
   const releaseSelected = async () => {
-    if (!selected) return
+    if (!selected || actionRequestRef.current) return
+    actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
@@ -144,14 +149,16 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
     } catch (releaseError) {
       setError(toUserFacingError(releaseError, 'Unable to release this Moment report.'))
     } finally {
+      actionRequestRef.current = false
       setActionLoading(false)
     }
   }
 
   const runAuthorEnforcement = async (action: 'warning' | 'suspension' | 'ban') => {
-    if (!selected || !canEnforce) return
+    if (!selected || !canEnforce || actionRequestRef.current) return
     const reason = enforcementReason.trim()
     if (reason.length < 3) { setError('Enter an enforcement reason before taking action.'); return }
+    actionRequestRef.current = true
     setActionLoading(true); setError(null)
     try {
       await enforceMomentAuthorAccount({
@@ -161,11 +168,12 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
       setEnforcementReason('')
     } catch (enforceError) {
       setError(toUserFacingError(enforceError, 'Unable to enforce this Moment author account.'))
-    } finally { setActionLoading(false) }
+    } finally { actionRequestRef.current = false; setActionLoading(false) }
   }
 
   const finishSelected = async (state: 'dismissed' | 'actioned') => {
-    if (!selected) return
+    if (!selected || actionRequestRef.current) return
+    actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
@@ -179,6 +187,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
     } catch (reviewError) {
       setError(toUserFacingError(reviewError, 'Unable to finish this Moment report.'))
     } finally {
+      actionRequestRef.current = false
       setActionLoading(false)
     }
   }

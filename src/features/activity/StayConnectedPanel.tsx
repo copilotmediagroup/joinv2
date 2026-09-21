@@ -53,6 +53,7 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
     } catch (actionError) {
       setError(toUserFacingError(actionError, 'Unable to send that connection request right now.'))
     } finally {
+      actionRequestRef.current = false
       setBusyUserId(null)
     }
   }
@@ -68,6 +69,7 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
     } catch (actionError) {
       setError(toUserFacingError(actionError, 'Unable to update that connection right now.'))
     } finally {
+      actionRequestRef.current = false
       setBusyUserId(null)
     }
   }

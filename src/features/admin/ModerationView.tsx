@@ -51,6 +51,7 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
   const [suspensionMinutes, setSuspensionMinutes] = useState(1440)
   const queueEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
+  const actionRequestRef = useRef(false)
 
   const selected = useMemo(
     () => items.find((item) => item.reportId === selectedId) ?? null,
@@ -119,6 +120,8 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
   }
 
   const takeNext = async () => {
+    if (actionRequestRef.current) return
+    actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
@@ -139,11 +142,13 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
     } catch (claimError) {
       setError(toUserFacingError(claimError, 'Unable to take the next report.'))
     } finally {
+      actionRequestRef.current = false
       setActionLoading(false)
     }
   }
   const releaseSelected = async () => {
-    if (!selected) return
+    if (!selected || actionRequestRef.current) return
+    actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
@@ -153,14 +158,16 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
     } catch (releaseError) {
       setError(toUserFacingError(releaseError, 'Unable to release this report.'))
     } finally {
+      actionRequestRef.current = false
       setActionLoading(false)
     }
   }
 
   const runEnforcement = async (action: 'warning' | 'suspension' | 'ban' | 'lift') => {
-    if (!selected || !canEnforce) return
+    if (!selected || !canEnforce || actionRequestRef.current) return
     const reason = enforcementReason.trim()
     if (reason.length < 3) { setError('Enter an enforcement reason before taking action.'); return }
+    actionRequestRef.current = true
     setActionLoading(true); setError(null)
     try {
       if (action === 'lift') await liftUserAccountRestriction(selected.reportedUserId, reason)
@@ -168,11 +175,12 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
       setEnforcement(await getUserAccountEnforcementSummary(selected.reportedUserId))
       setEnforcementReason('')
     } catch (enforceError) { setError(toUserFacingError(enforceError, 'Unable to apply this enforcement action.')) }
-    finally { setActionLoading(false) }
+    finally { actionRequestRef.current = false; setActionLoading(false) }
   }
 
   const finishSelected = async (state: 'resolved' | 'dismissed') => {
-    if (!selected) return
+    if (!selected || actionRequestRef.current) return
+    actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
@@ -186,6 +194,7 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
     } catch (reviewError) {
       setError(toUserFacingError(reviewError, 'Unable to finish this report.'))
     } finally {
+      actionRequestRef.current = false
       setActionLoading(false)
     }
   }

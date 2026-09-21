@@ -95,6 +95,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
     } catch (actionError) {
       setError(toUserFacingError(actionError, 'Unable to open a message right now.'))
     } finally {
+      actionRequestRef.current = false
       setBusyId(null)
     }
   }
@@ -110,6 +111,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
     } catch (actionError) {
       setError(toUserFacingError(actionError, 'Unable to disconnect right now.'))
     } finally {
+      actionRequestRef.current = false
       setBusyId(null)
     }
   }
