@@ -1725,6 +1725,7 @@ function App() {
         <NotificationPanel
           userId={currentUser.userId}
           refreshToken={notificationRefreshToken}
+          totalUnreadCount={notificationUnreadCount}
           onOpenPlan={() => { setNotificationsOpen(false); void restoreActiveSignal(true) }}
           onOpenSignal={handleOpenSignalNotification}
           onHistorical={handleHistoricalNotification}

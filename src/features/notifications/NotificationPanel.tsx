@@ -13,6 +13,7 @@ import { toUserFacingError } from '../../lib/userFacingError'
 type NotificationPanelProps = {
   userId: string
   refreshToken?: number
+  totalUnreadCount?: number
   onOpenPlan?: (planId: string) => void
   onOpenSignal?: (target: Extract<NotificationTarget, { targetType: 'signal' }>, notificationType: string) => void
   onHistorical?: (notificationType: string, relatedPlanId: string | null, relatedEntityId: string | null) => void
@@ -31,6 +32,7 @@ function relativeTime(iso: string): string {
 export default function NotificationPanel({
   userId,
   refreshToken = 0,
+  totalUnreadCount,
   onOpenPlan,
   onOpenSignal,
   onHistorical,
@@ -93,7 +95,7 @@ export default function NotificationPanel({
     <aside className="notification-panel" aria-label="Notifications">
       <header>
         <span><Bell size={15} /> SIGNAL ALERTS</span>
-        <strong>{unreadCount ? `${unreadCount} NEW` : 'ALL CAUGHT UP'}</strong>
+        <strong>{(totalUnreadCount ?? unreadCount) ? `${totalUnreadCount ?? unreadCount} NEW` : 'ALL CAUGHT UP'}</strong>
       </header>
 
       {error && <p className="notification-error" role="alert">{error}</p>}
