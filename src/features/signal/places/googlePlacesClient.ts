@@ -236,15 +236,16 @@ export function subscribeToSignalVenueRound(
     }, 2500)
   }
 
-  const channel = supabase
-    .channel(`signal-venue:${signalGroupId}`)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'signal_venue_rounds',
-      filter: `signal_group_id=eq.${signalGroupId}`,
-    }, onInvalidate)
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') onInvalidate()
-    })
+  let channel: ReturnType<typeof supabase.channel> | null = null
+  void supabase.realtime.setAuth().then(() => {
+    if (stopped) return
+    channel = supabase
+      .channel(`signal-venue:${signalGroupId}`, { config: { private: true } })
+      .on('broadcast', { event: 'refresh' }, onInvalidate)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') onInvalidate()
+      })
+  })
 
   // Realtime is the fast path; bounded authoritative reads prevent a missed
   // round event from stranding one member on an obsolete coordination screen.
@@ -253,6 +254,6 @@ export function subscribeToSignalVenueRound(
   return () => {
     stopped = true
     if (reconciliationTimer !== null) window.clearTimeout(reconciliationTimer)
-    void supabase.removeChannel(channel)
+    if (channel) void supabase.removeChannel(channel)
   }
 }

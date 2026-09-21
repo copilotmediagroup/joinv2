@@ -121,15 +121,16 @@ export function subscribeToSignalTimeRound(
     }, 2500)
   }
 
-  const channel = supabase
-    .channel(`signal-time:${signalGroupId}`)
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'signal_time_rounds',
-      filter: `signal_group_id=eq.${signalGroupId}`,
-    }, onInvalidate)
-    .subscribe((status) => {
-      if (status === 'SUBSCRIBED') onInvalidate()
-    })
+  let channel: ReturnType<typeof supabase.channel> | null = null
+  void supabase.realtime.setAuth().then(() => {
+    if (stopped) return
+    channel = supabase
+      .channel(`signal-time:${signalGroupId}`, { config: { private: true } })
+      .on('broadcast', { event: 'refresh' }, onInvalidate)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') onInvalidate()
+      })
+  })
 
   // Time lock is server-owned. Reconcile while this stage is mounted so a
   // dropped websocket event cannot require a manual browser reload.
@@ -138,7 +139,7 @@ export function subscribeToSignalTimeRound(
   return () => {
     stopped = true
     if (reconciliationTimer !== null) window.clearTimeout(reconciliationTimer)
-    void supabase.removeChannel(channel)
+    if (channel) void supabase.removeChannel(channel)
   }
 }
 
