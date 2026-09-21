@@ -130,8 +130,10 @@ export async function subscribeToSignalDiscovery(
     throw new Error('Signal discovery realtime topic is unavailable.')
   }
 
+  await supabase.realtime.setAuth()
+
   const channel = supabase
-    .channel(data)
+    .channel(data, { config: { private: true } })
     .on('broadcast', { event: 'refresh' }, () => onRefresh())
 
   await new Promise<void>((resolve, reject) => {
