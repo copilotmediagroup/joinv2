@@ -1,5 +1,5 @@
 import { Check, UserPlus, Users, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import { useSignalCurrentUser } from '../onboarding/components/signalCurrentUserContext'
 import {
@@ -16,15 +16,20 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
   const [loading, setLoading] = useState(true)
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const refreshEpochRef = useRef(0)
 
   const refresh = useCallback(async () => {
+    const requestEpoch = ++refreshEpochRef.current
     try {
-      setPeople(await getCompletedPlanConnections(planId))
+      const nextPeople = await getCompletedPlanConnections(planId)
+      if (requestEpoch !== refreshEpochRef.current) return
+      setPeople(nextPeople)
       setError(null)
     } catch (loadError) {
+      if (requestEpoch !== refreshEpochRef.current) return
       setError(toUserFacingError(loadError, 'Unable to load people from this Signal right now.'))
     } finally {
-      setLoading(false)
+      if (requestEpoch === refreshEpochRef.current) setLoading(false)
     }
   }, [planId])
 

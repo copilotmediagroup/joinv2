@@ -168,6 +168,9 @@ lock('Public connections remain clickable and exact-count driven', publicProfile
 lock('Public connection modal stays paginated with batched avatars', publicProfileClient + avatarClient + publicProfile,
   /get_signal_public_profile_connections_page[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE CONNECTIONS/,
   'Large social graphs must remain cursor-paginated and avoid one avatar-signing request per connection.')
+lock('Post-Signal connection refresh ignores stale responses', stayConnected,
+  /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
+  'Realtime and action-triggered refreshes must not let an older post-Signal connection response overwrite newer state.')
 lock('Declined post-Signal connections remain retryable', stayConnected,
   /person\.state === 'none' \|\| person\.state === 'declined'[\s\S]*?CONNECT AGAIN/,
   'A declined request must not permanently remove the ability to reconnect after the Signal.')
