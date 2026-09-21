@@ -60,6 +60,8 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
   const [attendanceBusy, setAttendanceBusy] = useState(false)
   const refreshEpochRef = useRef(0)
   const attendanceRefreshEpochRef = useRef(0)
+  const governanceActionRef = useRef(false)
+  const attendanceActionRef = useRef(false)
 
   const refresh = useCallback(async () => {
     const requestEpoch = ++refreshEpochRef.current
@@ -151,7 +153,8 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
   }, [attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
 
   const checkIn = async () => {
-    if (attendanceBusy || !attendance?.canCheckIn) return
+    if (attendanceActionRef.current || !attendance?.canCheckIn) return
+    attendanceActionRef.current = true
     setAttendanceBusy(true)
     setError(null)
     const requestEpoch = ++attendanceRefreshEpochRef.current
@@ -162,6 +165,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
     } catch (checkInError) {
       setError(toUserFacingError(checkInError, 'Unable to check you in right now. Please try again.'))
     } finally {
+      attendanceActionRef.current = false
       setAttendanceBusy(false)
     }
   }
@@ -171,7 +175,8 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
     id: string,
     vote: PlanGovernanceVote,
   ) => {
-    if (busy) return
+    if (governanceActionRef.current) return
+    governanceActionRef.current = true
     setBusy(true)
     setError(null)
     try {
@@ -181,17 +186,19 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
     } catch (voteError) {
       setError(toUserFacingError(voteError, 'Your vote did not go through. Try again.'))
     } finally {
+      governanceActionRef.current = false
       setBusy(false)
     }
   }
 
   const proposeTime = async () => {
-    if (busy || !newTime) return
+    if (governanceActionRef.current || !newTime) return
     const parsed = new Date(newTime)
     if (Number.isNaN(parsed.getTime())) {
       setError('Choose a valid meetup time.')
       return
     }
+    governanceActionRef.current = true
     setBusy(true)
     setError(null)
     try {
@@ -200,18 +207,21 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
     } catch (proposalError) {
       setError(toUserFacingError(proposalError, 'Unable to propose that time right now.'))
     } finally {
+      governanceActionRef.current = false
       setBusy(false)
     }
   }
 
   const leave = async (reason: 'left' | 'safety' = 'left') => {
-    if (busy) return
+    if (governanceActionRef.current) return
+    governanceActionRef.current = true
     setBusy(true)
     setError(null)
     try {
       await leaveMyPlan(planId)
       onLeftPlan?.(reason)
     } catch (leaveError) {
+      governanceActionRef.current = false
       setError(toUserFacingError(leaveError, 'Unable to leave the Plan right now.'))
       setBusy(false)
     }

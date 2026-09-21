@@ -157,6 +157,9 @@ lock('DONE HERE remains separate from safety leave', outing,
 lock('Plan attendance polling ignores stale responses', planGovernance,
   /attendanceRefreshEpochRef[\s\S]*?requestEpoch = \+\+attendanceRefreshEpochRef\.current[\s\S]*?requestEpoch === attendanceRefreshEpochRef\.current[\s\S]*?checkInToMyPlan/,
   'Plan attendance polling and check-in must not let an older attendance read overwrite newer authority.')
+lock('Plan governance actions serialize rapid mutations', planGovernance,
+  /governanceActionRef[\s\S]*?attendanceActionRef[\s\S]*?if \(attendanceActionRef\.current \|\| !attendance\?\.canCheckIn\) return[\s\S]*?if \(governanceActionRef\.current\) return[\s\S]*?proposeTime[\s\S]*?governanceActionRef\.current[\s\S]*?leave[\s\S]*?governanceActionRef\.current/,
+  'Check-in, governance votes, time proposals, and leave actions must not depend only on delayed React busy state.')
 lock('Plan governance refresh ignores stale realtime responses', planGovernance,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Overlapping Plan governance refreshes must not let older voting, replacement, or attendance state overwrite newer authority.')
