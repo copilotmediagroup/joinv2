@@ -175,35 +175,33 @@ export function subscribeToPlanMessagesRealtime(
 
   emitConnectionState('connecting')
 
-  channel = supabase
-    .channel(
-      `messages:${normalizedConversationId}`,
-    )
-    .on(
-      'postgres_changes',
-      {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter:
-          `conversation_id=eq.${normalizedConversationId}`,
-      },
-      () => {
-        void runRefresh()
-      },
-    )
-    .subscribe((status) => {
-      const normalized =
-        normalizeConnectionState(status)
+  void supabase.realtime.setAuth().then(() => {
+    if (stopped) return
+    channel = supabase
+      .channel(
+        `messages:${normalizedConversationId}`,
+        { config: { private: true } },
+      )
+      .on(
+        'broadcast',
+        { event: 'refresh' },
+        () => {
+          void runRefresh()
+        },
+      )
+      .subscribe((status) => {
+        const normalized =
+          normalizeConnectionState(status)
 
-      if (normalized) {
-        emitConnectionState(normalized)
-      }
+        if (normalized) {
+          emitConnectionState(normalized)
+        }
 
-      if (status === 'SUBSCRIBED') {
-        void runRefresh()
-      }
-    })
+        if (status === 'SUBSCRIBED') {
+          void runRefresh()
+        }
+      })
+  })
 
   /*
    * Initial authoritative read starts immediately.
@@ -249,25 +247,30 @@ export function subscribeToPlanTyping(
   let pendingTyping = false
   let lastSentTyping: boolean | null = null
   let stopTimer: ReturnType<typeof setTimeout> | null = null
+  let channel: RealtimeChannel | null = null
 
-  const channel = supabase.channel(`plan-typing:${conversationId}`)
-    .on('broadcast', { event: 'typing' }, ({ payload }) => {
-      if (stopped || !payload || payload.userId === currentUserId) return
-      if (typeof payload.userId === 'string' && typeof payload.typing === 'boolean') {
-        onMemberTyping(payload.userId, payload.typing)
-      }
-    })
-    .subscribe((status) => {
-      subscribed = status === 'SUBSCRIBED'
-      if (subscribed && pendingTyping !== lastSentTyping) {
-        lastSentTyping = pendingTyping
-        void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing: pendingTyping } })
-      }
-    })
+  void supabase.realtime.setAuth().then(() => {
+    if (stopped) return
+    channel = supabase
+      .channel(`plan-typing:${conversationId}`, { config: { private: true } })
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (stopped || !payload || payload.userId === currentUserId) return
+        if (typeof payload.userId === 'string' && typeof payload.typing === 'boolean') {
+          onMemberTyping(payload.userId, payload.typing)
+        }
+      })
+      .subscribe((status) => {
+        subscribed = status === 'SUBSCRIBED'
+        if (subscribed && channel && pendingTyping !== lastSentTyping) {
+          lastSentTyping = pendingTyping
+          void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing: pendingTyping } })
+        }
+      })
+  })
 
   const publish = (typing: boolean) => {
     pendingTyping = typing
-    if (!subscribed || stopped || lastSentTyping === typing) return
+    if (!channel || !subscribed || stopped || lastSentTyping === typing) return
     lastSentTyping = typing
     void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing } })
   }
@@ -283,11 +286,12 @@ export function subscribeToPlanTyping(
       if (stopped) return
       if (stopTimer) clearTimeout(stopTimer)
       stopTimer = null
-      if (subscribed && pendingTyping) {
+      if (channel && subscribed && pendingTyping) {
         void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing: false } })
       }
       stopped = true
-      void supabase.removeChannel(channel)
+      if (channel) void supabase.removeChannel(channel)
+      channel = null
     },
   }
 }
