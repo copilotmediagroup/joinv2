@@ -233,3 +233,61 @@ export function subscribeToPlanMessagesRealtime(
     },
   }
 }
+
+export type PlanTypingSubscription = {
+  setTyping: (typing: boolean) => void
+  stop: () => void
+}
+
+export function subscribeToPlanTyping(
+  conversationId: string,
+  currentUserId: string,
+  onMemberTyping: (userId: string, typing: boolean) => void,
+): PlanTypingSubscription {
+  let stopped = false
+  let subscribed = false
+  let pendingTyping = false
+  let lastSentTyping: boolean | null = null
+  let stopTimer: ReturnType<typeof setTimeout> | null = null
+
+  const channel = supabase.channel(`plan-typing:${conversationId}`)
+    .on('broadcast', { event: 'typing' }, ({ payload }) => {
+      if (stopped || !payload || payload.userId === currentUserId) return
+      if (typeof payload.userId === 'string' && typeof payload.typing === 'boolean') {
+        onMemberTyping(payload.userId, payload.typing)
+      }
+    })
+    .subscribe((status) => {
+      subscribed = status === 'SUBSCRIBED'
+      if (subscribed && pendingTyping !== lastSentTyping) {
+        lastSentTyping = pendingTyping
+        void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing: pendingTyping } })
+      }
+    })
+
+  const publish = (typing: boolean) => {
+    pendingTyping = typing
+    if (!subscribed || stopped || lastSentTyping === typing) return
+    lastSentTyping = typing
+    void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing } })
+  }
+
+  return {
+    setTyping: (typing) => {
+      if (stopped) return
+      if (stopTimer) { clearTimeout(stopTimer); stopTimer = null }
+      publish(typing)
+      if (typing) stopTimer = setTimeout(() => publish(false), 2200)
+    },
+    stop: () => {
+      if (stopped) return
+      if (stopTimer) clearTimeout(stopTimer)
+      stopTimer = null
+      if (subscribed && pendingTyping) {
+        void channel.send({ type: 'broadcast', event: 'typing', payload: { userId: currentUserId, typing: false } })
+      }
+      stopped = true
+      void supabase.removeChannel(channel)
+    },
+  }
+}

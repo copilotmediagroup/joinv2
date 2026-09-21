@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState,
 } from 'react'
 import type {
@@ -22,6 +23,7 @@ import {
 } from './messagingClient'
 import {
   subscribeToPlanMessagesRealtime,
+  subscribeToPlanTyping,
 } from './messagingRealtime'
 import {
   getMyPlanMembers,
@@ -96,6 +98,8 @@ export default function MessagesView({
   const [sending, setSending] = useState(false)
   const [error, setError] =
     useState<string | null>(null)
+  const [typingUserIds, setTypingUserIds] = useState<string[]>([])
+  const typingPublisherRef = useRef<((typing: boolean) => void) | null>(null)
 
   const selectedPlanId =
     conversations.find(
@@ -235,6 +239,32 @@ export default function MessagesView({
     }
   }, [selectedPlanId])
 
+  useEffect(() => {
+    if (!selectedConversationId) return
+    const idleTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    const typing = subscribeToPlanTyping(selectedConversationId, currentUserId, (userId, active) => {
+      const existing = idleTimers.get(userId)
+      if (existing) clearTimeout(existing)
+      idleTimers.delete(userId)
+      setTypingUserIds((current) => active
+        ? (current.includes(userId) ? current : [...current, userId])
+        : current.filter((id) => id !== userId))
+      if (active) {
+        idleTimers.set(userId, setTimeout(() => {
+          idleTimers.delete(userId)
+          setTypingUserIds((current) => current.filter((id) => id !== userId))
+        }, 3000))
+      }
+    })
+    typingPublisherRef.current = typing.setTyping
+    return () => {
+      idleTimers.forEach((timer) => clearTimeout(timer))
+      typing.stop()
+      typingPublisherRef.current = null
+      setTypingUserIds([])
+    }
+  }, [currentUserId, selectedConversationId])
+
   const loadMoreConversations = async () => {
     if (!conversationCursor || loadingMoreConversations) return
     setLoadingMoreConversations(true)
@@ -308,6 +338,7 @@ export default function MessagesView({
         })
       })
 
+      typingPublisherRef.current?.(false)
       setDraft('')
     } catch (sendError) {
       setError(
@@ -433,15 +464,24 @@ export default function MessagesView({
 
         </div>
 
+        <div className={`direct-typing-indicator ${typingUserIds.length > 0 ? 'is-visible' : ''}`} aria-live="polite">
+          {typingUserIds.length > 0 ? <>
+            <span><i/><i/><i/></span>
+            {typingUserIds.map((userId) => planMembers.find((member) => member.userId === userId)?.displayName ?? 'SIGNAL MEMBER').join(', ')} {typingUserIds.length === 1 ? 'is' : 'are'} typing…
+          </> : null}
+        </div>
+
         <form
           className="messages-compose"
           onSubmit={handleSend}
         >
           <input
             value={draft}
-            onChange={(event) =>
-              setDraft(event.target.value)
-            }
+            onChange={(event) => {
+              const next = event.target.value
+              setDraft(next)
+              typingPublisherRef.current?.(next.trim().length > 0)
+            }}
             maxLength={4000}
             aria-label="Message group"
             placeholder="Message the group..."
