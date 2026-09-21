@@ -225,49 +225,20 @@ function makeObjectPath(userId: string, planId: string, file: File): string {
 export function subscribeToSignalMoments(
   onChange: () => void,
 ): () => void {
-  const channel = supabase
-    .channel('signal-moments-feed')
-    .on(
-      'broadcast',
-      { event: 'changed' },
-      () => onChange(),
-    )
-    .subscribe()
+  let cancelled = false
+  let channel: ReturnType<typeof supabase.channel> | null = null
 
-  return () => {
-    void supabase.removeChannel(channel)
-  }
-}
-
-async function broadcastSignalMomentsChanged(): Promise<void> {
-  const channel = supabase.channel(
-    `signal-moments-publish-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-  )
-
-  await new Promise<void>((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      reject(new Error('Signal Moments realtime publish timed out.'))
-    }, 5000)
-
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        window.clearTimeout(timeout)
-        resolve()
-      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        window.clearTimeout(timeout)
-        reject(new Error('Signal Moments realtime publish failed.'))
-      }
-    })
+  void supabase.realtime.setAuth().then(() => {
+    if (cancelled) return
+    channel = supabase
+      .channel('signal-moments:feed', { config: { private: true } })
+      .on('broadcast', { event: 'changed' }, () => onChange())
+      .subscribe()
   })
 
-  try {
-    await channel.send({
-      type: 'broadcast',
-      event: 'changed',
-      payload: {},
-    })
-  } finally {
-    await supabase.removeChannel(channel)
+  return () => {
+    cancelled = true
+    if (channel) void supabase.removeChannel(channel)
   }
 }
 
@@ -336,7 +307,6 @@ export async function publishSignalMoment(input: {
 
         if (!error) {
           const momentId = requireString(data, 'moment_id')
-          void broadcastSignalMomentsChanged().catch(() => undefined)
           return momentId
         }
 
@@ -442,5 +412,4 @@ export async function deleteMySignalMoment(momentId: string): Promise<void> {
     }
   }
 
-  void broadcastSignalMomentsChanged().catch(() => undefined)
 }
