@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabaseClient'
-import { createProfileAvatarSignedUrl } from '../onboarding/avatarClient'
+import { createProfileAvatarSignedUrls } from '../onboarding/avatarClient'
 
 export type PlanMemberIdentity = {
   userId: string
@@ -31,23 +31,14 @@ function optionalString(value: unknown): string | null {
     : null
 }
 
-async function mapPlanMember(row: PlanMemberRow): Promise<PlanMemberIdentity> {
+function mapPlanMember(row: PlanMemberRow, avatarUrls: Map<string, string>): PlanMemberIdentity {
   const avatarPath = optionalString(row.avatar_path)
-  let avatarUrl: string | null = null
-
-  if (avatarPath) {
-    try {
-      avatarUrl = await createProfileAvatarSignedUrl(avatarPath)
-    } catch {
-      avatarUrl = null
-    }
-  }
 
   return {
     userId: requireString(row.user_id, 'user id'),
     displayName: requireString(row.display_name, 'display name'),
     avatarPath,
-    avatarUrl,
+    avatarUrl: avatarPath ? avatarUrls.get(avatarPath) ?? null : null,
     joinedAt: requireString(row.joined_at, 'joined at'),
     isMe: row.is_me === true,
   }
@@ -76,9 +67,17 @@ export async function getMyPlanMembers(
     throw new Error('Invalid Plan member response.')
   }
 
-  return Promise.all(
-    data.map((row) => mapPlanMember(row as PlanMemberRow)),
-  )
+  const rows = data as PlanMemberRow[]
+  const avatarPaths = [...new Set(rows.map((row) => optionalString(row.avatar_path)).filter((path): path is string => Boolean(path)))]
+  let avatarUrls = new Map<string, string>()
+  if (avatarPaths.length) {
+    try {
+      avatarUrls = await createProfileAvatarSignedUrls(avatarPaths)
+    } catch {
+      avatarUrls = new Map()
+    }
+  }
+  return rows.map((row) => mapPlanMember(row, avatarUrls))
 }
 
 export function subscribeToPlanMembers(

@@ -32,6 +32,7 @@ const [
   notificationPanel,
   adminOpsMigration,
   liveLocationMigration,
+  planMembersClient,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -63,6 +64,7 @@ const [
   read('src/features/notifications/NotificationPanel.tsx'),
   read('supabase/migrations/20260921081000_scale_admin_operations_snapshot.sql'),
   read('supabase/migrations/20260921083500_fix_live_plan_location_states.sql'),
+  read('src/features/plan/planMembersClient.ts'),
 ])
 
 const checks = []
@@ -170,6 +172,9 @@ lock('Admin operations counters remain independently indexable', adminOpsMigrati
 lock('Admin-authorized users retain user/admin mode switch', app,
   /USER MODE[\s\S]*?ADMIN MODE/,
   'Authorized admin accounts must retain explicit user/admin screen switching.')
+lock('Plan member avatars use batched private signing', planMembersClient,
+  /createProfileAvatarSignedUrls[\s\S]*?new Set\(rows\.map[\s\S]*?return rows\.map/,
+  'Live Plan member refreshes must not create one Storage signing request per participant.')
 lock('Social list avatars use batched private signing', signalConnectionsClient + signalParticipantsClient + profileSearchClient + directMessagingClient,
   /createProfileAvatarSignedUrls[\s\S]*?getMySignalParticipants[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?searchSignalProfiles[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyDirectThreadsPage[\s\S]*?createProfileAvatarSignedUrls/,
   'Search, participants, connections, and inbox pages must not create one Storage signing request per person.')
