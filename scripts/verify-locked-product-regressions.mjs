@@ -120,6 +120,12 @@ lock('Direct message refresh ignores stale conversation responses', directMessag
 lock('Direct message history stays cursor-paginated', directMessagingClient + directMessagesPanel,
   /get_my_direct_messages_page[\s\S]*?p_before_sent_at[\s\S]*?DIRECT_MESSAGE_PAGE_SIZE \+ 1[\s\S]*?LOAD OLDER MESSAGES/,
   'Long-running direct conversations must preserve older history without eager-loading the entire thread.')
+lock('Group message pagination serializes and rejects stale conversation pages', messages,
+  /groupMessageEpochRef[\s\S]*?groupMessagePageRequestRef[\s\S]*?requestedConversationId = selectedConversationId[\s\S]*?requestEpoch = groupMessageEpochRef\.current[\s\S]*?requestEpoch !== groupMessageEpochRef\.current/,
+  'Rapid group LOAD OLDER requests must serialize and pages from an older conversation generation must be discarded.')
+lock('Group conversation pagination serializes rapid requests', messages,
+  /groupConversationPageRequestRef[\s\S]*?if \(!conversationCursor \|\| groupConversationPageRequestRef\.current\) return[\s\S]*?groupConversationPageRequestRef\.current = true[\s\S]*?groupConversationPageRequestRef\.current = false/,
+  'Rapid Plan conversation pagination must not issue duplicate cursor requests.')
 lock('Group message history stays cursor-paginated', messagingClient + messages,
   /get_my_plan_messages_page[\s\S]*?PLAN_MESSAGE_PAGE_SIZE \+ 1[\s\S]*?LOAD OLDER MESSAGES/,
   'Long-running Signal group chats must preserve older history without a fixed 200-message ceiling.')

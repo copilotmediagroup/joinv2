@@ -110,6 +110,9 @@ export default function MessagesView({
   const typingPublisherRef = useRef<((typing: boolean) => void) | null>(null)
   const groupFeedRef = useRef<HTMLDivElement | null>(null)
   const shouldFollowGroupLatestRef = useRef(true)
+  const groupMessageEpochRef = useRef(0)
+  const groupMessagePageRequestRef = useRef(false)
+  const groupConversationPageRequestRef = useRef(false)
 
   const selectedPlanId =
     conversations.find(
@@ -167,6 +170,7 @@ export default function MessagesView({
     }
 
     let cancelled = false
+    const messageEpoch = ++groupMessageEpochRef.current
 
     const loadMessages = async () => {
       setLoadingMessages(true)
@@ -178,7 +182,7 @@ export default function MessagesView({
             selectedConversationId,
           )
 
-        if (!cancelled) {
+        if (!cancelled && messageEpoch === groupMessageEpochRef.current) {
           setMessages(page.messages)
           setHasOlderMessages(page.hasOlder)
         }
@@ -221,6 +225,7 @@ export default function MessagesView({
 
     return () => {
       cancelled = true
+      groupMessageEpochRef.current += 1
       void subscription.stop()
     }
   }, [selectedConversationId])
@@ -301,16 +306,20 @@ export default function MessagesView({
 
   const loadOlderMessages = async () => {
     const oldest = messages[0]
-    if (!selectedConversationId || !oldest || loadingOlderMessages || !hasOlderMessages) return
+    if (!selectedConversationId || !oldest || groupMessagePageRequestRef.current || !hasOlderMessages) return
+    const requestedConversationId = selectedConversationId
+    const requestEpoch = groupMessageEpochRef.current
     const feed = groupFeedRef.current
     const previousHeight = feed?.scrollHeight ?? 0
+    groupMessagePageRequestRef.current = true
     setLoadingOlderMessages(true)
     setError(null)
     try {
-      const page = await getPlanMessagesPage(selectedConversationId, {
+      const page = await getPlanMessagesPage(requestedConversationId, {
         sentAt: oldest.sentAt,
         messageId: oldest.messageId,
       })
+      if (requestedConversationId !== selectedConversationId || requestEpoch !== groupMessageEpochRef.current) return
       setMessages((current) => {
         const byId = new Map([...page.messages, ...current].map((message) => [message.messageId, message]))
         return [...byId.values()].sort((left, right) =>
@@ -322,14 +331,20 @@ export default function MessagesView({
         if (currentFeed) currentFeed.scrollTop += currentFeed.scrollHeight - previousHeight
       })
     } catch (loadError) {
-      setError(toUserFacingError(loadError, 'Unable to load older group messages right now.'))
+      if (requestedConversationId === selectedConversationId && requestEpoch === groupMessageEpochRef.current) {
+        setError(toUserFacingError(loadError, 'Unable to load older group messages right now.'))
+      }
     } finally {
-      setLoadingOlderMessages(false)
+      groupMessagePageRequestRef.current = false
+      if (requestedConversationId === selectedConversationId && requestEpoch === groupMessageEpochRef.current) {
+        setLoadingOlderMessages(false)
+      }
     }
   }
 
   const loadMoreConversations = async () => {
-    if (!conversationCursor || loadingMoreConversations) return
+    if (!conversationCursor || groupConversationPageRequestRef.current) return
+    groupConversationPageRequestRef.current = true
     setLoadingMoreConversations(true)
     setError(null)
 
@@ -344,6 +359,7 @@ export default function MessagesView({
     } catch (loadError) {
       setError(toUserFacingError(loadError, 'Unable to load older Plan conversations right now.'))
     } finally {
+      groupConversationPageRequestRef.current = false
       setLoadingMoreConversations(false)
     }
   }
