@@ -1,6 +1,6 @@
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '../../lib/supabaseClient'
-import { createProfileAvatarSignedUrl } from '../onboarding/avatarClient'
+import { createProfileAvatarSignedUrl, createProfileAvatarSignedUrls } from '../onboarding/avatarClient'
 
 export type DirectThread = {
   conversationId: string
@@ -61,7 +61,26 @@ export async function getMyDirectThreadsPage(
   })
   if (error) throw new Error(error.message || 'Unable to load direct messages')
   if (!Array.isArray(data)) throw new Error('Invalid direct threads response')
-  return Promise.all((data as Record<string, unknown>[]).map(parseDirectThread))
+  const rows = data as Record<string, unknown>[]
+  const paths = [...new Set(rows.flatMap((row) => {
+    const path = nullable(row.avatar_path)
+    return path ? [path] : []
+  }))]
+  const avatarUrls = await createProfileAvatarSignedUrls(paths).catch(() => new Map<string, string>())
+  return rows.map((row) => {
+    const avatarPath = nullable(row.avatar_path)
+    return {
+      conversationId: req(row.conversation_id, 'conversation_id'),
+      connectionId: req(row.connection_id, 'connection_id'),
+      otherUserId: req(row.other_user_id, 'other_user_id'),
+      displayName: req(row.display_name, 'display_name'),
+      avatarUrl: avatarPath ? avatarUrls.get(avatarPath) ?? null : null,
+      lastMessageBody: nullable(row.last_message_body),
+      lastMessageAt: nullable(row.last_message_at),
+      unreadCount: typeof row.unread_count === 'number' ? row.unread_count : 0,
+      sortAt: req(row.sort_at, 'sort_at'),
+    }
+  })
 }
 
 export async function getMyDirectThread(conversationId: string): Promise<DirectThread | null> {

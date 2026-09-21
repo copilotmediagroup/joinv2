@@ -22,6 +22,9 @@ const [
   stayConnected,
   directMessagingClient,
   directMessagesPanel,
+  signalConnectionsClient,
+  signalParticipantsClient,
+  profileSearchClient,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -43,6 +46,9 @@ const [
   read('src/features/activity/StayConnectedPanel.tsx'),
   read('src/features/messaging/directMessagingClient.ts'),
   read('src/features/messaging/DirectMessagesPanel.tsx'),
+  read('src/features/activity/signalConnectionsClient.ts'),
+  read('src/features/signal/participants/signalParticipantsClient.ts'),
+  read('src/features/profile/profileSearchClient.ts'),
 ])
 
 const checks = []
@@ -135,6 +141,9 @@ lock('My Energy remains editable only in own profile flow', profile + profilePre
 lock('Admin-authorized users retain user/admin mode switch', app,
   /USER MODE[\s\S]*?ADMIN MODE/,
   'Authorized admin accounts must retain explicit user/admin screen switching.')
+lock('Social list avatars use batched private signing', signalConnectionsClient + signalParticipantsClient + profileSearchClient + directMessagingClient,
+  /createProfileAvatarSignedUrls[\s\S]*?getMySignalParticipants[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?searchSignalProfiles[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyDirectThreadsPage[\s\S]*?createProfileAvatarSignedUrls/,
+  'Search, participants, connections, and inbox pages must not create one Storage signing request per person.')
 lock('Activity feed batches private media and avatar signing', moments,
   /createProfileAvatarSignedUrls[\s\S]*?createSignedUrls\(mediaPaths[\s\S]*?mediaUrls/,
   'A feed page must not fan out into one Storage signing request per avatar or media object.')

@@ -1,5 +1,5 @@
 import { supabase } from '../../../lib/supabaseClient'
-import { createProfileAvatarSignedUrl } from '../../onboarding/avatarClient'
+import { createProfileAvatarSignedUrls } from '../../onboarding/avatarClient'
 
 export type SignalParticipantIdentity = {
   userId: string
@@ -32,24 +32,15 @@ export async function getMySignalParticipants(
 
   const rows = (data ?? []) as SignalParticipantRow[]
 
-  return Promise.all(rows.map(async (row) => {
-    let avatarUrl: string | null = null
+  const paths = [...new Set(rows.flatMap((row) => row.avatar_path ? [row.avatar_path] : []))]
+  const avatarUrls = await createProfileAvatarSignedUrls(paths).catch(() => new Map<string, string>())
 
-    if (row.avatar_path) {
-      try {
-        avatarUrl = await createProfileAvatarSignedUrl(row.avatar_path)
-      } catch {
-        avatarUrl = null
-      }
-    }
-
-    return {
-      userId: row.user_id,
-      displayName: row.display_name,
-      avatarUrl,
-      membershipState: row.membership_state,
-      matchedAt: row.matched_at,
-      isMe: row.is_me,
-    }
+  return rows.map((row) => ({
+    userId: row.user_id,
+    displayName: row.display_name,
+    avatarUrl: row.avatar_path ? avatarUrls.get(row.avatar_path) ?? null : null,
+    membershipState: row.membership_state,
+    matchedAt: row.matched_at,
+    isMe: row.is_me,
   }))
 }

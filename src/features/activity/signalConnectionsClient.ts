@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabaseClient'
-import { createProfileAvatarSignedUrl } from '../onboarding/avatarClient'
+import { createProfileAvatarSignedUrls } from '../onboarding/avatarClient'
 
 export type SignalConnectionPerson = {
   connectionId: string | null
@@ -29,7 +29,10 @@ export async function getCompletedPlanConnections(planId: string): Promise<Signa
   if (error) throw new Error(error.message || 'Unable to load connections')
   if (!Array.isArray(data)) throw new Error('Invalid connection response')
 
-  return Promise.all((data as ConnectionRow[]).map(async (row) => {
+  const rows = data as ConnectionRow[]
+  const paths = [...new Set(rows.flatMap((row) => typeof row.avatar_path === 'string' && row.avatar_path.trim() ? [row.avatar_path] : []))]
+  const avatarUrls = await createProfileAvatarSignedUrls(paths).catch(() => new Map<string, string>())
+  return rows.map((row) => {
     const avatarPath = typeof row.avatar_path === 'string' && row.avatar_path.trim() ? row.avatar_path : null
     const state = requireString(row.connection_state, 'connection_state') as SignalConnectionPerson['state']
     const direction = requireString(row.request_direction, 'request_direction') as SignalConnectionPerson['direction']
@@ -37,11 +40,11 @@ export async function getCompletedPlanConnections(planId: string): Promise<Signa
       connectionId: typeof row.connection_id === 'string' ? row.connection_id : null,
       userId: requireString(row.other_user_id, 'other_user_id'),
       displayName: requireString(row.display_name, 'display_name'),
-      avatarUrl: avatarPath ? await createProfileAvatarSignedUrl(avatarPath).catch(() => null) : null,
+      avatarUrl: avatarPath ? avatarUrls.get(avatarPath) ?? null : null,
       state,
       direction,
     }
-  }))
+  })
 }
 
 const CONNECTION_MUTATION_TIMEOUT_MS = 12_000
@@ -131,17 +134,20 @@ export async function getMySignalConnectionsPage(
   if (error) throw new Error(error.message || 'Unable to load connections')
   if (!Array.isArray(data)) throw new Error('Invalid connections response')
 
-  return Promise.all((data as Record<string, unknown>[]).map(async (row) => {
+  const rows = data as Record<string, unknown>[]
+  const paths = [...new Set(rows.flatMap((row) => typeof row.avatar_path === 'string' && row.avatar_path.trim() ? [row.avatar_path] : []))]
+  const avatarUrls = await createProfileAvatarSignedUrls(paths).catch(() => new Map<string, string>())
+  return rows.map((row) => {
     const avatarPath = typeof row.avatar_path === 'string' && row.avatar_path.trim() ? row.avatar_path : null
     return {
       connectionId: requireString(row.connection_id, 'connection_id'),
       userId: requireString(row.other_user_id, 'other_user_id'),
       displayName: requireString(row.display_name, 'display_name'),
-      avatarUrl: avatarPath ? await createProfileAvatarSignedUrl(avatarPath).catch(() => null) : null,
+      avatarUrl: avatarPath ? avatarUrls.get(avatarPath) ?? null : null,
       connectedAt: requireString(row.connected_at, 'connected_at'),
       originPlanId: requireString(row.origin_plan_id, 'origin_plan_id'),
     }
-  }))
+  })
 }
 
 export async function disconnectMySignalConnection(connectionId: string): Promise<void> {
