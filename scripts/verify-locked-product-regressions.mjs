@@ -145,6 +145,9 @@ lock('Profile reputation stats remain prominent', profile,
 lock('Your Signal Life remains on profile', profile,
   /ProfileSignalLife/,
   'Verified Signal media must retain its profile home.')
+lock('Profile identity gallery uses batched private signing', profile,
+  /createProfileAvatarSignedUrls[\s\S]*?sourcePhotos\.map\(\(photo\) => photo\.objectPath\)[\s\S]*?signedUrls\.get\(photo\.objectPath\)/,
+  'Opening or editing the identity gallery must not create one Storage signing request per profile photo.')
 lock('Signal Life stays cursor-paginated with batched media signing', profileMomentClient + publicProfileClient + publicProfile,
   /createSignedUrls[\s\S]*?get_my_profile_signal_moments_page[\s\S]*?get_signal_public_profile_moments_page[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE SIGNAL LIFE/,
   'Profile growth must not restore the old 60-Moment eager load or one signing request per media object.')

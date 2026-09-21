@@ -28,6 +28,7 @@ import {
 } from './profileClient'
 import {
   createProfileAvatarSignedUrl,
+  createProfileAvatarSignedUrls,
   uploadMyProfileAvatar,
 } from '../onboarding/avatarClient'
 import {
@@ -341,13 +342,12 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
       }
 
       try {
-        const resolved = await Promise.all(
-          sourcePhotos.map(async (photo) => ({
-            ...photo,
-            signedUrl:
-              await createProfileAvatarSignedUrl(photo.objectPath),
-          })),
-        )
+        const paths = sourcePhotos.map((photo) => photo.objectPath)
+        const signedUrls = await createProfileAvatarSignedUrls(paths)
+        const resolved = sourcePhotos.map((photo) => ({
+          ...photo,
+          signedUrl: signedUrls.get(photo.objectPath) ?? '',
+        })).filter((photo) => Boolean(photo.signedUrl))
 
         if (!cancelled) {
           setResolvedIdentityPhotos(resolved)
