@@ -46,6 +46,7 @@ const [
   userSafetyActions,
   authGate,
   onboardingGate,
+  signalAccessGate,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -91,6 +92,7 @@ const [
   read('src/features/safety/UserSafetyActions.tsx'),
   read('src/features/onboarding/components/AuthGateView.tsx'),
   read('src/features/onboarding/components/OnboardingGateView.tsx'),
+  read('src/features/onboarding/components/SignalAccessGate.tsx'),
 ])
 
 const checks = []
@@ -327,6 +329,9 @@ lock('Profile preference saves serialize rapid mutations', profilePreferences + 
 lock('Logout serializes rapid sign-out actions', app,
   /logoutRequestRef[\s\S]*?handleLogout[\s\S]*?logoutRequestRef\.current[\s\S]*?logoutRequestRef\.current = true[\s\S]*?signOutCurrentUser[\s\S]*?logoutRequestRef\.current = false/,
   'Rapid logout taps must not issue duplicate sign-out mutations; failure must release ownership for retry.')
+lock('Access gate rejects stale onboarding responses', signalAccessGate,
+  /resolveEpochRef[\s\S]*?requestEpoch = \+\+resolveEpochRef\.current[\s\S]*?getMyOnboardingState[\s\S]*?requestEpoch !== resolveEpochRef\.current/,
+  'Session or auth changes must invalidate older onboarding reads before they can restore stale access state.')
 lock('Auth and onboarding submissions serialize rapid submits', authGate + onboardingGate,
   /submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false[\s\S]*?submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false/,
   'Authentication and onboarding writes must not rely only on delayed React submitting state.')
