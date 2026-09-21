@@ -98,7 +98,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
     : `${files.length} ${files.length === 1 ? 'item' : 'items'} ready`, [files])
 
   const acceptFiles = (incoming: FileList | null) => {
-    if (!incoming) return
+    if (momentRequestRef.current || outingExitRequestRef.current || !incoming) return
     const next = [...incoming].filter((file) => file.type.startsWith('image/') || file.type.startsWith('video/'))
     if (next.length === 0) { setError('Choose photos or videos only.'); return }
     setFiles((current) => [...current, ...next].slice(0, 6))
@@ -162,7 +162,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
             </div>
           ))}
         </div>
-        <button type="button" className="active-outing-chat" onClick={() => onOpenChat(planId)}>
+        <button type="button" className="active-outing-chat" disabled={saving || ending || leaving} onClick={() => onOpenChat(planId)}>
           <MessageCircle size={18} /><span><strong>GROUP CHAT</strong><small>Message everyone in this Signal</small></span>
         </button>
       </section>
@@ -172,15 +172,15 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
         <p>Take something from tonight with you. Photos and videos publish to Activity · Signal Moments while your Signal is live.</p>
         <div className="active-outing-capture-actions">
           <label className="active-outing-capture-button primary"><Camera size={18}/><span><strong>TAKE PHOTO / VIDEO</strong><small>Open your camera</small></span>
-            <input id={cameraInputId} type="file" accept="image/*,video/*" capture="environment" onChange={(event) => { acceptFiles(event.target.files); event.currentTarget.value = '' }}/>
+            <input id={cameraInputId} type="file" accept="image/*,video/*" capture="environment" disabled={saving || ending || leaving} onChange={(event) => { acceptFiles(event.target.files); event.currentTarget.value = '' }}/>
           </label>
           <label className="active-outing-capture-button"><Upload size={18}/><span><strong>UPLOAD</strong><small>Choose from your device</small></span>
-            <input id={uploadInputId} type="file" accept="image/*,video/*" multiple onChange={(event) => { acceptFiles(event.target.files); event.currentTarget.value = '' }}/>
+            <input id={uploadInputId} type="file" accept="image/*,video/*" multiple disabled={saving || ending || leaving} onChange={(event) => { acceptFiles(event.target.files); event.currentTarget.value = '' }}/>
           </label>
         </div>
-        <div className="active-outing-selection"><span><ImagePlus size={15}/> {selectedLabel}</span>{files.length > 0 && <button type="button" onClick={() => setFiles([])}><X size={14}/> CLEAR</button>}</div>
+        <div className="active-outing-selection"><span><ImagePlus size={15}/> {selectedLabel}</span>{files.length > 0 && <button type="button" disabled={saving || ending || leaving} onClick={() => setFiles([])}><X size={14}/> CLEAR</button>}</div>
         {files.length > 0 && <div className="active-outing-file-list">{files.map((file,index) => <span key={`${file.name}-${file.size}-${index}`}>{file.type.startsWith('video/') ? 'VIDEO' : 'PHOTO'} · {file.name}</span>)}</div>}
-        <textarea value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={500} placeholder="Add a caption to this Signal…"/>
+        <textarea value={caption} disabled={saving || ending || leaving} onChange={(event) => setCaption(event.target.value)} maxLength={500} placeholder="Add a caption to this Signal…"/>
         <button type="button" className="active-outing-save" disabled={saving || ending || leaving || files.length === 0} onClick={() => { void saveMoment() }}>
           <CheckCircle2 size={17}/> {saving ? 'SAVING…' : 'SAVE TO THIS SIGNAL'}
         </button>
@@ -191,11 +191,11 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
         <Sparkles size={21}/>
         <div><small>WHEN YOU'RE DONE</small><strong>Had a good time?</strong><p>End your live Signal when you're finished here. This won't end anyone else's night.</p></div>
         {!confirmEnd ? (
-          <button type="button" onClick={() => setConfirmEnd(true)}>DONE HERE</button>
+          <button type="button" disabled={saving || ending || leaving} onClick={() => setConfirmEnd(true)}>DONE HERE</button>
         ) : (
           <div className="active-outing-confirm">
             <strong>END YOUR SIGNAL?</strong><span>Your check-in and Moments stay with this outing.</span>
-            <div><button type="button" className="confirm" disabled={ending || leaving || saving} onClick={() => { void finishOuting() }}>{ending ? 'ENDING…' : 'YES · GOOD NIGHT'}</button><button type="button" onClick={() => setConfirmEnd(false)}>NOT YET</button></div>
+            <div><button type="button" className="confirm" disabled={ending || leaving || saving} onClick={() => { void finishOuting() }}>{ending ? 'ENDING…' : 'YES · GOOD NIGHT'}</button><button type="button" disabled={ending || leaving || saving} onClick={() => setConfirmEnd(false)}>NOT YET</button></div>
           </div>
         )}
       </section>
