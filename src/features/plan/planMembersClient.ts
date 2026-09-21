@@ -85,21 +85,19 @@ export function subscribeToPlanMembers(
   planId: string,
   onChange: () => void,
 ): () => void {
-  const channel = supabase
-    .channel(`plan-members:${planId}`)
-    .on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: 'plan_memberships',
-        filter: `plan_id=eq.${planId}`,
-      },
-      onChange,
-    )
-    .subscribe()
+  let cancelled = false
+  let channel: ReturnType<typeof supabase.channel> | null = null
+
+  void supabase.realtime.setAuth().then(() => {
+    if (cancelled) return
+    channel = supabase
+      .channel(`plan-members:${planId}`, { config: { private: true } })
+      .on('broadcast', { event: 'refresh' }, onChange)
+      .subscribe()
+  })
 
   return () => {
-    void supabase.removeChannel(channel)
+    cancelled = true
+    if (channel) void supabase.removeChannel(channel)
   }
 }
