@@ -21,12 +21,17 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
   const [error, setError] = useState<string | null>(null)
   const [momentsHaveMore, setMomentsHaveMore] = useState(false)
   const [momentsLoadingMore, setMomentsLoadingMore] = useState(false)
+  const [connectionsHaveMore, setConnectionsHaveMore] = useState(false)
+  const [connectionsLoadingMore, setConnectionsLoadingMore] = useState(false)
 
   useEffect(() => {
     let active = true
     void Promise.all([getPublicSignalProfile(userId), getPublicProfileMoments(userId), getPublicProfileConnections(userId), getPublicProfileConnectionCount(userId)])
-      .then(([nextProfile, momentPage, nextConnections, nextConnectionCount]) => {
-        if (active) { setProfile(nextProfile); setMoments(momentPage.moments); setMomentsHaveMore(momentPage.hasMore); setConnections(nextConnections); setConnectionCount(nextConnectionCount) }
+      .then(([nextProfile, momentPage, connectionPage, nextConnectionCount]) => {
+        if (active) {
+          setProfile(nextProfile); setMoments(momentPage.moments); setMomentsHaveMore(momentPage.hasMore)
+          setConnections(connectionPage.connections); setConnectionsHaveMore(connectionPage.hasMore); setConnectionCount(nextConnectionCount)
+        }
       })
       .catch((loadError) => { if (active) setError(loadError instanceof Error ? loadError.message : 'Unable to load profile') })
     return () => { active = false }
@@ -42,6 +47,19 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
       setMomentsHaveMore(page.hasMore)
     } finally {
       setMomentsLoadingMore(false)
+    }
+  }
+
+  async function loadMoreConnections() {
+    const last = connections[connections.length - 1]
+    if (!last || connectionsLoadingMore || !connectionsHaveMore) return
+    setConnectionsLoadingMore(true)
+    try {
+      const page = await getPublicProfileConnections(userId, { connectedAt: last.connectedAt, connectionId: last.connectionId })
+      setConnections((current) => [...current, ...page.connections])
+      setConnectionsHaveMore(page.hasMore)
+    } finally {
+      setConnectionsLoadingMore(false)
     }
   }
 
@@ -88,7 +106,10 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
 
     {connectionsOpen ? <div className="public-profile-connections-dialog" role="dialog" aria-modal="true" aria-label={`${profile.displayName} connections`} onClick={() => setConnectionsOpen(false)}><article onClick={(event) => event.stopPropagation()}>
       <header><div><span>⚡ SIGNAL CONNECTIONS</span><h3>{profile.displayName}'s Connections</h3><p>People they actually met through SIGNAL.</p></div><button type="button" aria-label="Close connections" onClick={() => setConnectionsOpen(false)}>×</button></header>
-      <div className="public-profile-connections-dialog-list">{connections.length ? connections.map((connection) => <button type="button" key={connection.userId} onClick={() => { setConnectionsOpen(false); onOpenProfile?.(connection.userId) }}><span>{connection.avatarUrl ? <img src={connection.avatarUrl} alt=""/> : connection.displayName.slice(0,1).toUpperCase()}<i/></span><div><strong>{connection.displayName}</strong><small>SIGNAL CONNECTION</small></div><b>›</b></button>) : <p>No SIGNAL connections yet.</p>}</div>
+      <div className="public-profile-connections-dialog-list">
+        {connections.length ? connections.map((connection) => <button type="button" key={connection.connectionId} onClick={() => { setConnectionsOpen(false); onOpenProfile?.(connection.userId) }}><span>{connection.avatarUrl ? <img src={connection.avatarUrl} alt=""/> : connection.displayName.slice(0,1).toUpperCase()}<i/></span><div><strong>{connection.displayName}</strong><small>SIGNAL CONNECTION</small></div><b>›</b></button>) : <p>No SIGNAL connections yet.</p>}
+        {connectionsHaveMore ? <button type="button" className="public-profile-connections-load-more" disabled={connectionsLoadingMore} onClick={() => { void loadMoreConnections() }}>{connectionsLoadingMore ? 'LOADING…' : 'LOAD MORE CONNECTIONS'}</button> : null}
+      </div>
     </article></div> : null}
 
     {selected ? <div className="profile-signal-life-viewer" role="dialog" aria-modal="true" onClick={() => setSelected(null)}><article onClick={(event) => event.stopPropagation()}>

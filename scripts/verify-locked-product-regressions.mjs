@@ -18,6 +18,7 @@ const [
   myConnections,
   profileMomentClient,
   publicProfileClient,
+  avatarClient,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -35,6 +36,7 @@ const [
   read('src/features/profile/MyConnectionsPanel.tsx'),
   read('src/features/profile/profileSignalMomentsClient.ts'),
   read('src/features/profile/publicProfileClient.ts'),
+  read('src/features/onboarding/avatarClient.ts'),
 ])
 
 const checks = []
@@ -106,6 +108,9 @@ lock('Signal Life stays cursor-paginated with batched media signing', profileMom
 lock('Public connections remain clickable and exact-count driven', publicProfile,
   /getPublicProfileConnectionCount[\s\S]*?connectionCount[\s\S]*?setConnectionsOpen\(true\)[\s\S]*?SIGNAL CONNECTIONS/,
   'Connections count/list/profile navigation is a locked profile behavior.')
+lock('Public connection modal stays paginated with batched avatars', publicProfileClient + avatarClient + publicProfile,
+  /get_signal_public_profile_connections_page[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE CONNECTIONS/,
+  'Large social graphs must remain cursor-paginated and avoid one avatar-signing request per connection.')
 lock('Own profile connections remain exact-count clickable', myConnections,
   /getPublicProfileConnectionCount\(userId\)[\s\S]*?setConnectionCount\(exactCount\)[\s\S]*?profile-connections-summary[\s\S]*?setOpen\(true\)[\s\S]*?My SIGNAL connections/,
   'The owner profile must show an exact clickable Connections count and modal list.')

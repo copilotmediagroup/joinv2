@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabaseClient'
-import { createProfileAvatarSignedUrl } from '../onboarding/avatarClient'
+import { createProfileAvatarSignedUrl, createProfileAvatarSignedUrls } from '../onboarding/avatarClient'
 
 const MOMENT_BUCKET = 'signal-moments'
 
@@ -100,11 +100,15 @@ export async function getPublicProfileMoments(userId: string, cursor: PublicProf
 }
 
 export type PublicProfileConnection = {
+  connectionId: string
   userId: string
   displayName: string
   avatarUrl: string | null
   connectedAt: string
 }
+export type PublicProfileConnectionCursor = { connectedAt: string; connectionId: string }
+export type PublicProfileConnectionPage = { connections: PublicProfileConnection[]; hasMore: boolean }
+export const PUBLIC_PROFILE_CONNECTION_PAGE_SIZE = 24
 
 export async function getPublicProfileConnectionCount(userId: string): Promise<number> {
   const { data, error } = await supabase.rpc('get_signal_public_profile_connection_count', { p_user_id: userId })
@@ -114,17 +118,29 @@ export async function getPublicProfileConnectionCount(userId: string): Promise<n
   return count
 }
 
-export async function getPublicProfileConnections(userId: string): Promise<PublicProfileConnection[]> {
-  const { data, error } = await supabase.rpc('get_signal_public_profile_connections', { p_user_id: userId, p_limit: 24 })
+export async function getPublicProfileConnections(userId: string, cursor: PublicProfileConnectionCursor | null = null): Promise<PublicProfileConnectionPage> {
+  const { data, error } = await supabase.rpc('get_signal_public_profile_connections_page', {
+    p_user_id: userId,
+    p_after_connected_at: cursor?.connectedAt ?? null,
+    p_after_connection_id: cursor?.connectionId ?? null,
+    p_limit: PUBLIC_PROFILE_CONNECTION_PAGE_SIZE + 1,
+  })
   if (error) throw new Error(error.message || 'Unable to load connections')
   if (!Array.isArray(data)) throw new Error('Invalid public connections response')
-  return Promise.all((data as Record<string, unknown>[]).map(async (row) => {
-    const avatarPath = optionalText(row.avatar_path)
-    return {
-      userId: text(row.user_id, 'user_id'),
-      displayName: text(row.display_name, 'display_name'),
-      avatarUrl: avatarPath ? await createProfileAvatarSignedUrl(avatarPath).catch(() => null) : null,
-      connectedAt: text(row.connected_at, 'connected_at'),
-    }
-  }))
+  const rows = (data as Record<string, unknown>[]).slice(0, PUBLIC_PROFILE_CONNECTION_PAGE_SIZE)
+  const avatarPaths = rows.map((row) => optionalText(row.avatar_path)).filter((path): path is string => path !== null)
+  const avatarUrls = await createProfileAvatarSignedUrls(avatarPaths).catch(() => new Map<string, string>())
+  return {
+    hasMore: data.length > PUBLIC_PROFILE_CONNECTION_PAGE_SIZE,
+    connections: rows.map((row) => {
+      const avatarPath = optionalText(row.avatar_path)
+      return {
+        connectionId: text(row.connection_id, 'connection_id'),
+        userId: text(row.user_id, 'user_id'),
+        displayName: text(row.display_name, 'display_name'),
+        avatarUrl: avatarPath ? avatarUrls.get(avatarPath) ?? null : null,
+        connectedAt: text(row.connected_at, 'connected_at'),
+      }
+    }),
+  }
 }

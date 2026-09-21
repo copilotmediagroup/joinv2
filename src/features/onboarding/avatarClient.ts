@@ -66,6 +66,19 @@ export async function uploadMyProfileAvatar(file: File): Promise<string> {
   return objectName
 }
 
+export async function createProfileAvatarSignedUrls(
+  avatarPaths: string[],
+  expiresInSeconds = 3600,
+): Promise<Map<string, string>> {
+  const paths = avatarPaths.map((path) => path.trim()).filter(Boolean)
+  if (!paths.length) return new Map()
+  const { data, error } = await supabase.storage.from(PROFILE_AVATAR_BUCKET).createSignedUrls(paths, expiresInSeconds)
+  if (error || !data || data.length !== paths.length) throw error ?? new Error('Unable to load profile avatars.')
+  const urls = new Map<string, string>()
+  data.forEach((item, index) => { if (item.signedUrl) urls.set(paths[index], item.signedUrl) })
+  return urls
+}
+
 export async function createProfileAvatarSignedUrl(
   avatarPath: string,
   expiresInSeconds = 3600,
