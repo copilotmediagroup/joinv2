@@ -78,6 +78,7 @@ export default function SignalPlaceStage({
   const [voteSubmitting, setVoteSubmitting] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const notifiedWinnerId = useRef<string | null>(null)
+  const voteRequestRef = useRef(false)
   const deadlockRestartingRef = useRef(false)
   const deadlockRetryCountRef = useRef(0)
   const locationPreparedRef = useRef(false)
@@ -241,8 +242,9 @@ export default function SignalPlaceStage({
   const modeLabel = venueModeLabel(venueIntelligence?.venueTimeBand)
 
   const castVote = async (optionId: string) => {
-    if (!round || round.state !== 'open' || voteSubmitting) return
+    if (!round || round.state !== 'open' || voteRequestRef.current) return
 
+    voteRequestRef.current = true
     setVoteSubmitting(true)
     setPlacesError(null)
     try {
@@ -253,6 +255,7 @@ export default function SignalPlaceStage({
         toUserFacingError(error, 'Your place vote did not go through. Try again.'),
       )
     } finally {
+      voteRequestRef.current = false
       setVoteSubmitting(false)
     }
   }

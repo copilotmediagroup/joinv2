@@ -112,6 +112,7 @@ export default function MessagesView({
   const shouldFollowGroupLatestRef = useRef(true)
   const groupMessageEpochRef = useRef(0)
   const groupMessagePageRequestRef = useRef(false)
+  const sendRequestRef = useRef(false)
   const groupConversationPageRequestRef = useRef(false)
 
   const selectedPlanId =
@@ -371,12 +372,13 @@ export default function MessagesView({
 
     if (
       selectedConversationId === null ||
-      sending ||
+      sendRequestRef.current ||
       draft.trim().length === 0
     ) {
       return
     }
 
+    sendRequestRef.current = true
     setSending(true)
     setError(null)
 
@@ -425,6 +427,7 @@ export default function MessagesView({
         toUserFacingError(sendError, 'Unable to send your message right now.'),
       )
     } finally {
+      sendRequestRef.current = false
       setSending(false)
     }
   }

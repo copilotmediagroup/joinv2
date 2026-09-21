@@ -14,6 +14,7 @@ const [
   profilePreferences,
   chillDatingPreferences,
   discovery,
+  signalPlaceStage,
   signalTimeStage,
   liveMap,
   myConnections,
@@ -58,6 +59,7 @@ const [
   read('src/features/profile/SignalPreferencesPanel.tsx'),
   read('src/features/profile/ChillDatingPreferencesPanel.tsx'),
   read('src/features/signal/discovery/signalDiscoveryClient.ts'),
+  read('src/features/signal/SignalPlaceStage.tsx'),
   read('src/features/signal/SignalTimeStage.tsx'),
   read('src/features/outing/SignalLiveMap.tsx'),
   read('src/features/profile/MyConnectionsPanel.tsx'),
@@ -118,6 +120,9 @@ lock('Group chat typing presence remains present', messages,
 lock('Group chat typing transport remains realtime', messagingRealtime,
   /plan-typing:[\s\S]*?broadcast[\s\S]*?typing[\s\S]*?2200/,
   'Typing presence must retain realtime publish and idle clearing.')
+lock('Direct and group sends serialize rapid submissions', directMessagesPanel + messages,
+  /sendRequestRef[\s\S]*?send[\s\S]*?sendRequestRef\.current[\s\S]*?sendRequestRef\.current = true[\s\S]*?sendRequestRef\.current = false[\s\S]*?sendRequestRef[\s\S]*?handleSend[\s\S]*?sendRequestRef\.current[\s\S]*?sendRequestRef\.current = true[\s\S]*?sendRequestRef\.current = false/,
+  'Rapid direct and group message submits must not create duplicate sends.')
 lock('Direct message pagination serializes and rejects stale conversation pages', directMessagesPanel,
   /messagePageRequestRef[\s\S]*?requestedConversationId = selectedId[\s\S]*?requestEpoch = messageRefreshEpochRef\.current[\s\S]*?requestEpoch !== messageRefreshEpochRef\.current/,
   'Rapid LOAD OLDER requests must serialize and an older conversation page must not append after realtime refresh or thread navigation.')
@@ -142,12 +147,18 @@ lock('Group message history stays cursor-paginated', messagingClient + messages,
 lock('Group chat member refresh ignores stale realtime responses', messages,
   /refreshEpoch = 0[\s\S]*?requestEpoch = \+\+refreshEpoch[\s\S]*?requestEpoch === refreshEpoch/,
   'Group chat member lists must not let older realtime reads overwrite newer membership state.')
+lock('Signal venue and time choices serialize rapid submissions', signalPlaceStage + signalTimeStage,
+  /voteRequestRef[\s\S]*?castVote[\s\S]*?voteRequestRef\.current[\s\S]*?voteRequestRef\.current = true[\s\S]*?voteRequestRef\.current = false[\s\S]*?availabilityRequestRef[\s\S]*?toggleAvailability[\s\S]*?availabilityRequestRef\.current[\s\S]*?availabilityRequestRef\.current = true[\s\S]*?availabilityRequestRef\.current = false[\s\S]*?choosePreference[\s\S]*?availabilityRequestRef\.current/,
+  'Rapid venue votes and time choices must preserve one client-owned mutation at a time.')
 lock('Time-stage member refresh ignores stale realtime responses', signalTimeStage,
   /refreshEpoch = 0[\s\S]*?requestEpoch = \+\+refreshEpoch[\s\S]*?requestEpoch === refreshEpoch/,
   'Time-stage member lists must not let older realtime reads overwrite newer membership state.')
 lock('Group messages continue following newest messages', messages,
   /shouldFollowGroupLatestRef[\s\S]*?scrollTo\(\{ top: feed\.scrollHeight[\s\S]*?feed\.scrollHeight - feed\.scrollTop - feed\.clientHeight < 80/,
   'New messages must remain visible while preserving deliberate scroll-up.')
+lock('I AM HERE serializes rapid check-in submissions', details,
+  /checkInRequestRef[\s\S]*?checkIn[\s\S]*?checkInRequestRef\.current[\s\S]*?checkInRequestRef\.current = true[\s\S]*?checkInRequestRef\.current = false/,
+  'Rapid check-in taps must not submit duplicate attendance mutations.')
 lock('I AM HERE remains explicit check-in', details + outing,
   /I'M HERE[\s\S]*?checkedIn|checkedIn[\s\S]*?SIGNAL LIVE · YOU'RE HERE/,
   'Arrival must remain a user action before live arrival UI.')

@@ -34,6 +34,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const lastRouteOriginRef = useRef<{ latitude: number; longitude: number } | null>(null)
   const detailsRefreshEpochRef = useRef(0)
   const attendanceRefreshEpochRef = useRef(0)
+  const checkInRequestRef = useRef(false)
   const locationRefreshEpochRef = useRef(0)
   const routeRefreshEpochRef = useRef(0)
 
@@ -149,7 +150,8 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   }, [attendance?.checkedIn, attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
 
   const checkIn = async () => {
-    if (attendanceBusy || !attendance?.canCheckIn) return
+    if (checkInRequestRef.current || !attendance?.canCheckIn) return
+    checkInRequestRef.current = true
     setAttendanceBusy(true); setError(null)
     const requestEpoch = ++attendanceRefreshEpochRef.current
     try {
@@ -158,7 +160,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       if (next.checkedIn) onCheckedIn(planId)
     }
     catch (e) { setError(toUserFacingError(e, 'Unable to check you in right now. Please try again.')) }
-    finally { setAttendanceBusy(false) }
+    finally { checkInRequestRef.current = false; setAttendanceBusy(false) }
   }
 
   const destination = useMemo(() => {

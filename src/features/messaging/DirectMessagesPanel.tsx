@@ -58,6 +58,7 @@ export default function DirectMessagesPanel({
   const shouldFollowLatestRef = useRef(true)
   const messageRefreshEpochRef = useRef(0)
   const messagePageRequestRef = useRef(false)
+  const sendRequestRef = useRef(false)
   const threadPageRequestRef = useRef(false)
 
   const scrollToLatest = useCallback((behavior: ScrollBehavior = 'auto') => {
@@ -228,7 +229,8 @@ export default function DirectMessagesPanel({
 
   const send = async (event: FormEvent) => {
     event.preventDefault()
-    if (!selectedId || sending || !draft.trim()) return
+    if (!selectedId || sendRequestRef.current || !draft.trim()) return
+    sendRequestRef.current = true
     setSending(true)
     setError(null)
     try {
@@ -240,6 +242,7 @@ export default function DirectMessagesPanel({
     } catch (sendError) {
       setError(toUserFacingError(sendError, 'Unable to send your message right now.'))
     } finally {
+      sendRequestRef.current = false
       setSending(false)
     }
   }

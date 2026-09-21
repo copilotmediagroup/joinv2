@@ -106,6 +106,7 @@ export default function SignalTimeStage({
   const recoveryStartedRef = useRef(false)
   const recoveryRequiredRef = useRef(false)
   const planConversionStartedRef = useRef(false)
+  const availabilityRequestRef = useRef(false)
   const snapshotRequestIdRef = useRef(0)
 
   const loadSnapshot = useCallback(async () => {
@@ -339,7 +340,7 @@ export default function SignalTimeStage({
   }, [recoveryRequired, recovering, recoverySeconds, runRecovery])
 
   const toggleAvailability = async (optionId: string) => {
-    if (!round || round.state !== 'open' || submitting) return
+    if (!round || round.state !== 'open' || availabilityRequestRef.current) return
 
     const next = new Set(selectedIds)
     if (next.has(optionId)) {
@@ -348,6 +349,7 @@ export default function SignalTimeStage({
       next.add(optionId)
     }
 
+    availabilityRequestRef.current = true
     setSubmitting(true)
     setError(null)
 
@@ -365,12 +367,13 @@ export default function SignalTimeStage({
         toUserFacingError(submitError, 'Unable to submit your available times right now.'),
       )
     } finally {
+      availabilityRequestRef.current = false
       setSubmitting(false)
     }
   }
 
   const choosePreference = async (optionId: string) => {
-    if (!round || round.state !== 'open' || submitting) return
+    if (!round || round.state !== 'open' || availabilityRequestRef.current) return
 
     const nextAvailable = new Set(selectedIds)
     nextAvailable.add(optionId)
@@ -379,6 +382,7 @@ export default function SignalTimeStage({
         ? null
         : optionId
 
+    availabilityRequestRef.current = true
     setSubmitting(true)
     setError(null)
 
@@ -394,6 +398,7 @@ export default function SignalTimeStage({
         toUserFacingError(submitError, 'Unable to save your preferred time right now.'),
       )
     } finally {
+      availabilityRequestRef.current = false
       setSubmitting(false)
     }
   }
