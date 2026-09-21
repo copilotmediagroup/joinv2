@@ -1,5 +1,5 @@
 import { Ban, Flag, ShieldAlert, X } from 'lucide-react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import { blockUser, reportUser, type UserReportReason } from './userSafetyClient'
 
@@ -27,8 +27,11 @@ export default function UserSafetyActions({ userId, displayName, onBlocked }: Pr
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const actionRequestRef = useRef(false)
+
   const submitReport = async () => {
-    if (busy) return
+    if (actionRequestRef.current) return
+    actionRequestRef.current = true
     setBusy(true); setError(null); setMessage(null)
     try {
       await reportUser(userId, reason, details.trim() || null)
@@ -36,11 +39,15 @@ export default function UserSafetyActions({ userId, displayName, onBlocked }: Pr
       setMode('closed'); setDetails('')
     } catch (value) {
       setError(toUserFacingError(value, 'Unable to send this report right now.'))
-    } finally { setBusy(false) }
+    } finally {
+      actionRequestRef.current = false
+      setBusy(false)
+    }
   }
 
   const confirmBlock = async () => {
-    if (busy) return
+    if (actionRequestRef.current) return
+    actionRequestRef.current = true
     setBusy(true); setError(null); setMessage(null)
     try {
       await blockUser(userId)
@@ -49,7 +56,10 @@ export default function UserSafetyActions({ userId, displayName, onBlocked }: Pr
       onBlocked?.()
     } catch (value) {
       setError(toUserFacingError(value, 'Unable to block this person right now.'))
-    } finally { setBusy(false) }
+    } finally {
+      actionRequestRef.current = false
+      setBusy(false)
+    }
   }
 
   return <div className="user-safety-actions">

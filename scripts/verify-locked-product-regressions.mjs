@@ -41,6 +41,7 @@ const [
   moderationView,
   momentModeration,
   signalCompletion,
+  userSafetyActions,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -81,6 +82,7 @@ const [
   read('src/features/admin/ModerationView.tsx'),
   read('src/features/admin/MomentModerationPanel.tsx'),
   read('src/features/outing/SignalCompletionView.tsx'),
+  read('src/features/safety/UserSafetyActions.tsx'),
 ])
 
 const checks = []
@@ -275,6 +277,9 @@ lock('Social list avatars use batched private signing', signalConnectionsClient 
 lock('Moment comment pagination serializes requests', activityView,
   /commentsRequestRef[\s\S]*?commentsRequestRef\.current[\s\S]*?commentsRequestRef\.current = true[\s\S]*?setComments[\s\S]*?loadOlder[\s\S]*?commentsRequestRef\.current = false/,
   'Comment refresh and LOAD OLDER must not overlap and overwrite or duplicate the paginated thread.')
+lock('Safety report and block actions serialize rapid submissions', userSafetyActions,
+  /actionRequestRef[\s\S]*?submitReport[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?confirmBlock[\s\S]*?if \(actionRequestRef\.current\) return/,
+  'Rapid report/block actions must share synchronous request ownership instead of relying on delayed React busy state.')
 lock('Blocked people pagination serializes and rejects stale pages', blockedPeople,
   /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid blocked-user pagination must serialize and an older page must not append after unblock or refresh authority changes.')
