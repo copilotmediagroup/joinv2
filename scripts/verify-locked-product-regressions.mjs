@@ -37,6 +37,7 @@ const [
   planGovernance,
   activityView,
   blockedPeople,
+  profileSignalLife,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -73,6 +74,7 @@ const [
   read('src/features/plan/PlanGovernancePanel.tsx'),
   read('src/features/activity/ActivityView.tsx'),
   read('src/features/safety/BlockedPeoplePanel.tsx'),
+  read('src/features/profile/ProfileSignalLife.tsx'),
 ])
 
 const checks = []
@@ -192,6 +194,9 @@ lock('People search ignores stale async responses', profileSearchPanel,
 lock('Profile identity gallery uses batched private signing', profile,
   /createProfileAvatarSignedUrls[\s\S]*?sourcePhotos\.map\(\(photo\) => photo\.objectPath\)[\s\S]*?signedUrls\.get\(photo\.objectPath\)/,
   'Opening or editing the identity gallery must not create one Storage signing request per profile photo.')
+lock('Own Signal Life pagination serializes requests', profileSignalLife,
+  /pageRequestRef[\s\S]*?pageRequestRef\.current = true[\s\S]*?if \(!last \|\| pageRequestRef\.current \|\| !hasMore\) return[\s\S]*?pageRequestRef\.current = false/,
+  'Rapid LOAD MORE clicks must not issue duplicate Signal Life cursor requests or append duplicate pages.')
 lock('Signal Life stays cursor-paginated with batched media signing', profileMomentClient + publicProfileClient + publicProfile,
   /createSignedUrls[\s\S]*?get_my_profile_signal_moments_page[\s\S]*?get_signal_public_profile_moments_page[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE SIGNAL LIFE/,
   'Profile growth must not restore the old 60-Moment eager load or one signing request per media object.')

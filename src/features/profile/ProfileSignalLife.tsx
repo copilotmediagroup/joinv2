@@ -1,5 +1,5 @@
 import { MessageCircle, Play, Zap } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getMyProfileSignalMoments, type ProfileSignalMoment } from './profileSignalMomentsClient'
 
 type Tile = { moment: ProfileSignalMoment; mediaIndex: number }
@@ -10,25 +10,32 @@ export default function ProfileSignalLife() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
+  const pageRequestRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
+    pageRequestRef.current = true
     void getMyProfileSignalMoments().then((page) => {
       if (!cancelled) { setMoments(page.moments); setHasMore(page.hasMore) }
     }).catch(() => { if (!cancelled) setMoments([]) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+      .finally(() => {
+        pageRequestRef.current = false
+        if (!cancelled) setLoading(false)
+      })
     return () => { cancelled = true }
   }, [])
 
   async function loadMore() {
     const last = moments[moments.length - 1]
-    if (!last || loadingMore || !hasMore) return
+    if (!last || pageRequestRef.current || !hasMore) return
+    pageRequestRef.current = true
     setLoadingMore(true)
     try {
       const page = await getMyProfileSignalMoments({ publishedAt: last.publishedAt, momentId: last.momentId })
       setMoments((current) => [...current, ...page.moments])
       setHasMore(page.hasMore)
     } finally {
+      pageRequestRef.current = false
       setLoadingMore(false)
     }
   }
