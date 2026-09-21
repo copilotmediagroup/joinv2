@@ -65,7 +65,7 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
   }
 
   if (loading) return <section className="stay-connected-panel"><span>Loading people from this Signal…</span></section>
-  if (people.length === 0) return <section className="stay-connected-panel"><div className="stay-connected-head"><span><Users size={14} /> STAY CONNECTED</span><small>People appear here after they finish this Signal too.</small></div></section>
+  if (people.length === 0) return <section className="stay-connected-panel"><div className="stay-connected-head"><span><Users size={14} /> STAY CONNECTED</span><small>People you checked in with will appear here as soon as they're eligible.</small></div></section>
 
   return (
     <section className="stay-connected-panel">
@@ -81,8 +81,8 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
               <strong>{person.displayName}</strong>
               <small>{person.state === 'connected' ? 'CONNECTED' : person.direction === 'outgoing' ? 'REQUEST SENT' : person.direction === 'incoming' ? 'WANTS TO CONNECT' : person.state === 'declined' ? 'DECLINED' : 'FROM THIS SIGNAL'}</small>
             </div>
-            {person.state === 'none' ? (
-              <button disabled={busyUserId === person.userId} onClick={() => { void connect(person) }}><UserPlus size={13} /> CONNECT</button>
+            {person.state === 'none' || person.state === 'declined' ? (
+              <button disabled={busyUserId === person.userId} onClick={() => { void connect(person) }}><UserPlus size={13} /> {person.state === 'declined' ? 'CONNECT AGAIN' : 'CONNECT'}</button>
             ) : person.state === 'pending' && person.direction === 'incoming' ? (
               <div className="stay-connected-actions">
                 <button disabled={busyUserId === person.userId} onClick={() => { void respond(person, true) }}><Check size={13} /> ACCEPT</button>

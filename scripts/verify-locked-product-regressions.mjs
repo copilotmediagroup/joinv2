@@ -19,6 +19,7 @@ const [
   profileMomentClient,
   publicProfileClient,
   avatarClient,
+  stayConnected,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -37,6 +38,7 @@ const [
   read('src/features/profile/profileSignalMomentsClient.ts'),
   read('src/features/profile/publicProfileClient.ts'),
   read('src/features/onboarding/avatarClient.ts'),
+  read('src/features/activity/StayConnectedPanel.tsx'),
 ])
 
 const checks = []
@@ -111,6 +113,9 @@ lock('Public connections remain clickable and exact-count driven', publicProfile
 lock('Public connection modal stays paginated with batched avatars', publicProfileClient + avatarClient + publicProfile,
   /get_signal_public_profile_connections_page[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE CONNECTIONS/,
   'Large social graphs must remain cursor-paginated and avoid one avatar-signing request per connection.')
+lock('Declined post-Signal connections remain retryable', stayConnected,
+  /person\.state === 'none' \|\| person\.state === 'declined'[\s\S]*?CONNECT AGAIN/,
+  'A declined request must not permanently remove the ability to reconnect after the Signal.')
 lock('Own profile connections remain exact-count clickable', myConnections,
   /getPublicProfileConnectionCount\(userId\)[\s\S]*?setConnectionCount\(exactCount\)[\s\S]*?profile-connections-summary[\s\S]*?setOpen\(true\)[\s\S]*?My SIGNAL connections/,
   'The owner profile must show an exact clickable Connections count and modal list.')
