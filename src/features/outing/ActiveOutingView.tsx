@@ -37,8 +37,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
   const momentRequestRef = useRef(false)
-  const endRequestRef = useRef(false)
-  const leaveRequestRef = useRef(false)
+  const outingExitRequestRef = useRef(false)
   const cameraInputId = `live-signal-camera-${planId}`
   const uploadInputId = `live-signal-upload-${planId}`
 
@@ -120,20 +119,20 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   }
 
   const finishOuting = async () => {
-    if (endRequestRef.current) return
-    endRequestRef.current = true
+    if (outingExitRequestRef.current) return
+    outingExitRequestRef.current = true
     setEnding(true); setError(null)
     try { await finishMyPlanOuting(planId); onOutingEnded('completed') }
     catch (endError) { setError(toUserFacingError(endError, 'Unable to end your Signal right now.')) }
-    finally { endRequestRef.current = false; setEnding(false) }
+    finally { outingExitRequestRef.current = false; setEnding(false) }
   }
   const safetyLeave = async () => {
-    if (leaveRequestRef.current) return
-    leaveRequestRef.current = true
+    if (outingExitRequestRef.current) return
+    outingExitRequestRef.current = true
     setLeaving(true); setError(null)
     try { await leaveMyPlan(planId); onOutingEnded('safety') }
     catch (leaveError) { setError(toUserFacingError(leaveError, 'Unable to leave this outing right now.')) }
-    finally { leaveRequestRef.current = false; setLeaving(false) }
+    finally { outingExitRequestRef.current = false; setLeaving(false) }
   }
 
   return (

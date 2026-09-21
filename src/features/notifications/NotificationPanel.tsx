@@ -44,6 +44,7 @@ export default function NotificationPanel({
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
+  const openRequestRef = useRef<string | null>(null)
 
   const unreadCount = useMemo(
     () => items.filter((item) => item.state === 'unread').length,
@@ -96,6 +97,8 @@ export default function NotificationPanel({
   }
 
   const openItem = async (item: SignalNotification) => {
+    if (openRequestRef.current) return
+    openRequestRef.current = item.id
     if (item.state === 'unread') {
       try {
         await markMyNotificationRead(item.id)
@@ -118,6 +121,8 @@ export default function NotificationPanel({
       }
     } catch (targetError) {
       setError(toUserFacingError(targetError, 'Unable to open this notification right now.'))
+    } finally {
+      openRequestRef.current = null
     }
   }
 
