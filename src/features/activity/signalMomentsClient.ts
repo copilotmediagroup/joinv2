@@ -1,5 +1,5 @@
 import { supabase } from '../../lib/supabaseClient'
-import { createProfileAvatarSignedUrl } from '../onboarding/avatarClient'
+import { createProfileAvatarSignedUrls } from '../onboarding/avatarClient'
 
 const MOMENT_BUCKET = 'signal-moments'
 const MAX_MEDIA = 6
@@ -124,22 +124,14 @@ function parseMedia(value: unknown): MomentMediaRow[] {
     throw new Error('Invalid Signal Moment response: media')
   }
   return value as MomentMediaRow[]
-}async function signMomentMedia(rows: MomentMediaRow[]): Promise<SignalMomentMedia[]> {
-  return Promise.all(rows.map(async (row) => {
+}function describeMomentMedia(rows: MomentMediaRow[]): Omit<SignalMomentMedia, 'url'>[] {
+  return rows.map((row) => {
     const storagePath = requireString(row.storagePath, 'media.storagePath')
     const mediaKind = requireString(row.mediaKind, 'media.mediaKind')
     const mimeType = requireString(row.mimeType, 'media.mimeType')
-    if (mediaKind !== 'image' && mediaKind !== 'video') {
-      throw new Error('Invalid Signal Moment response: mediaKind')
-    }
-    const { data, error } = await supabase.storage
-      .from(MOMENT_BUCKET)
-      .createSignedUrl(storagePath, 60 * 60)
-    if (error || !data?.signedUrl) {
-      throw new Error(error?.message || 'Unable to load Signal Moment media.')
-    }
-    return { storagePath, mediaKind, mimeType, url: data.signedUrl }
-  }))
+    if (mediaKind !== 'image' && mediaKind !== 'video') throw new Error('Invalid Signal Moment response: mediaKind')
+    return { storagePath, mediaKind, mimeType }
+  })
 }
 
 export const SIGNAL_MOMENT_PAGE_SIZE = 20
@@ -162,31 +154,43 @@ export async function getSignalMomentsPage(
   if (error) throw new Error(error.message || 'Unable to load Signal Moments.')
   if (!Array.isArray(data)) throw new Error('Invalid Signal Moments response.')
 
-  return Promise.all(data.map(async (raw) => {
+  const described = data.map((raw) => {
     const row = raw as MomentRpcRow
-    const avatarPath = nullableString(row.author_avatar_path)
-    const authorAvatarUrl = avatarPath
-      ? await createProfileAvatarSignedUrl(avatarPath).catch(() => null)
-      : null
-    return {
-      momentId: requireString(row.moment_id, 'moment_id'),
-      planId: requireString(row.plan_id, 'plan_id'),
-      caption: nullableString(row.caption),
-      publishedAt: requireString(row.published_at, 'published_at'),
-      authorUserId: requireString(row.author_user_id, 'author_user_id'),
-      authorDisplayName: requireString(row.author_display_name, 'author_display_name'),
-      authorAvatarUrl,
-      activityName: requireString(row.activity_name, 'activity_name'),
-      cityName: requireString(row.city_name, 'city_name'),
-      stateCode: requireString(row.state_code, 'state_code'),
-      venueName: row.venue_name === null ? null : requireString(row.venue_name, 'venue_name'),
-      participantCount: requireNumber(row.participant_count, 'participant_count'),
-      signalCount: requireNumber(row.signal_count, 'signal_count'),
-      commentCount: requireNumber(row.comment_count, 'comment_count'),
-      didSignal: requireBoolean(row.did_signal, 'did_signal'),
-      isLocal: requireBoolean(row.is_local, 'is_local'),
-      media: await signMomentMedia(parseMedia(row.media)),
-    }
+    return { row, avatarPath: nullableString(row.author_avatar_path), media: describeMomentMedia(parseMedia(row.media)) }
+  })
+  const avatarPaths = [...new Set(described.flatMap(({ avatarPath }) => avatarPath ? [avatarPath] : []))]
+  const mediaPaths = [...new Set(described.flatMap(({ media }) => media.map((item) => item.storagePath)))]
+  const [avatarUrls, signedMedia] = await Promise.all([
+    createProfileAvatarSignedUrls(avatarPaths).catch(() => new Map<string, string>()),
+    mediaPaths.length ? supabase.storage.from(MOMENT_BUCKET).createSignedUrls(mediaPaths, 60 * 60) : Promise.resolve({ data: [], error: null }),
+  ])
+  if (signedMedia.error || !signedMedia.data || signedMedia.data.length !== mediaPaths.length) {
+    throw new Error(signedMedia.error?.message || 'Unable to load Signal Moment media.')
+  }
+  const mediaUrls = new Map<string, string>()
+  signedMedia.data.forEach((item, index) => {
+    if (!item.signedUrl) throw new Error('Unable to load Signal Moment media.')
+    mediaUrls.set(mediaPaths[index], item.signedUrl)
+  })
+
+  return described.map(({ row, avatarPath, media }) => ({
+    momentId: requireString(row.moment_id, 'moment_id'),
+    planId: requireString(row.plan_id, 'plan_id'),
+    caption: nullableString(row.caption),
+    publishedAt: requireString(row.published_at, 'published_at'),
+    authorUserId: requireString(row.author_user_id, 'author_user_id'),
+    authorDisplayName: requireString(row.author_display_name, 'author_display_name'),
+    authorAvatarUrl: avatarPath ? avatarUrls.get(avatarPath) ?? null : null,
+    activityName: requireString(row.activity_name, 'activity_name'),
+    cityName: requireString(row.city_name, 'city_name'),
+    stateCode: requireString(row.state_code, 'state_code'),
+    venueName: row.venue_name === null ? null : requireString(row.venue_name, 'venue_name'),
+    participantCount: requireNumber(row.participant_count, 'participant_count'),
+    signalCount: requireNumber(row.signal_count, 'signal_count'),
+    commentCount: requireNumber(row.comment_count, 'comment_count'),
+    didSignal: requireBoolean(row.did_signal, 'did_signal'),
+    isLocal: requireBoolean(row.is_local, 'is_local'),
+    media: media.map((item) => ({ ...item, url: mediaUrls.get(item.storagePath) ?? '' })),
   }))
 }export async function getMySignalMomentEligiblePlans(): Promise<SignalMomentEligiblePlan[]> {
   const { data, error } = await supabase.rpc('get_my_signal_moment_eligible_plans')

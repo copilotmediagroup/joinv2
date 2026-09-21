@@ -135,6 +135,9 @@ lock('My Energy remains editable only in own profile flow', profile + profilePre
 lock('Admin-authorized users retain user/admin mode switch', app,
   /USER MODE[\s\S]*?ADMIN MODE/,
   'Authorized admin accounts must retain explicit user/admin screen switching.')
+lock('Activity feed batches private media and avatar signing', moments,
+  /createProfileAvatarSignedUrls[\s\S]*?createSignedUrls\(mediaPaths[\s\S]*?mediaUrls/,
+  'A feed page must not fan out into one Storage signing request per avatar or media object.')
 lock('Activity publishing remains server-authoritative', moments,
   /publishSignalMoment[\s\S]*?publish_my_signal_moment/,
   'Activity must continue to originate from Signal Moment authority, not an arbitrary composer.')
