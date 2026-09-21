@@ -153,7 +153,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
   }, [attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
 
   const checkIn = async () => {
-    if (attendanceActionRef.current || !attendance?.canCheckIn) return
+    if (attendanceActionRef.current || governanceActionRef.current || !attendance?.canCheckIn) return
     attendanceActionRef.current = true
     setAttendanceBusy(true)
     setError(null)
@@ -175,7 +175,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
     id: string,
     vote: PlanGovernanceVote,
   ) => {
-    if (governanceActionRef.current) return
+    if (governanceActionRef.current || attendanceActionRef.current) return
     governanceActionRef.current = true
     setBusy(true)
     setError(null)
@@ -192,7 +192,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
   }
 
   const proposeTime = async () => {
-    if (governanceActionRef.current || !newTime) return
+    if (governanceActionRef.current || attendanceActionRef.current || !newTime) return
     const parsed = new Date(newTime)
     if (Number.isNaN(parsed.getTime())) {
       setError('Choose a valid meetup time.')
@@ -213,7 +213,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
   }
 
   const leave = async (reason: 'left' | 'safety' = 'left') => {
-    if (governanceActionRef.current) return
+    if (governanceActionRef.current || attendanceActionRef.current) return
     governanceActionRef.current = true
     setBusy(true)
     setError(null)
@@ -287,7 +287,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
           <button
             type="button"
             className="plan-check-in-button"
-            disabled={attendanceBusy}
+            disabled={attendanceBusy || busy}
             onClick={() => { void checkIn() }}
           >
             <MapPin size={15} /> {attendanceBusy ? 'CHECKING YOU IN…' : "I'M HERE"}
@@ -325,8 +325,8 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
           <strong>{join.requesterName} wants to join</strong>
           <small>{join.yesVotes} YES · {join.noVotes} NO · {join.majorityRequired} needed</small>
           <div className="plan-governance-actions">
-            <button disabled={busy} className={join.myVote === 'yes' ? 'active' : ''} onClick={() => { void runVote('join', join.requestId, 'yes') }}>YES</button>
-            <button disabled={busy} className={join.myVote === 'no' ? 'active' : ''} onClick={() => { void runVote('join', join.requestId, 'no') }}>NO</button>
+            <button disabled={busy || attendanceBusy} className={join.myVote === 'yes' ? 'active' : ''} onClick={() => { void runVote('join', join.requestId, 'yes') }}>YES</button>
+            <button disabled={busy || attendanceBusy} className={join.myVote === 'no' ? 'active' : ''} onClick={() => { void runVote('join', join.requestId, 'no') }}>NO</button>
           </div>
         </section>
       )}
@@ -341,8 +341,8 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
           </strong>
           <small>Proposed by {change.proposerName} · {change.yesVotes} YES · {change.noVotes} NO · {change.majorityRequired} needed</small>
           <div className="plan-governance-actions">
-            <button disabled={busy} className={change.myVote === 'yes' ? 'active' : ''} onClick={() => { void runVote('change', change.proposalId, 'yes') }}>YES</button>
-            <button disabled={busy} className={change.myVote === 'no' ? 'active' : ''} onClick={() => { void runVote('change', change.proposalId, 'no') }}>NO</button>
+            <button disabled={busy || attendanceBusy} className={change.myVote === 'yes' ? 'active' : ''} onClick={() => { void runVote('change', change.proposalId, 'yes') }}>YES</button>
+            <button disabled={busy || attendanceBusy} className={change.myVote === 'no' ? 'active' : ''} onClick={() => { void runVote('change', change.proposalId, 'no') }}>NO</button>
           </div>
         </section>
       )}
@@ -353,10 +353,10 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
           <input
             type="datetime-local"
             value={newTime}
-            disabled={busy || changesFrozen}
+            disabled={busy || attendanceBusy || changesFrozen}
             onChange={(event) => setNewTime(event.target.value)}
           />
-          <button type="button" disabled={busy || changesFrozen || !newTime} onClick={() => { void proposeTime() }}>
+          <button type="button" disabled={busy || attendanceBusy || changesFrozen || !newTime} onClick={() => { void proposeTime() }}>
             {changesFrozen ? 'CHANGES FROZEN' : 'START 5-MIN VOTE'}
           </button>
         </section>
@@ -366,11 +366,11 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
 
       <div className="plan-governance-exit-actions">
         {attendance?.checkedIn && (
-          <button type="button" className="plan-governance-safety-exit" disabled={busy} onClick={() => { void leave('safety') }}>
+          <button type="button" className="plan-governance-safety-exit" disabled={busy || attendanceBusy} onClick={() => { void leave('safety') }}>
             <ShieldCheck size={14} /> I DON’T FEEL SAFE — LEAVE NOW
           </button>
         )}
-        <button type="button" className="plan-governance-leave" disabled={busy} onClick={() => { void leave('left') }}>
+        <button type="button" className="plan-governance-leave" disabled={busy || attendanceBusy} onClick={() => { void leave('left') }}>
           <LogOut size={14} /> LEAVE SIGNAL
         </button>
       </div>
