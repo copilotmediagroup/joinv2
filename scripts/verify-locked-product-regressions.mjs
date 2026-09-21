@@ -217,6 +217,9 @@ lock('Moment comment pagination serializes requests', activityView,
 lock('Comments, blocked users, and moderation evidence batch signing', momentSocialClient + userSafetyClient + adminClient,
   /getMomentCommentsPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyBlockedUsersPage[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getModerationMomentEvidence[\s\S]*?createSignedUrls/,
   'Bounded social and moderation pages must avoid per-row Storage signing fan-out.')
+lock('Activity realtime defers hidden-tab refreshes', activityView,
+  /document\.visibilityState !== 'visible'[\s\S]*?momentRefreshPendingRef\.current = true[\s\S]*?visibilitychange[\s\S]*?refreshMomentFeed/,
+  'Hidden Activity tabs must defer realtime feed reads and catch up once when visible again.')
 lock('Activity feed batches private media and avatar signing', moments,
   /createProfileAvatarSignedUrls[\s\S]*?createSignedUrls\(mediaPaths[\s\S]*?mediaUrls/,
   'A feed page must not fan out into one Storage signing request per avatar or media object.')

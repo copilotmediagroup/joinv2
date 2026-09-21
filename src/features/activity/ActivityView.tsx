@@ -365,6 +365,7 @@ export default function ActivityView({
   const [hasMoreMoments, setHasMoreMoments] = useState(false)
   const [momentsError, setMomentsError] = useState<string | null>(null)
   const momentRealtimeTimerRef = useRef<number | null>(null)
+  const momentRefreshPendingRef = useRef(false)
 
   const refreshMomentFeed = useCallback(async () => {
     try {
@@ -420,6 +421,10 @@ export default function ActivityView({
     void loadInitialMoments()
 
     const unsubscribe = subscribeToSignalMoments(() => {
+      if (document.visibilityState !== 'visible') {
+        momentRefreshPendingRef.current = true
+        return
+      }
       if (momentRealtimeTimerRef.current !== null) {
         window.clearTimeout(momentRealtimeTimerRef.current)
       }
@@ -430,12 +435,24 @@ export default function ActivityView({
       }, 500)
     })
 
+    const handleVisibilityChange = () => {
+      if (
+        document.visibilityState !== 'visible'
+        || !momentRefreshPendingRef.current
+        || cancelled
+      ) return
+      momentRefreshPendingRef.current = false
+      void refreshMomentFeed()
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
       cancelled = true
       if (momentRealtimeTimerRef.current !== null) {
         window.clearTimeout(momentRealtimeTimerRef.current)
         momentRealtimeTimerRef.current = null
       }
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       unsubscribe()
     }
   }, [refreshMomentFeed])
