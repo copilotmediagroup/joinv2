@@ -30,6 +30,7 @@ const [
   adminClient,
   messagingClient,
   notificationPanel,
+  adminOpsMigration,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -59,6 +60,7 @@ const [
   read('src/features/admin/adminClient.ts'),
   read('src/features/messaging/messagingClient.ts'),
   read('src/features/notifications/NotificationPanel.tsx'),
+  read('supabase/migrations/20260921081000_scale_admin_operations_snapshot.sql'),
 ])
 
 const checks = []
@@ -154,6 +156,9 @@ lock('My Energy stays out of public profile', publicProfile,
 lock('My Energy remains editable only in own profile flow', profile + profilePreferences,
   /SignalPreferencesPanel[\s\S]*?MY ENERGY[\s\S]*?SAVE MY ENERGY/,
   'Private preference editing must remain available to the owner.')
+lock('Admin operations counters remain independently indexable', adminOpsMigration,
+  /get_admin_operations_snapshot[\s\S]*?select count\(\*\) from public\.signal_groups[\s\S]*?select count\(\*\) from public\.plans[\s\S]*?select count\(\*\) from public\.user_reports[\s\S]*?select count\(\*\) from public\.signal_moment_reports/,
+  'Admin monitoring must not regress to broad materialized scans as production tables grow.')
 lock('Admin-authorized users retain user/admin mode switch', app,
   /USER MODE[\s\S]*?ADMIN MODE/,
   'Authorized admin accounts must retain explicit user/admin screen switching.')
