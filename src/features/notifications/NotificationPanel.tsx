@@ -43,6 +43,7 @@ export default function NotificationPanel({
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
+  const pageRequestRef = useRef(false)
 
   const unreadCount = useMemo(
     () => items.filter((item) => item.state === 'unread').length,
@@ -74,17 +75,23 @@ export default function NotificationPanel({
 
   const loadMore = async () => {
     const last = items[items.length - 1]
-    if (!last || loadingMore || !hasMore) return
+    if (!last || pageRequestRef.current || !hasMore) return
+    const requestEpoch = refreshEpochRef.current
+    pageRequestRef.current = true
     setLoadingMore(true)
     try {
       const page = await getMyNotificationsPage({ createdAt: last.createdAt, notificationId: last.id })
+      if (requestEpoch !== refreshEpochRef.current) return
       setItems((current) => [...current, ...page.notifications])
       setHasMore(page.hasMore)
       setError(null)
     } catch (loadError) {
-      setError(toUserFacingError(loadError, 'Unable to load older notifications right now.'))
+      if (requestEpoch === refreshEpochRef.current) {
+        setError(toUserFacingError(loadError, 'Unable to load older notifications right now.'))
+      }
     } finally {
-      setLoadingMore(false)
+      pageRequestRef.current = false
+      if (requestEpoch === refreshEpochRef.current) setLoadingMore(false)
     }
   }
 

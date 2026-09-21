@@ -176,6 +176,9 @@ lock('Notification unread authority remains server counted', notifications,
 lock('Notification refresh ignores stale responses', notificationPanel,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid notification refreshes must not let an older page overwrite newer alert state.')
+lock('Notification pagination serializes and rejects stale pages', notificationPanel,
+  /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
+  'Rapid notification pagination must serialize and older pages must not append after a newer refresh.')
 lock('Notification history stays cursor-paginated', notifications + notificationPanel,
   /get_my_notifications_page[\s\S]*?p_before_created_at[\s\S]*?LOAD OLDER ALERTS/,
   'Notification history must remain bounded while allowing users to reach older alerts.')
