@@ -123,6 +123,9 @@ lock('Locked Signal retains Open Details entry point', signalTimeStage,
 lock('Live details retain route toggle and trip stats', details,
   /route \? ' HIDE ROUTE' : ' DIRECTIONS'[\s\S]*?DISTANCE[\s\S]*?DRIVE[\s\S]*?ETA/,
   'Directions must remain a toggle with distance, drive time, and ETA.')
+lock('Live outing refresh ignores stale realtime responses', outing,
+  /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
+  'Overlapping governance and live refreshes must not let older outing state overwrite newer authority.')
 lock('Live Plan fallback polling sleeps in hidden tabs', outing + details,
   /visibilityState !== 'visible'[\s\S]*?getMyPlanAttendanceStatus[\s\S]*?visibilityState !== 'visible'[\s\S]*?getMyPlanAttendanceStatus/,
   'Hidden live-Signal tabs must not keep issuing fallback attendance requests while realtime remains authoritative.')

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Camera, CheckCircle2, Clock3, ImagePlus, MessageCircle, ShieldAlert, Sparkles, Upload, Users, X, Zap } from 'lucide-react'
 import { getMyPlanGovernance, leaveMyPlan, subscribeToPlanGovernance, type PlanGovernanceSnapshot } from '../plan/planGovernanceClient'
 import { getMyPlanAttendanceStatus, subscribeToLivePlanRefresh, type PlanAttendanceStatus } from '../plan/planAttendanceClient'
@@ -35,6 +35,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   const [leaving, setLeaving] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const refreshEpochRef = useRef(0)
   const cameraInputId = `live-signal-camera-${planId}`
   const uploadInputId = `live-signal-upload-${planId}`
 
@@ -46,15 +47,18 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   }, [cameraInputId, captureMode, onCaptureModeHandled, uploadInputId])
 
   const refresh = useCallback(async () => {
+    const requestEpoch = ++refreshEpochRef.current
     try {
       const [nextPlan, nextAttendance, nextMembers] = await Promise.all([
         getMyPlanGovernance(planId), getMyPlanAttendanceStatus(planId), getMyPlanMembers(planId),
       ])
+      if (requestEpoch !== refreshEpochRef.current) return
       if (!nextAttendance.checkedIn || !['locked', 'recovery_required', 'active_outing'].includes(nextAttendance.planState)) {
         onOutingEnded('ended'); return
       }
       setPlan(nextPlan); setAttendance(nextAttendance); setMembers(nextMembers); setError(null)
     } catch (loadError) {
+      if (requestEpoch !== refreshEpochRef.current) return
       const message = toUserFacingError(loadError, 'Unable to refresh this outing right now.')
       if (/membership|required|no longer|completed/i.test(message)) onOutingEnded('ended')
       else setError(message)
