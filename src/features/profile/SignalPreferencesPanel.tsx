@@ -157,6 +157,7 @@ export default function SignalPreferencesPanel() {
                     type="button"
                     key={option.value}
                     className={draft[group.key] === option.value ? 'active' : ''}
+                    disabled={saving}
                     onClick={() => setDraft((current) => ({
                       ...current,
                       [group.key]: current[group.key] === option.value ? null : option.value,
