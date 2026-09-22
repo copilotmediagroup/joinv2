@@ -74,7 +74,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
     try {
       const page = await getModerationMomentQueue({ ...config, cursor, limit: PAGE_SIZE })
       if (requestEpoch !== queueEpochRef.current) return
-      const nextItems = append ? [...current, ...page] : page
+      const nextItems = append ? [...current, ...page.filter((next) => !current.some((item) => item.reportId === next.reportId))] : page
       setItems(nextItems)
       setHasMore(page.length === PAGE_SIZE)
       if (!append) setSelectedId(nextItems[0]?.reportId ?? null)

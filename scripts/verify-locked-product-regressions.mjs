@@ -380,6 +380,9 @@ lock('Moderation case identity freezes during mutations', moderationView + momen
 lock('Moderation pagination pauses during case mutations', moderationView + momentModeration,
   /actionRequestRef\.current[\s\S]*?disabled=\{loadingMore \|\| actionLoading\}/,
   'Queue pagination must not race claim, release, enforcement, or review writes while a case mutation owns the panel.')
+lock('Moderation pagination deduplicates overlapping queue pages', moderationView + momentModeration,
+  /page\.filter[\s\S]*?item\.reportId === next\.reportId[\s\S]*?page\.filter[\s\S]*?item\.reportId === next\.reportId/,
+  'Adjacent moderation cursor pages must not render the same report twice.')
 lock('Moderation queues serialize pagination and reject stale tabs', moderationView + momentModeration,
   /queueEpochRef[\s\S]*?pageRequestRef[\s\S]*?requestEpoch = append \? queueEpochRef\.current : \+\+queueEpochRef\.current[\s\S]*?requestEpoch !== queueEpochRef\.current/,
   'People and Moment moderation queues must not duplicate cursor pages or let an older tab response replace the current queue.')
