@@ -111,6 +111,8 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
     })
     return () => {
       active = false
+      refreshEpochRef.current += 1
+      attendanceRefreshEpochRef.current += 1
       unsubscribe()
     }
   }, [planId, refresh])
@@ -147,6 +149,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
     }
     document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
+      attendanceRefreshEpochRef.current += 1
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', onVisibilityChange)
     }

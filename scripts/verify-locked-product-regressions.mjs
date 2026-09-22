@@ -194,6 +194,9 @@ lock('Plan governance actions serialize rapid mutations', planGovernance,
 lock('Plan governance controls mirror shared mutation ownership', planGovernance,
   /disabled=\{attendanceBusy \|\| busy\}[\s\S]*?disabled=\{busy \|\| attendanceBusy\}[\s\S]*?disabled=\{busy \|\| attendanceBusy \|\| changesFrozen/,
   'Check-in and governance controls must visibly freeze each other while either mutation owns the Plan.')
+lock('Plan governance refresh invalidates on unmount', planGovernance,
+  /active = false[\s\S]*?refreshEpochRef\.current \+= 1[\s\S]*?attendanceRefreshEpochRef\.current \+= 1[\s\S]*?unsubscribe\(\)[\s\S]*?attendanceRefreshEpochRef\.current \+= 1[\s\S]*?window\.clearInterval/,
+  'Governance and attendance refreshes must be invalidated when their Plan effects unmount.')
 lock('Plan governance refresh ignores stale realtime responses', planGovernance,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Overlapping Plan governance refreshes must not let older voting, replacement, or attendance state overwrite newer authority.')
