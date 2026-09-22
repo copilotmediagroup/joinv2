@@ -316,13 +316,15 @@ function App() {
   const [notificationRefreshToken, setNotificationRefreshToken] = useState(0)
   const [notificationToast, setNotificationToast] = useState<SignalNotification | null>(null)
   const notificationToastTimerRef = useRef<number | null>(null)
+  const notificationUnreadEpochRef = useRef(0)
 
   useEffect(() => {
     let active = true
     const refreshUnread = async () => {
+      const requestEpoch = ++notificationUnreadEpochRef.current
       try {
         const count = await getMyUnreadNotificationCount()
-        if (active) setNotificationUnreadCount(count)
+        if (active && requestEpoch === notificationUnreadEpochRef.current) setNotificationUnreadCount(count)
       } catch { /* Panel remains the user-facing error surface. */ }
     }
     void refreshUnread()
@@ -338,6 +340,7 @@ function App() {
     })
     return () => {
       active = false
+      notificationUnreadEpochRef.current += 1
       unsubscribe()
       if (notificationToastTimerRef.current !== null) window.clearTimeout(notificationToastTimerRef.current)
     }
