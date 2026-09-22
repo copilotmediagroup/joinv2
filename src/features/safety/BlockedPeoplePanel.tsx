@@ -52,7 +52,7 @@ export default function BlockedPeoplePanel() {
     queueMicrotask(() => {
       if (active) void refresh()
     })
-    return () => { active = false }
+    return () => { active = false; refreshEpochRef.current += 1 }
   }, [refresh])
 
   const loadMore = async () => {

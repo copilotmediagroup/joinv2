@@ -461,6 +461,9 @@ lock('Blocked people pagination serializes and rejects stale pages', blockedPeop
 lock('Blocked people pagination pauses during unblock', blockedPeople,
   /loadMore[\s\S]*?pageRequestRef\.current \|\| actionRequestRef\.current[\s\S]*?blocked-people-load-more[\s\S]*?disabled=\{loadingMore \|\| busyId !== null\}/,
   'Pagination must not race an unblock mutation or offer a dead LOAD OLDER action while unblock owns the panel.')
+lock('Blocked people refresh invalidates on panel unmount', blockedPeople,
+  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1 \}/,
+  'Blocked people refreshes must be invalidated when the panel unmounts.')
 lock('Blocked people refresh cannot resurrect unblocked users', blockedPeople,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current[\s\S]*?unblockUser[\s\S]*?refreshEpochRef\.current \+= 1/,
   'An older blocked-people read must not restore a user after a successful unblock.')
