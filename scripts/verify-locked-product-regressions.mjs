@@ -155,6 +155,9 @@ lock('Group message history stays cursor-paginated', messagingClient + messages,
 lock('Group chat member refresh ignores stale realtime responses', messages,
   /refreshEpoch = 0[\s\S]*?requestEpoch = \+\+refreshEpoch[\s\S]*?requestEpoch === refreshEpoch/,
   'Group chat member lists must not let older realtime reads overwrite newer membership state.')
+lock('Signal time preference control freezes during submission', signalTimeStage,
+  /signal-time-preference-button[\s\S]*?disabled=\{submitting\}[\s\S]*?choosePreference/,
+  'Nested preferred-time control must freeze with the shared availability mutation owner.')
 lock('Signal venue and time choices serialize rapid submissions', signalPlaceStage + signalTimeStage,
   /voteRequestRef[\s\S]*?castVote[\s\S]*?voteRequestRef\.current[\s\S]*?voteRequestRef\.current = true[\s\S]*?voteRequestRef\.current = false[\s\S]*?availabilityRequestRef[\s\S]*?toggleAvailability[\s\S]*?availabilityRequestRef\.current[\s\S]*?availabilityRequestRef\.current = true[\s\S]*?availabilityRequestRef\.current = false[\s\S]*?choosePreference[\s\S]*?availabilityRequestRef\.current/,
   'Rapid venue votes and time choices must preserve one client-owned mutation at a time.')

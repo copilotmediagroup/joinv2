@@ -539,6 +539,7 @@ export default function SignalTimeStage({
                     <button
                       type="button"
                       className="signal-time-preference-button"
+                      disabled={submitting}
                       onClick={(event) => {
                         event.stopPropagation()
                         void choosePreference(option.optionId)
