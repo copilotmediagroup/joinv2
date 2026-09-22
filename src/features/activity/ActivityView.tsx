@@ -176,24 +176,30 @@ function CurrentActivityCard({
   const deleteRequestRef = useRef(false)
   const reportRequestRef = useRef(false)
   const commentDeleteRequestRef = useRef(false)
+  const cardEpochRef = useRef(0)
+
+  useEffect(() => () => { cardEpochRef.current += 1 }, [moment.momentId])
 
   const loadComments = async (loadOlder = false) => {
     if (commentsRequestRef.current || socialMutationRef.current || deleteRequestRef.current || reportRequestRef.current || commentDeleteRequestRef.current) return
+    const cardEpoch = cardEpochRef.current
+    const requestedMomentId = moment.momentId
     commentsRequestRef.current = true
     setCommentsLoading(true)
     try {
       const oldest = loadOlder ? comments[0] ?? null : null
       const next = await getMomentCommentsPage(
-        moment.momentId,
+        requestedMomentId,
         oldest
           ? { createdAt: oldest.createdAt, commentId: oldest.commentId }
           : null,
       )
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       setComments((current) => loadOlder ? [...next, ...current] : next)
       setCommentsHaveMore(next.length === MOMENT_COMMENT_PAGE_SIZE)
     } finally {
       commentsRequestRef.current = false
-      setCommentsLoading(false)
+      if (cardEpoch === cardEpochRef.current && requestedMomentId === moment.momentId) setCommentsLoading(false)
     }
   }
 

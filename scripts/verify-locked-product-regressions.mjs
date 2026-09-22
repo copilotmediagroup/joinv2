@@ -501,6 +501,9 @@ lock('Moment comment deletion serializes rapid actions', activityView,
 lock('Deleted comments disappear without refresh races', activityView,
   /deleteMyMomentComment\(commentId\)[\s\S]*?setComments\(\(current\) => current\.filter\(\(comment\) => comment\.commentId !== commentId\)\)[\s\S]*?loadComments\(\)/,
   'A successful delete must remove the comment locally even when comment refresh serialization is already occupied.')
+lock('Moment comment reads reject stale card lifecycles', activityView,
+  /cardEpochRef = useRef\(0\)[\s\S]*?cardEpochRef\.current \+= 1[\s\S]*?requestedMomentId = moment\.momentId[\s\S]*?getMomentCommentsPage\([\s\S]*?requestedMomentId[\s\S]*?cardEpoch !== cardEpochRef\.current \|\| requestedMomentId !== moment\.momentId/,
+  'Comment pages from a replaced Moment card must not write into the replacement card lifecycle.')
 lock('Moment comment pagination pauses during mutations', activityView,
   /commentsRequestRef\.current \|\| socialMutationRef\.current \|\| deleteRequestRef\.current \|\| reportRequestRef\.current \|\| commentDeleteRequestRef\.current[\s\S]*?disabled=\{commentsLoading \|\| socialBusy \|\| deleting \|\| reporting\}/,
   'Comment pagination must not race signal, comment, delete, or report mutations on the same Moment.')
