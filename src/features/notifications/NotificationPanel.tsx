@@ -42,6 +42,7 @@ export default function NotificationPanel({
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [opening, setOpening] = useState(false)
   const refreshEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
   const openRequestRef = useRef<string | null>(null)
@@ -76,7 +77,7 @@ export default function NotificationPanel({
 
   const loadMore = async () => {
     const last = items[items.length - 1]
-    if (!last || pageRequestRef.current || !hasMore) return
+    if (!last || pageRequestRef.current || openRequestRef.current || !hasMore) return
     const requestEpoch = refreshEpochRef.current
     pageRequestRef.current = true
     setLoadingMore(true)
@@ -99,6 +100,7 @@ export default function NotificationPanel({
   const openItem = async (item: SignalNotification) => {
     if (openRequestRef.current) return
     openRequestRef.current = item.id
+    setOpening(true)
     if (item.state === 'unread') {
       try {
         await markMyNotificationRead(item.id)
@@ -123,6 +125,7 @@ export default function NotificationPanel({
       setError(toUserFacingError(targetError, 'Unable to open this notification right now.'))
     } finally {
       openRequestRef.current = null
+      setOpening(false)
     }
   }
 
@@ -161,7 +164,7 @@ export default function NotificationPanel({
             <time>{relativeTime(item.createdAt)}</time>
           </button>
         ))}
-        {hasMore ? <button type="button" className="notification-load-more" disabled={loadingMore} onClick={() => { void loadMore() }}>{loadingMore ? 'LOADING…' : 'LOAD OLDER ALERTS'}</button> : null}
+        {hasMore ? <button type="button" className="notification-load-more" disabled={loadingMore || opening} onClick={() => { void loadMore() }}>{loadingMore ? 'LOADING…' : 'LOAD OLDER ALERTS'}</button> : null}
       </div>
     </aside>
   )

@@ -251,6 +251,9 @@ lock('Notification refresh ignores stale responses', notificationPanel,
 lock('Notification opening serializes rapid navigation', notificationPanel,
   /openRequestRef[\s\S]*?openItem[\s\S]*?openRequestRef\.current[\s\S]*?openRequestRef\.current = item\.id[\s\S]*?resolveMyNotificationTarget[\s\S]*?openRequestRef\.current = null/,
   'Rapid notification taps must not race read-state mutation and navigation resolution.')
+lock('Notification pagination pauses during navigation', notificationPanel,
+  /loadMore[\s\S]*?openRequestRef\.current[\s\S]*?setOpening\(true\)[\s\S]*?disabled=\{loadingMore \|\| opening\}/,
+  'Older-alert pagination must not race a notification open/navigation mutation.')
 lock('Notification pagination serializes and rejects stale pages', notificationPanel,
   /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid notification pagination must serialize and older pages must not append after a newer refresh.')
