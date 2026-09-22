@@ -490,6 +490,7 @@ export default function ActivityView({
 
     return () => {
       cancelled = true
+      momentRefreshEpochRef.current += 1
       if (momentRealtimeTimerRef.current !== null) {
         window.clearTimeout(momentRealtimeTimerRef.current)
         momentRealtimeTimerRef.current = null
