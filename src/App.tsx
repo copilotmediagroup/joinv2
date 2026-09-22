@@ -442,6 +442,7 @@ function App() {
   const [logoutSubmitting, setLogoutSubmitting] = useState(false)
   const logoutRequestRef = useRef(false)
   const planDetailsOpenRequestRef = useRef(false)
+  const planDetailsOpenEpochRef = useRef(0)
   const publicProfileMessageRequestRef = useRef(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
@@ -1145,9 +1146,11 @@ function App() {
 
   const handleOpenPlanDetails = async (planId: string) => {
     if (planDetailsOpenRequestRef.current) return
+    const openEpoch = ++planDetailsOpenEpochRef.current
     planDetailsOpenRequestRef.current = true
     try {
       await openMySignalPlanDetails(planId)
+      if (openEpoch !== planDetailsOpenEpochRef.current) return
       setActivePlanId(planId)
     setMessagePlanId(planId)
     setMessageDirectConversationId(null)
@@ -1162,6 +1165,7 @@ function App() {
   }
 
   const handleOpenPlanChat = (planId: string) => {
+    planDetailsOpenEpochRef.current += 1
     setActivePlanId(planId)
     setMessagePlanId(planId)
     setMessageDirectConversationId(null)
@@ -1171,6 +1175,7 @@ function App() {
   }
 
   const handleOpenSignalNotification = () => {
+    planDetailsOpenEpochRef.current += 1
     setNotificationsOpen(false)
     // The resolver proves a live journey exists, but the browser still rehydrates
     // from the canonical resume RPC instead of trusting notification-era IDs.
@@ -1283,6 +1288,7 @@ function App() {
   }
 
   const handleDiscoverNavigation = () => {
+    planDetailsOpenEpochRef.current += 1
     setActiveSurface('discover')
     if (activeOutingPlanId) { void restoreActiveSignal(true); return }
 
@@ -1299,6 +1305,7 @@ function App() {
   }
 
   const handleLeaveSignal = async () => {
+    planDetailsOpenEpochRef.current += 1
     if (
       withdrawalRequestRef.current ||
       !canWithdrawSignal
