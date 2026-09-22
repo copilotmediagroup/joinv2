@@ -169,6 +169,7 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
       await releaseMyModerationReport(requestedReportId)
       if (actionEpoch !== actionEpochRef.current) return
       await loadPage('mine')
+      if (actionEpoch !== actionEpochRef.current) return
       setNote('')
     } catch (releaseError) {
       if (actionEpoch !== actionEpochRef.current) return
@@ -214,6 +215,7 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
       })
       if (actionEpoch !== actionEpochRef.current) return
       await loadPage('mine')
+      if (actionEpoch !== actionEpochRef.current) return
       setNote('')
     } catch (reviewError) {
       if (actionEpoch !== actionEpochRef.current) return

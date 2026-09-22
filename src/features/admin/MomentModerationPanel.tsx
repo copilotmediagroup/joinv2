@@ -159,6 +159,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
       await releaseMyModerationMoment(requestedReportId)
       if (actionEpoch !== actionEpochRef.current) return
       await loadPage('mine')
+      if (actionEpoch !== actionEpochRef.current) return
       setNote('')
     } catch (releaseError) {
       if (actionEpoch !== actionEpochRef.current) return
@@ -205,6 +206,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
       })
       if (actionEpoch !== actionEpochRef.current) return
       await loadPage('mine')
+      if (actionEpoch !== actionEpochRef.current) return
       setNote('')
     } catch (reviewError) {
       if (actionEpoch !== actionEpochRef.current) return
