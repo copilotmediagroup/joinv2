@@ -47,6 +47,7 @@ const [
   authGate,
   onboardingGate,
   signalAccessGate,
+  mobileSafeVenueWindow,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -93,6 +94,7 @@ const [
   read('src/features/onboarding/components/AuthGateView.tsx'),
   read('src/features/onboarding/components/OnboardingGateView.tsx'),
   read('src/features/onboarding/components/SignalAccessGate.tsx'),
+  read('supabase/migrations/20260922105000_mobile_safe_signal_venue_window.sql'),
 ])
 
 const checks = []
@@ -104,6 +106,9 @@ const lock = (name, source, pattern, reason) => {
 // These are user-verified product behaviors. This suite intentionally tests
 // ownership/structure rather than snapshots so visual refactors can continue
 // without silently deleting or bypassing finished behavior.
+lock('Signal venue voting window remains mobile-safe', mobileSafeVenueWindow,
+  /ensure_signal_venue_round[\s\S]*?10 seconds[\s\S]*?60 seconds/,
+  'A confirmed phone participant must have enough server-owned time to enter Place before automatic venue fallback.')
 lock('Discovery counts remain live without manual reload', app,
   /subscribeToSignalDiscovery\(refreshLiveCounts,[\s\S]*?setInterval\([\s\S]*?visibilityState === 'visible'[\s\S]*?30_000[\s\S]*?visibilitychange[\s\S]*?online/,
   'Realtime + self-healing reconciliation must remain installed.')
