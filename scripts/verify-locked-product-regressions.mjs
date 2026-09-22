@@ -135,7 +135,7 @@ lock('Direct message pagination serializes and rejects stale conversation pages'
   /messagePageRequestRef[\s\S]*?requestedConversationId = selectedId[\s\S]*?requestEpoch = messageRefreshEpochRef\.current[\s\S]*?requestEpoch !== messageRefreshEpochRef\.current/,
   'Rapid LOAD OLDER requests must serialize and an older conversation page must not append after realtime refresh or thread navigation.')
 lock('Direct thread pagination serializes rapid requests', directMessagesPanel,
-  /threadPageRequestRef[\s\S]*?if \(!last \|\| threadPageRequestRef\.current\) return[\s\S]*?threadPageRequestRef\.current = true[\s\S]*?threadPageRequestRef\.current = false/,
+  /threadPageRequestRef[\s\S]*?if \(!last \|\| threadPageRequestRef\.current \|\| sendRequestRef\.current\) return[\s\S]*?threadPageRequestRef\.current = true[\s\S]*?threadPageRequestRef\.current = false/,
   'Rapid direct-thread pagination must not issue duplicate cursor requests.')
 lock('Direct message refresh ignores stale conversation responses', directMessagesPanel,
   /messageRefreshEpochRef[\s\S]*?requestedConversationId = selectedId[\s\S]*?requestEpoch = \+\+messageRefreshEpochRef\.current[\s\S]*?requestEpoch !== messageRefreshEpochRef\.current[\s\S]*?messageRefreshEpochRef\.current \+= 1/,
@@ -147,7 +147,7 @@ lock('Group message pagination serializes and rejects stale conversation pages',
   /groupMessageEpochRef[\s\S]*?groupMessagePageRequestRef[\s\S]*?requestedConversationId = selectedConversationId[\s\S]*?requestEpoch = groupMessageEpochRef\.current[\s\S]*?requestEpoch !== groupMessageEpochRef\.current/,
   'Rapid group LOAD OLDER requests must serialize and pages from an older conversation generation must be discarded.')
 lock('Group conversation pagination serializes rapid requests', messages,
-  /groupConversationPageRequestRef[\s\S]*?if \(!conversationCursor \|\| groupConversationPageRequestRef\.current\) return[\s\S]*?groupConversationPageRequestRef\.current = true[\s\S]*?groupConversationPageRequestRef\.current = false/,
+  /groupConversationPageRequestRef[\s\S]*?if \(!conversationCursor \|\| groupConversationPageRequestRef\.current \|\| sendRequestRef\.current\) return[\s\S]*?groupConversationPageRequestRef\.current = true[\s\S]*?groupConversationPageRequestRef\.current = false/,
   'Rapid Plan conversation pagination must not issue duplicate cursor requests.')
 lock('Group message history stays cursor-paginated', messagingClient + messages,
   /get_my_plan_messages_page[\s\S]*?PLAN_MESSAGE_PAGE_SIZE \+ 1[\s\S]*?LOAD OLDER MESSAGES/,
