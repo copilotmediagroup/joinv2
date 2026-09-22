@@ -22,6 +22,7 @@ export default function BlockedPeoplePanel() {
   const refreshEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
   const actionRequestRef = useRef(false)
+  const actionEpochRef = useRef(0)
 
   const refresh = useCallback(async () => {
     const requestEpoch = ++refreshEpochRef.current
@@ -52,7 +53,7 @@ export default function BlockedPeoplePanel() {
     queueMicrotask(() => {
       if (active) void refresh()
     })
-    return () => { active = false; refreshEpochRef.current += 1 }
+    return () => { active = false; refreshEpochRef.current += 1; actionEpochRef.current += 1 }
   }, [refresh])
 
   const loadMore = async () => {
@@ -91,23 +92,27 @@ export default function BlockedPeoplePanel() {
 
   const unblock = async (user: BlockedUser) => {
     if (actionRequestRef.current) return
+    const actionEpoch = actionEpochRef.current
+    const requestedUserId = user.userId
     actionRequestRef.current = true
-    setBusyId(user.userId)
+    setBusyId(requestedUserId)
     setError(null)
     try {
-      await unblockUser(user.userId)
+      await unblockUser(requestedUserId)
+      if (actionEpoch !== actionEpochRef.current) return
       refreshEpochRef.current += 1
       setItems((current) =>
-        current.filter((item) => item.userId !== user.userId),
+        current.filter((item) => item.userId !== requestedUserId),
       )
     } catch (value) {
+      if (actionEpoch !== actionEpochRef.current) return
       setError(toUserFacingError(
         value,
         'Unable to unblock this person right now.',
       ))
     } finally {
       actionRequestRef.current = false
-      setBusyId(null)
+      if (actionEpoch === actionEpochRef.current) setBusyId(null)
     }
   }
 

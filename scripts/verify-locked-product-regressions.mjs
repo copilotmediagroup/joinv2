@@ -519,6 +519,9 @@ lock('Safety report and block actions serialize rapid submissions', userSafetyAc
 lock('Safety mode controls stay frozen during mutations', userSafetyActions,
   /disabled=\{busy \|\| disabled\}[\s\S]*?REPORT[\s\S]*?disabled=\{busy \|\| disabled\}[\s\S]*?BLOCK[\s\S]*?<select disabled=\{busy \|\| disabled\}[\s\S]*?<textarea disabled=\{busy \|\| disabled\}[\s\S]*?SEND REPORT[\s\S]*?disabled=\{busy \|\| disabled\}[\s\S]*?CANCEL/,
   'Report/block sheets must not switch or close underneath an in-flight safety mutation.')
+lock('Unblock action rejects stale panel completions', blockedPeople,
+  /actionEpochRef = useRef\(0\)[\s\S]*?actionEpochRef\.current \+= 1[\s\S]*?requestedUserId = user\.userId[\s\S]*?unblockUser\(requestedUserId\)[\s\S]*?actionEpoch !== actionEpochRef\.current/,
+  'A late unblock response must not mutate a replacement blocked-people panel lifecycle.')
 lock('Unblock action serializes rapid submissions', blockedPeople,
   /actionRequestRef[\s\S]*?unblock[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false/,
   'Rapid unblock taps must not submit duplicate mutations.')
@@ -532,7 +535,7 @@ lock('Blocked people pagination pauses during unblock', blockedPeople,
   /loadMore[\s\S]*?pageRequestRef\.current \|\| actionRequestRef\.current[\s\S]*?blocked-people-load-more[\s\S]*?disabled=\{loadingMore \|\| busyId !== null\}/,
   'Pagination must not race an unblock mutation or offer a dead LOAD OLDER action while unblock owns the panel.')
 lock('Blocked people refresh invalidates on panel unmount', blockedPeople,
-  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1 \}/,
+  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1; actionEpochRef\.current \+= 1 \}/,
   'Blocked people refreshes must be invalidated when the panel unmounts.')
 lock('Blocked people refresh cannot resurrect unblocked users', blockedPeople,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current[\s\S]*?unblockUser[\s\S]*?refreshEpochRef\.current \+= 1/,
