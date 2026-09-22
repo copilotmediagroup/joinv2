@@ -144,6 +144,7 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
       const page = await getModerationReportQueue({
         state: 'reviewing', assignment: 'mine', limit: PAGE_SIZE,
       })
+      if (actionEpoch !== actionEpochRef.current) return
       setTab('mine')
       setItems(page)
       setHasMore(page.length === PAGE_SIZE)

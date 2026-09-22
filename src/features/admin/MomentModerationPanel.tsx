@@ -134,6 +134,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
       const page = await getModerationMomentQueue({
         state: 'reviewed', assignment: 'mine', limit: PAGE_SIZE,
       })
+      if (actionEpoch !== actionEpochRef.current) return
       setTab('mine')
       setItems(page)
       setHasMore(page.length === PAGE_SIZE)

@@ -486,8 +486,8 @@ lock('Auth mode remains stable during submission', authGate,
   /switchMode[\s\S]*?submitRequestRef\.current[\s\S]*?setMode\(nextMode\)/,
   'Sign-in/sign-up mode must not switch underneath an in-flight authentication request.')
 lock('Moderation claims reject stale queue lifecycles', moderationView + momentModeration,
-  /actionEpochRef = useRef\(0\)[\s\S]*?actionEpochRef\.current \+= 1[\s\S]*?claimNextModerationReport\(\)[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?actionEpochRef = useRef\(0\)[\s\S]*?claimNextModerationMoment\(\)[\s\S]*?actionEpoch !== actionEpochRef\.current/,
-  'Late moderation claim completions must not replace a newer queue lifecycle.')
+  /actionEpochRef = useRef\(0\)[\s\S]*?claimNextModerationReport\(\)[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?getModerationReportQueue[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?actionEpochRef = useRef\(0\)[\s\S]*?claimNextModerationMoment\(\)[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?getModerationMomentQueue[\s\S]*?actionEpoch !== actionEpochRef\.current/,
+  'Moderation claims and their follow-up queue reads must not replace a newer queue lifecycle.')
 lock('Moderation actions serialize rapid admin mutations', moderationView + momentModeration,
   /actionRequestRef[\s\S]*?takeNext[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?releaseSelected[\s\S]*?actionRequestRef\.current[\s\S]*?runEnforcement[\s\S]*?actionRequestRef\.current[\s\S]*?finishSelected[\s\S]*?actionRequestRef\.current[\s\S]*?actionRequestRef[\s\S]*?takeNext[\s\S]*?actionRequestRef\.current = true/,
   'Moderation claim, release, enforcement, and resolution actions must not overlap under rapid admin input.')
