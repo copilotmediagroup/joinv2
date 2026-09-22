@@ -110,6 +110,10 @@ export function subscribeToSignalTimeRound(
 ): () => void {
   let stopped = false
   let reconciliationTimer: ReturnType<typeof window.setTimeout> | null = null
+  let reconnectTimer: ReturnType<typeof window.setTimeout> | null = null
+  let reconnectAttempt = 0
+  let channelGeneration = 0
+  let channel: ReturnType<typeof supabase.channel> | null = null
 
   const scheduleReconciliation = () => {
     if (stopped || reconciliationTimer !== null) return
@@ -121,24 +125,86 @@ export function subscribeToSignalTimeRound(
     }, 2500)
   }
 
-  let channel: ReturnType<typeof supabase.channel> | null = null
-  void supabase.realtime.setAuth().then(() => {
-    if (stopped) return
-    channel = supabase
-      .channel(`signal-time:${signalGroupId}`, { config: { private: true } })
-      .on('broadcast', { event: 'refresh' }, onInvalidate)
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') onInvalidate()
-      })
-  })
+  const clearReconnectTimer = () => {
+    if (reconnectTimer !== null) {
+      window.clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
+  }
 
-  // Time lock is server-owned. Reconcile while this stage is mounted so a
-  // dropped websocket event cannot require a manual browser reload.
+  const connect = async () => {
+    if (stopped) return
+    clearReconnectTimer()
+
+    try {
+      await supabase.realtime.setAuth()
+      if (stopped) return
+
+      const previousChannel = channel
+      channel = null
+      const generation = ++channelGeneration
+      if (previousChannel) await supabase.removeChannel(previousChannel)
+      if (stopped || generation !== channelGeneration) return
+
+      const nextChannel = supabase
+        .channel(`signal-time:${signalGroupId}`, { config: { private: true } })
+        .on('broadcast', { event: 'refresh' }, onInvalidate)
+        .subscribe((status) => {
+          if (stopped || generation !== channelGeneration) return
+          if (status === 'SUBSCRIBED') {
+            reconnectAttempt = 0
+            onInvalidate()
+            return
+          }
+          if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status) && reconnectTimer === null) {
+            const delay = Math.min(1_000 * (2 ** reconnectAttempt), 15_000)
+            reconnectAttempt += 1
+            reconnectTimer = window.setTimeout(() => {
+              reconnectTimer = null
+              void connect()
+            }, delay)
+          }
+        })
+
+      channel = nextChannel
+    } catch {
+      if (stopped || reconnectTimer !== null) return
+      const delay = Math.min(1_000 * (2 ** reconnectAttempt), 15_000)
+      reconnectAttempt += 1
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null
+        void connect()
+      }, delay)
+    }
+  }
+
+  const refreshVisibleRound = () => {
+    if (document.visibilityState === 'visible') onInvalidate()
+  }
+  const handleOnline = () => {
+    onInvalidate()
+    if (!channel && reconnectTimer === null) void connect()
+  }
+
+  document.addEventListener('visibilitychange', refreshVisibleRound)
+  window.addEventListener('focus', refreshVisibleRound)
+  window.addEventListener('pageshow', refreshVisibleRound)
+  window.addEventListener('online', handleOnline)
+
+  void connect()
+
+  // Realtime is the fast path; bounded authority reads remain a backstop.
   scheduleReconciliation()
 
   return () => {
     stopped = true
+    channelGeneration += 1
     if (reconciliationTimer !== null) window.clearTimeout(reconciliationTimer)
+    clearReconnectTimer()
+    document.removeEventListener('visibilitychange', refreshVisibleRound)
+    window.removeEventListener('focus', refreshVisibleRound)
+    window.removeEventListener('pageshow', refreshVisibleRound)
+    window.removeEventListener('online', handleOnline)
     if (channel) void supabase.removeChannel(channel)
   }
 }
