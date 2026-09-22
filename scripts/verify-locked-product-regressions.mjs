@@ -284,6 +284,9 @@ lock('Profile identity gallery uses batched private signing', profile,
 lock('Own Signal Life pagination serializes requests', profileSignalLife,
   /pageRequestRef[\s\S]*?pageRequestRef\.current = true[\s\S]*?if \(!last \|\| pageRequestRef\.current \|\| !hasMore\) return[\s\S]*?pageRequestRef\.current = false/,
   'Rapid LOAD MORE clicks must not issue duplicate Signal Life cursor requests or append duplicate pages.')
+lock('Profile pagination deduplicates overlapping pages', publicProfile + profileSignalLife,
+  /page\.moments\.filter[\s\S]*?item\.momentId === next\.momentId[\s\S]*?page\.connections\.filter[\s\S]*?item\.connectionId === next\.connectionId[\s\S]*?page\.moments\.filter[\s\S]*?item\.momentId === next\.momentId/,
+  'Stable-cursor profile pagination must not render duplicate moments or connections if adjacent pages overlap.')
 lock('Signal Life stays cursor-paginated with batched media signing', profileMomentClient + publicProfileClient + publicProfile,
   /createSignedUrls[\s\S]*?get_my_profile_signal_moments_page[\s\S]*?get_signal_public_profile_moments_page[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE SIGNAL LIFE/,
   'Profile growth must not restore the old 60-Moment eager load or one signing request per media object.')
