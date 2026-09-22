@@ -299,6 +299,9 @@ lock('Profile pagination deduplicates overlapping pages', publicProfile + profil
 lock('Signal Life stays cursor-paginated with batched media signing', profileMomentClient + publicProfileClient + publicProfile,
   /createSignedUrls[\s\S]*?get_my_profile_signal_moments_page[\s\S]*?get_signal_public_profile_moments_page[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE SIGNAL LIFE/,
   'Profile growth must not restore the old 60-Moment eager load or one signing request per media object.')
+lock('Public profile messaging serializes and rejects stale profile navigation', app,
+  /publicProfileMessageRequestRef[\s\S]*?onMessage=\{async[\s\S]*?publicProfileMessageRequestRef\.current[\s\S]*?requestedUserId = publicProfileUserId[\s\S]*?getOrCreateDirectConversationWithUser\(requestedUserId\)[\s\S]*?publicProfileUserId !== requestedUserId[\s\S]*?publicProfileMessageRequestRef\.current = false/,
+  'Rapid MESSAGE taps or profile switches must not navigate into the wrong direct conversation.')
 lock('Public profile pagination serializes rapid requests', publicProfile,
   /momentsPageRequestRef[\s\S]*?momentsPageRequestRef\.current = true[\s\S]*?connectionsPageRequestRef[\s\S]*?connectionsPageRequestRef\.current = true/,
   'Rapid public-profile LOAD MORE actions must not issue duplicate Moment or connection cursor requests.')

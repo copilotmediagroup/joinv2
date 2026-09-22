@@ -435,6 +435,7 @@ function App() {
   const [logoutSubmitting, setLogoutSubmitting] = useState(false)
   const logoutRequestRef = useRef(false)
   const planDetailsOpenRequestRef = useRef(false)
+  const publicProfileMessageRequestRef = useRef(false)
   const [logoutError, setLogoutError] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
 
@@ -1959,7 +1960,7 @@ function App() {
       ) : activeSurface === 'profile' ? (
         <ProfileView onOpenDirectConversation={(conversationId) => { setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') }} onOpenProfile={(userId) => { setPublicProfileUserId(userId); setActiveSurface('public-profile') }} />
       ) : activeSurface === 'public-profile' && publicProfileUserId ? (
-        <PublicProfileView userId={publicProfileUserId} onBack={() => { setPublicProfileUserId(null); setActiveSurface('profile') }} onOpenProfile={(userId) => { setPublicProfileUserId(userId); setActiveSurface('public-profile') }} onMessage={async () => { const conversationId = await getOrCreateDirectConversationWithUser(publicProfileUserId); setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') }} />
+        <PublicProfileView userId={publicProfileUserId} onBack={() => { setPublicProfileUserId(null); setActiveSurface('profile') }} onOpenProfile={(userId) => { setPublicProfileUserId(userId); setActiveSurface('public-profile') }} onMessage={async () => { if (publicProfileMessageRequestRef.current) return; publicProfileMessageRequestRef.current = true; const requestedUserId = publicProfileUserId; try { const conversationId = await getOrCreateDirectConversationWithUser(requestedUserId); if (publicProfileUserId !== requestedUserId) return; setMessageDirectConversationId(conversationId); setMessagePlanId(null); setActiveSurface('messages') } finally { publicProfileMessageRequestRef.current = false } }} />
       ) : activeSurface === 'admin' && canReviewModeration ? (
         <ModerationView canEnforce={adminCapabilities.includes('moderation.enforce')} />
       ) : (
