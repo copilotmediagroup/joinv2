@@ -79,6 +79,7 @@ export default function SignalPlaceStage({
   const [secondsLeft, setSecondsLeft] = useState(0)
   const notifiedWinnerId = useRef<string | null>(null)
   const voteRequestRef = useRef(false)
+  const voteEpochRef = useRef(0)
   const deadlockRestartingRef = useRef(false)
   const deadlockRetryCountRef = useRef(0)
   const locationPreparedRef = useRef(false)
@@ -146,6 +147,7 @@ export default function SignalPlaceStage({
     return () => {
       active = false
       roundRequestIdRef.current += 1
+      voteEpochRef.current += 1
     }
   }, [loadRound])
 
@@ -258,19 +260,24 @@ export default function SignalPlaceStage({
   const castVote = async (optionId: string) => {
     if (!round || round.state !== 'open' || voteRequestRef.current) return
 
+    const voteEpoch = voteEpochRef.current
+    const requestedGroupId = signalGroupId
+    const requestedRoundId = round.id
     voteRequestRef.current = true
     setVoteSubmitting(true)
     setPlacesError(null)
     try {
-      await castSignalVenueVote(round.id, optionId)
+      await castSignalVenueVote(requestedRoundId, optionId)
+      if (voteEpoch !== voteEpochRef.current || requestedGroupId !== signalGroupId || requestedRoundId !== round.id) return
       await loadRound()
     } catch (error) {
+      if (voteEpoch !== voteEpochRef.current || requestedGroupId !== signalGroupId || requestedRoundId !== round.id) return
       setPlacesError(
         toUserFacingError(error, 'Your place vote did not go through. Try again.'),
       )
     } finally {
       voteRequestRef.current = false
-      setVoteSubmitting(false)
+      if (voteEpoch === voteEpochRef.current && requestedGroupId === signalGroupId && requestedRoundId === round.id) setVoteSubmitting(false)
     }
   }
 

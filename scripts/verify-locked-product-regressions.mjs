@@ -182,6 +182,9 @@ lock('Signal time submissions reject stale round lifecycles', signalTimeStage,
 lock('Signal time preference control freezes during submission', signalTimeStage,
   /signal-time-preference-button[\s\S]*?disabled=\{submitting\}[\s\S]*?choosePreference/,
   'Nested preferred-time control must freeze with the shared availability mutation owner.')
+lock('Signal venue votes reject stale round lifecycles', signalPlaceStage,
+  /voteEpochRef = useRef\(0\)[\s\S]*?voteEpochRef\.current \+= 1[\s\S]*?castVote[\s\S]*?requestedGroupId = signalGroupId[\s\S]*?requestedRoundId = round\.id[\s\S]*?castSignalVenueVote\(requestedRoundId[\s\S]*?voteEpoch !== voteEpochRef\.current/,
+  'A late venue vote completion must not mutate a replacement Signal venue round.')
 lock('Signal venue and time choices serialize rapid submissions', signalPlaceStage + signalTimeStage,
   /voteRequestRef[\s\S]*?castVote[\s\S]*?voteRequestRef\.current[\s\S]*?voteRequestRef\.current = true[\s\S]*?voteRequestRef\.current = false[\s\S]*?availabilityRequestRef[\s\S]*?toggleAvailability[\s\S]*?availabilityRequestRef\.current[\s\S]*?availabilityRequestRef\.current = true[\s\S]*?availabilityRequestRef\.current = false[\s\S]*?choosePreference[\s\S]*?availabilityRequestRef\.current/,
   'Rapid venue votes and time choices must preserve one client-owned mutation at a time.')
