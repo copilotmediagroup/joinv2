@@ -39,6 +39,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   const attendancePollEpochRef = useRef(0)
   const momentRequestRef = useRef(false)
   const outingExitRequestRef = useRef(false)
+  const mutationEpochRef = useRef(0)
   const cameraInputId = `live-signal-camera-${planId}`
   const uploadInputId = `live-signal-upload-${planId}`
 
@@ -100,6 +101,8 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
     }
   }, [onOutingEnded, planId])
 
+  useEffect(() => () => { mutationEpochRef.current += 1 }, [planId])
+
   const selectedLabel = useMemo(() => files.length === 0
     ? 'Nothing selected yet'
     : `${files.length} ${files.length === 1 ? 'item' : 'items'} ready`, [files])
@@ -114,32 +117,39 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
 
   const saveMoment = async () => {
     if (momentRequestRef.current || outingExitRequestRef.current || files.length === 0) return
+    const mutationEpoch = mutationEpochRef.current
+    const requestedPlanId = planId
     momentRequestRef.current = true
     setSaving(true); setError(null); setNotice(null)
     try {
-      await publishSignalMoment({ planId, caption, files })
+      await publishSignalMoment({ planId: requestedPlanId, caption, files })
+      if (mutationEpoch !== mutationEpochRef.current || requestedPlanId !== planId) return
       setFiles([]); setCaption('')
       setNotice('Published to Activity · Signal Moments.')
     } catch (saveError) {
-      setError(toUserFacingError(saveError, 'Unable to save this Moment right now.'))
-    } finally { momentRequestRef.current = false; setSaving(false) }
+      if (mutationEpoch === mutationEpochRef.current && requestedPlanId === planId) setError(toUserFacingError(saveError, 'Unable to save this Moment right now.'))
+    } finally { momentRequestRef.current = false; if (mutationEpoch === mutationEpochRef.current && requestedPlanId === planId) setSaving(false) }
   }
 
   const finishOuting = async () => {
     if (outingExitRequestRef.current || momentRequestRef.current) return
+    const mutationEpoch = mutationEpochRef.current
+    const requestedPlanId = planId
     outingExitRequestRef.current = true
     setEnding(true); setError(null)
-    try { await finishMyPlanOuting(planId); onOutingEnded('completed') }
-    catch (endError) { setError(toUserFacingError(endError, 'Unable to end your Signal right now.')) }
-    finally { outingExitRequestRef.current = false; setEnding(false) }
+    try { await finishMyPlanOuting(requestedPlanId); if (mutationEpoch === mutationEpochRef.current && requestedPlanId === planId) onOutingEnded('completed') }
+    catch (endError) { if (mutationEpoch !== mutationEpochRef.current || requestedPlanId !== planId) return; setError(toUserFacingError(endError, 'Unable to end your Signal right now.')) }
+    finally { outingExitRequestRef.current = false; if (mutationEpoch === mutationEpochRef.current && requestedPlanId === planId) setEnding(false) }
   }
   const safetyLeave = async () => {
     if (outingExitRequestRef.current || momentRequestRef.current) return
+    const mutationEpoch = mutationEpochRef.current
+    const requestedPlanId = planId
     outingExitRequestRef.current = true
     setLeaving(true); setError(null)
-    try { await leaveMyPlan(planId); onOutingEnded('safety') }
-    catch (leaveError) { setError(toUserFacingError(leaveError, 'Unable to leave this outing right now.')) }
-    finally { outingExitRequestRef.current = false; setLeaving(false) }
+    try { await leaveMyPlan(requestedPlanId); if (mutationEpoch === mutationEpochRef.current && requestedPlanId === planId) onOutingEnded('safety') }
+    catch (leaveError) { if (mutationEpoch !== mutationEpochRef.current || requestedPlanId !== planId) return; setError(toUserFacingError(leaveError, 'Unable to leave this outing right now.')) }
+    finally { outingExitRequestRef.current = false; if (mutationEpoch === mutationEpochRef.current && requestedPlanId === planId) setLeaving(false) }
   }
 
   return (

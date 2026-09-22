@@ -257,6 +257,9 @@ lock('Live route refresh ignores stale origins', details,
 lock('Live details retain route toggle and trip stats', details,
   /route \? ' HIDE ROUTE' : ' DIRECTIONS'[\s\S]*?DISTANCE[\s\S]*?DRIVE[\s\S]*?ETA/,
   'Directions must remain a toggle with distance, drive time, and ETA.')
+lock('Live outing mutations reject stale plan completions', outing,
+  /mutationEpochRef = useRef\(0\)[\s\S]*?mutationEpochRef\.current \+= 1[\s\S]*?requestedPlanId = planId[\s\S]*?mutationEpoch !== mutationEpochRef\.current \|\| requestedPlanId !== planId[\s\S]*?finishMyPlanOuting\(requestedPlanId\)[\s\S]*?leaveMyPlan\(requestedPlanId\)/,
+  'Moment and terminal outing mutations must not update a replacement Plan lifecycle after their requests complete.')
 lock('Live outing mutations serialize rapid actions', outing,
   /momentRequestRef[\s\S]*?outingExitRequestRef[\s\S]*?saveMoment[\s\S]*?momentRequestRef\.current = true[\s\S]*?momentRequestRef\.current = false[\s\S]*?finishOuting[\s\S]*?outingExitRequestRef\.current = true[\s\S]*?outingExitRequestRef\.current = false[\s\S]*?safetyLeave[\s\S]*?outingExitRequestRef\.current = true[\s\S]*?outingExitRequestRef\.current = false/,
   'Moment publishing must serialize, while normal completion and safety leave must share one terminal mutation owner.')
