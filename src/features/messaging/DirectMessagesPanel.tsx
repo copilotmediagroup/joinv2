@@ -60,6 +60,7 @@ export default function DirectMessagesPanel({
   const messagePageRequestRef = useRef(false)
   const sendRequestRef = useRef(false)
   const threadPageRequestRef = useRef(false)
+  const threadRefreshEpochRef = useRef(0)
 
   const scrollToLatest = useCallback((behavior: ScrollBehavior = 'auto') => {
     const feed = feedRef.current
@@ -79,15 +80,17 @@ export default function DirectMessagesPanel({
   )
 
   const loadInitialThreads = useCallback(async () => {
+    const requestEpoch = ++threadRefreshEpochRef.current
     try {
       const page = await getMyDirectThreadsPage()
+      if (requestEpoch !== threadRefreshEpochRef.current) return
       setThreads(page)
       setHasMore(page.length === DIRECT_THREAD_PAGE_SIZE)
       setError(null)
     } catch (loadError) {
-      setError(toUserFacingError(loadError, 'Unable to load direct messages right now.'))
+      if (requestEpoch === threadRefreshEpochRef.current) setError(toUserFacingError(loadError, 'Unable to load direct messages right now.'))
     } finally {
-      setLoading(false)
+      if (requestEpoch === threadRefreshEpochRef.current) setLoading(false)
     }
   }, [])
   const hydrateSelectedThread = useCallback(async (conversationId: string) => {
@@ -167,6 +170,7 @@ export default function DirectMessagesPanel({
   const loadMore = async () => {
     const last = threads[threads.length - 1]
     if (!last || threadPageRequestRef.current || sendRequestRef.current) return
+    const requestEpoch = threadRefreshEpochRef.current
     threadPageRequestRef.current = true
     setLoadingMore(true)
     try {
@@ -174,20 +178,21 @@ export default function DirectMessagesPanel({
         sortAt: last.sortAt,
         conversationId: last.conversationId,
       })
+      if (requestEpoch !== threadRefreshEpochRef.current) return
       setThreads((current) => mergeThreads(current, page))
       setHasMore(page.length === DIRECT_THREAD_PAGE_SIZE)
       setError(null)
     } catch (loadError) {
-      setError(toUserFacingError(loadError, 'Unable to load older conversations right now.'))
+      if (requestEpoch === threadRefreshEpochRef.current) setError(toUserFacingError(loadError, 'Unable to load older conversations right now.'))
     } finally {
       threadPageRequestRef.current = false
-      setLoadingMore(false)
+      if (requestEpoch === threadRefreshEpochRef.current) setLoadingMore(false)
     }
   }
   useEffect(() => {
     let active = true
     queueMicrotask(() => { if (active) void loadInitialThreads() })
-    return () => { active = false }
+    return () => { active = false; threadRefreshEpochRef.current += 1 }
   }, [loadInitialThreads])
 
   useEffect(() => {

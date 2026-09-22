@@ -134,6 +134,9 @@ lock('Message pagination pauses during sends', directMessagesPanel + messages,
 lock('Direct message pagination serializes and rejects stale conversation pages', directMessagesPanel,
   /messagePageRequestRef[\s\S]*?requestedConversationId = selectedId[\s\S]*?requestEpoch = messageRefreshEpochRef\.current[\s\S]*?requestEpoch !== messageRefreshEpochRef\.current/,
   'Rapid LOAD OLDER requests must serialize and an older conversation page must not append after realtime refresh or thread navigation.')
+lock('Direct thread refresh rejects stale lifecycle responses', directMessagesPanel,
+  /threadRefreshEpochRef = useRef\(0\)[\s\S]*?requestEpoch = \+\+threadRefreshEpochRef\.current[\s\S]*?requestEpoch !== threadRefreshEpochRef\.current[\s\S]*?threadRefreshEpochRef\.current \+= 1/,
+  'Direct thread loads and pagination must reject responses after the messaging panel lifecycle changes.')
 lock('Direct thread pagination serializes rapid requests', directMessagesPanel,
   /threadPageRequestRef[\s\S]*?if \(!last \|\| threadPageRequestRef\.current \|\| sendRequestRef\.current\) return[\s\S]*?threadPageRequestRef\.current = true[\s\S]*?threadPageRequestRef\.current = false/,
   'Rapid direct-thread pagination must not issue duplicate cursor requests.')
