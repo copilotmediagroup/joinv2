@@ -170,6 +170,9 @@ lock('Signal venue and time choices serialize rapid submissions', signalPlaceSta
 lock('Deadlocked venue restart rejects stale lifecycle responses', signalPlaceStage,
   /deadlockRestartEpochRef = useRef\(0\)[\s\S]*?restartEpoch = \+\+deadlockRestartEpochRef\.current[\s\S]*?restartEpoch !== deadlockRestartEpochRef\.current[\s\S]*?deadlockRestartEpochRef\.current \+= 1/,
   'A deadlock restart response must not mutate a replaced venue-stage lifecycle.')
+lock('Time-stage conversion and recovery reject stale lifecycle completions', signalTimeStage,
+  /planConversionEpochRef = useRef\(0\)[\s\S]*?recoveryEpochRef = useRef\(0\)[\s\S]*?conversionEpoch !== planConversionEpochRef\.current[\s\S]*?planConversionEpochRef\.current \+= 1[\s\S]*?recoveryEpochRef\.current \+= 1[\s\S]*?recoveryEpoch !== recoveryEpochRef\.current/,
+  'Plan conversion and venue recovery completions must stay bound to the active Signal/time-stage lifecycle.')
 lock('Venue and time stage loads invalidate on lifecycle change', signalPlaceStage + signalTimeStage,
   /roundRequestIdRef\.current \+= 1[\s\S]*?snapshotRequestIdRef\.current \+= 1/,
   'Venue and time stage async loads must invalidate already-started responses when their stage lifecycle ends.')

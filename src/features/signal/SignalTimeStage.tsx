@@ -108,6 +108,8 @@ export default function SignalTimeStage({
   const planConversionStartedRef = useRef(false)
   const availabilityRequestRef = useRef(false)
   const snapshotRequestIdRef = useRef(0)
+  const planConversionEpochRef = useRef(0)
+  const recoveryEpochRef = useRef(0)
 
   const loadSnapshot = useCallback(async () => {
     const requestId = ++snapshotRequestIdRef.current
@@ -266,22 +268,31 @@ export default function SignalTimeStage({
   const ensurePlan = useCallback(async () => {
     if (planConversionStartedRef.current || planId) return
 
+    const conversionEpoch = ++planConversionEpochRef.current
+    const requestedGroupId = signalGroupId
     planConversionStartedRef.current = true
     setPlanCreating(true)
     setPlanError(null)
 
     try {
-      const result = await convertSignalToPlan(signalGroupId)
+      const result = await convertSignalToPlan(requestedGroupId)
+      if (conversionEpoch !== planConversionEpochRef.current || requestedGroupId !== signalGroupId) return
       setPlanId(result.planId)
     } catch (conversionError) {
+      if (conversionEpoch !== planConversionEpochRef.current || requestedGroupId !== signalGroupId) return
       planConversionStartedRef.current = false
       setPlanError(
         toUserFacingError(conversionError, 'Your Plan is not ready yet. Please try again.'),
       )
     } finally {
-      setPlanCreating(false)
+      if (conversionEpoch === planConversionEpochRef.current && requestedGroupId === signalGroupId) setPlanCreating(false)
     }
   }, [planId, signalGroupId])
+
+  useEffect(() => () => {
+    planConversionEpochRef.current += 1
+    recoveryEpochRef.current += 1
+  }, [signalGroupId, venue.placeId])
 
   useEffect(() => {
     if (round?.state !== 'won' || !winner || planId) return
@@ -296,26 +307,31 @@ export default function SignalTimeStage({
   const runRecovery = useCallback(async () => {
     if (recovering || recoveryStartedRef.current) return
 
+    const recoveryEpoch = ++recoveryEpochRef.current
+    const requestedGroupId = signalGroupId
+    const requestedPlaceId = venue.placeId
     recoveryStartedRef.current = true
     setRecovering(true)
     setError(null)
 
     try {
       await recoverSignalVenue(
-        signalGroupId,
-        venue.placeId,
+        requestedGroupId,
+        requestedPlaceId,
         venue.openNow === false
           ? 'closed'
           : 'no_eligible_time',
       )
+      if (recoveryEpoch !== recoveryEpochRef.current || requestedGroupId !== signalGroupId || requestedPlaceId !== venue.placeId) return
       onFindAnotherPlace?.()
     } catch (recoveryError) {
+      if (recoveryEpoch !== recoveryEpochRef.current || requestedGroupId !== signalGroupId || requestedPlaceId !== venue.placeId) return
       recoveryStartedRef.current = false
       setError(
         toUserFacingError(recoveryError, 'Unable to find another Signal venue right now.'),
       )
     } finally {
-      setRecovering(false)
+      if (recoveryEpoch === recoveryEpochRef.current && requestedGroupId === signalGroupId && requestedPlaceId === venue.placeId) setRecovering(false)
     }
   }, [
     onFindAnotherPlace,
