@@ -359,6 +359,9 @@ lock('Own connection navigation and pagination freeze during mutations', myConne
 lock('Own connection pagination serializes and rejects stale pages', myConnections,
   /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid connection pagination must serialize and an older page must not append after a newer full refresh.')
+lock('Own connection refresh invalidates on panel unmount', myConnections,
+  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1 \}/,
+  'Connection refresh and pagination responses must be invalidated when the panel unmounts.')
 lock('Own connection refresh ignores stale responses', myConnections,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Disconnect and block refreshes must not let older connection pages restore stale state.')
