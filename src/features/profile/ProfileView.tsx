@@ -140,6 +140,7 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
     new Set(),
   )
   const saveProfileRequestRef = useRef(false)
+  const saveProfileEpochRef = useRef(0)
 
   const [profile, setProfile] = useState<MyProfile | null>(null)
   const [draft, setDraft] = useState<DraftProfile | null>(null)
@@ -187,6 +188,8 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
     void loadSignalHistory()
     return () => { cancelled = true }
   }, [])
+
+  useEffect(() => () => { saveProfileEpochRef.current += 1 }, [])
 
   useEffect(() => {
     const stagedGalleryPreviewUrls =
@@ -615,6 +618,7 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
       return
     }
 
+    const saveEpoch = saveProfileEpochRef.current
     saveProfileRequestRef.current = true
     setSaving(true)
     setSaveMessage(null)
@@ -700,6 +704,7 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
         })
 
       committed = true
+      if (saveEpoch !== saveProfileEpochRef.current) return
 
       const oldAvatarPath =
         profile.avatarPath?.trim() ?? ''
@@ -760,6 +765,7 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
       setEditing(false)
       setSaveMessage('Profile updated.')
     } catch (saveError) {
+      if (saveEpoch !== saveProfileEpochRef.current) return
       if (
         !committed &&
         uploadedObjectPaths.length > 0
@@ -838,9 +844,11 @@ export default function ProfileView({ onOpenDirectConversation, onOpenProfile }:
       )
     } finally {
       saveProfileRequestRef.current = false
-      setSaving(false)
-      setUploadingAvatar(false)
-      setUploadingGalleryPhoto(false)
+      if (saveEpoch === saveProfileEpochRef.current) {
+        setSaving(false)
+        setUploadingAvatar(false)
+        setUploadingGalleryPhoto(false)
+      }
     }
   }
 
