@@ -386,14 +386,17 @@ export default function MessagesView({
     setSending(true)
     setError(null)
 
+    const requestedConversationId = selectedConversationId
+    const sendEpoch = groupMessageEpochRef.current
     try {
       shouldFollowGroupLatestRef.current = true
       const sentMessage =
         await sendPlanMessage(
-          selectedConversationId,
+          requestedConversationId,
           draft,
         )
 
+      if (requestedConversationId !== selectedConversationId || sendEpoch !== groupMessageEpochRef.current) return
       setMessages((current) => {
         if (
           current.some(
@@ -427,12 +430,13 @@ export default function MessagesView({
       typingPublisherRef.current?.(false)
       setDraft('')
     } catch (sendError) {
+      if (requestedConversationId !== selectedConversationId || sendEpoch !== groupMessageEpochRef.current) return
       setError(
         toUserFacingError(sendError, 'Unable to send your message right now.'),
       )
     } finally {
       sendRequestRef.current = false
-      setSending(false)
+      if (requestedConversationId === selectedConversationId && sendEpoch === groupMessageEpochRef.current) setSending(false)
     }
   }
 

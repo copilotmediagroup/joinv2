@@ -125,6 +125,9 @@ lock('Group chat typing presence remains present', messages,
 lock('Group chat typing transport remains realtime', messagingRealtime,
   /plan-typing:[\s\S]*?broadcast[\s\S]*?typing[\s\S]*?2200/,
   'Typing presence must retain realtime publish and idle clearing.')
+lock('Group sends reject stale conversation completions', messages,
+  /requestedConversationId = selectedConversationId[\s\S]*?sendEpoch = groupMessageEpochRef\.current[\s\S]*?sendPlanMessage\([\s\S]*?requestedConversationId[\s\S]*?requestedConversationId !== selectedConversationId \|\| sendEpoch !== groupMessageEpochRef\.current/,
+  'A send completion from an old group conversation must not append into the newly selected thread.')
 lock('Direct and group sends serialize rapid submissions', directMessagesPanel + messages,
   /sendRequestRef[\s\S]*?send[\s\S]*?sendRequestRef\.current[\s\S]*?sendRequestRef\.current = true[\s\S]*?sendRequestRef\.current = false[\s\S]*?sendRequestRef[\s\S]*?handleSend[\s\S]*?sendRequestRef\.current[\s\S]*?sendRequestRef\.current = true[\s\S]*?sendRequestRef\.current = false/,
   'Rapid direct and group message submits must not create duplicate sends.')
