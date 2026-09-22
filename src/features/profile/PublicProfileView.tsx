@@ -53,7 +53,7 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
     try {
       const page = await getPublicProfileMoments(requestedUserId, { publishedAt: last.publishedAt, momentId: last.momentId })
       if (requestedUserId !== activeUserIdRef.current) return
-      setMoments((current) => [...current, ...page.moments])
+      setMoments((current) => [...current, ...page.moments.filter((next) => !current.some((item) => item.momentId === next.momentId))])
       setMomentsHaveMore(page.hasMore)
     } finally {
       momentsPageRequestRef.current = false
@@ -70,7 +70,7 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
     try {
       const page = await getPublicProfileConnections(requestedUserId, { connectedAt: last.connectedAt, connectionId: last.connectionId })
       if (requestedUserId !== activeUserIdRef.current) return
-      setConnections((current) => [...current, ...page.connections])
+      setConnections((current) => [...current, ...page.connections.filter((next) => !current.some((item) => item.connectionId === next.connectionId))])
       setConnectionsHaveMore(page.hasMore)
     } finally {
       connectionsPageRequestRef.current = false
