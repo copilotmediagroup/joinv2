@@ -266,6 +266,9 @@ lock('Notification unread refresh rejects stale realtime responses', app,
 lock('Notification unread authority remains server counted', notifications,
   /head: true[\s\S]*?state[\s\S]*?unread|state[\s\S]*?unread[\s\S]*?head: true/,
   'Unread badges must not be inferred only from a bounded notification page.')
+lock('Notification refresh invalidates on panel lifecycle change', notificationPanel,
+  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1 \}/,
+  'Notification refreshes must be invalidated when the panel lifecycle changes or unmounts.')
 lock('Notification refresh ignores stale responses', notificationPanel,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid notification refreshes must not let an older page overwrite newer alert state.')

@@ -72,7 +72,7 @@ export default function NotificationPanel({
   useEffect(() => {
     let active = true
     queueMicrotask(() => { if (active) void refresh() })
-    return () => { active = false }
+    return () => { active = false; refreshEpochRef.current += 1 }
   }, [refresh, userId, refreshToken])
 
   const loadMore = async () => {
