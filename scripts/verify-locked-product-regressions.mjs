@@ -209,6 +209,9 @@ lock('Open Details serializes rapid plan transitions', app,
 lock('Locked Signal retains Open Details entry point', signalTimeStage,
   /OPEN DETAILS/,
   'The verified live journey uses details/map separately from group messaging.')
+lock('Live details invalidate refreshes across effect lifecycles', details,
+  /cancelled = true[\s\S]*?detailsRefreshEpochRef\.current \+= 1[\s\S]*?attendanceRefreshEpochRef\.current \+= 1[\s\S]*?unsubscribeGovernance[\s\S]*?attendanceRefreshEpochRef\.current \+= 1[\s\S]*?window\.clearInterval[\s\S]*?routeRefreshEpochRef\.current \+= 1[\s\S]*?window\.clearTimeout/,
+  'Live details must invalidate governance, attendance, and route responses when their effects are replaced or unmounted.')
 lock('Live details ignore stale governance and attendance responses', details,
   /detailsRefreshEpochRef[\s\S]*?attendanceRefreshEpochRef[\s\S]*?requestEpoch !== detailsRefreshEpochRef\.current[\s\S]*?initialDetailsEpoch[\s\S]*?initialAttendanceEpoch[\s\S]*?requestEpoch === attendanceRefreshEpochRef\.current/,
   'Open Details must not let older governance, member, or attendance reads overwrite newer realtime authority.')

@@ -88,6 +88,8 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
     })
     return () => {
       cancelled = true
+      detailsRefreshEpochRef.current += 1
+      attendanceRefreshEpochRef.current += 1
       unsubscribeGovernance()
       unsubscribeLive()
     }
@@ -147,7 +149,10 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
         })
         .catch(() => undefined)
     }, 30_000)
-    return () => window.clearInterval(timer)
+    return () => {
+      attendanceRefreshEpochRef.current += 1
+      window.clearInterval(timer)
+    }
   }, [attendance?.checkedIn, attendance?.windowClosesAt, attendance?.windowOpensAt, planId])
 
   const checkIn = async () => {
@@ -221,7 +226,10 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
         })
         .catch(() => undefined)
     }, 1_500)
-    return () => window.clearTimeout(refreshId)
+    return () => {
+      routeRefreshEpochRef.current += 1
+      window.clearTimeout(refreshId)
+    }
   }, [planId, route, userPosition])
 
   useEffect(() => () => {
