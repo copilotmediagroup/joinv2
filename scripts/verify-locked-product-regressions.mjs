@@ -110,7 +110,7 @@ lock('Signal venue voting window remains mobile-safe', mobileSafeVenueWindow,
   /ensure_signal_venue_round[\s\S]*?10 seconds[\s\S]*?60 seconds/,
   'A confirmed phone participant must have enough server-owned time to enter Place before automatic venue fallback.')
 lock('Discovery counts remain live without manual reload', app,
-  /subscribeToSignalDiscovery\(refreshLiveCounts,[\s\S]*?setInterval\([\s\S]*?visibilityState === 'visible'[\s\S]*?30_000[\s\S]*?visibilitychange[\s\S]*?online/,
+  /subscribeToSignalDiscovery\(refreshLiveCounts,[\s\S]*?setInterval\([\s\S]*?visibilityState === 'visible'[\s\S]*?5_000[\s\S]*?visibilitychange[\s\S]*?focus[\s\S]*?pageshow[\s\S]*?online/,
   'Realtime + self-healing reconciliation must remain installed.')
 lock('Discovery refresh rejects stale count responses', app,
   /discoveryRequestEpochRef[\s\S]*?refreshDiscovery[\s\S]*?requestEpoch = \+\+discoveryRequestEpochRef\.current[\s\S]*?requestEpoch !== discoveryRequestEpochRef\.current[\s\S]*?refreshLiveCounts[\s\S]*?requestEpoch = \+\+discoveryRequestEpochRef\.current[\s\S]*?requestEpoch === discoveryRequestEpochRef\.current/,

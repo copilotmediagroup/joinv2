@@ -643,17 +643,29 @@ function App() {
     // self-healing backstop for sleeping laptops, transient WebSocket loss,
     // browser throttling, and deployments; it prevents stale social proof
     // from surviving until a manual reload.
+    // Realtime remains primary, but mobile browsers and sleeping tabs can miss
+    // broadcast invalidations without emitting a reliable disconnect event.
+    // A 5-second visible-tab authority read bounds cross-device staleness while
+    // keeping hidden tabs asleep.
     const reconciliationRefresh = window.setInterval(() => {
       if (document.visibilityState === 'visible') refreshLiveCounts()
-    }, 30_000)
+    }, 5_000)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') refreshLiveCounts()
+    }
+    const handleFocus = () => {
+      refreshLiveCounts()
+    }
+    const handlePageShow = () => {
+      refreshLiveCounts()
     }
     const handleOnline = () => {
       refreshLiveCounts()
       if (!unsubscribe && !reconnectTimer) connectDiscoveryRealtime()
     }
     document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('pageshow', handlePageShow)
     window.addEventListener('online', handleOnline)
 
     return () => {
@@ -662,6 +674,8 @@ function App() {
       if (reconnectTimer) clearTimeout(reconnectTimer)
       window.clearInterval(reconciliationRefresh)
       document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('pageshow', handlePageShow)
       window.removeEventListener('online', handleOnline)
       unsubscribe?.()
     }
