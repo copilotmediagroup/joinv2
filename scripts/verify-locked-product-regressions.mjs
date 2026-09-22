@@ -173,6 +173,9 @@ lock('Group message realtime callbacks stay bound to selected lifecycle', messag
 lock('Group chat member refresh ignores stale realtime responses', messages,
   /refreshEpoch = 0[\s\S]*?requestEpoch = \+\+refreshEpoch[\s\S]*?requestEpoch === refreshEpoch/,
   'Group chat member lists must not let older realtime reads overwrite newer membership state.')
+lock('Signal time submissions reject stale round lifecycles', signalTimeStage,
+  /availabilityEpochRef = useRef\(0\)[\s\S]*?availabilityEpochRef\.current \+= 1[\s\S]*?toggleAvailability[\s\S]*?requestedGroupId = signalGroupId[\s\S]*?requestedRoundId = round\.id[\s\S]*?submitSignalTimeAvailability\([\s\S]*?requestedRoundId[\s\S]*?availabilityEpoch !== availabilityEpochRef\.current[\s\S]*?choosePreference[\s\S]*?requestedRoundId = round\.id/,
+  'Availability and preferred-time completions must not mutate a replacement Signal time round.')
 lock('Signal time preference control freezes during submission', signalTimeStage,
   /signal-time-preference-button[\s\S]*?disabled=\{submitting\}[\s\S]*?choosePreference/,
   'Nested preferred-time control must freeze with the shared availability mutation owner.')

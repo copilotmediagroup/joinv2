@@ -107,6 +107,7 @@ export default function SignalTimeStage({
   const recoveryRequiredRef = useRef(false)
   const planConversionStartedRef = useRef(false)
   const availabilityRequestRef = useRef(false)
+  const availabilityEpochRef = useRef(0)
   const snapshotRequestIdRef = useRef(0)
   const planConversionEpochRef = useRef(0)
   const recoveryEpochRef = useRef(0)
@@ -159,6 +160,7 @@ export default function SignalTimeStage({
     return () => {
       active = false
       snapshotRequestIdRef.current += 1
+      availabilityEpochRef.current += 1
     }
   }, [loadSnapshot])
 
@@ -358,6 +360,9 @@ export default function SignalTimeStage({
 
   const toggleAvailability = async (optionId: string) => {
     if (!round || round.state !== 'open' || availabilityRequestRef.current) return
+    const availabilityEpoch = availabilityEpochRef.current
+    const requestedGroupId = signalGroupId
+    const requestedRoundId = round.id
 
     const next = new Set(selectedIds)
     if (next.has(optionId)) {
@@ -372,25 +377,30 @@ export default function SignalTimeStage({
 
     try {
       await submitSignalTimeAvailability(
-        round.id,
+        requestedRoundId,
         [...next],
         round.currentUserPreferredOptionId && next.has(round.currentUserPreferredOptionId)
           ? round.currentUserPreferredOptionId
           : null,
       )
+      if (availabilityEpoch !== availabilityEpochRef.current || requestedGroupId !== signalGroupId || requestedRoundId !== round.id) return
       await loadSnapshot()
     } catch (submitError) {
+      if (availabilityEpoch !== availabilityEpochRef.current || requestedGroupId !== signalGroupId || requestedRoundId !== round.id) return
       setError(
         toUserFacingError(submitError, 'Unable to submit your available times right now.'),
       )
     } finally {
       availabilityRequestRef.current = false
-      setSubmitting(false)
+      if (availabilityEpoch === availabilityEpochRef.current && requestedGroupId === signalGroupId && requestedRoundId === round.id) setSubmitting(false)
     }
   }
 
   const choosePreference = async (optionId: string) => {
     if (!round || round.state !== 'open' || availabilityRequestRef.current) return
+    const availabilityEpoch = availabilityEpochRef.current
+    const requestedGroupId = signalGroupId
+    const requestedRoundId = round.id
 
     const nextAvailable = new Set(selectedIds)
     nextAvailable.add(optionId)
@@ -405,18 +415,20 @@ export default function SignalTimeStage({
 
     try {
       await submitSignalTimeAvailability(
-        round.id,
+        requestedRoundId,
         [...nextAvailable],
         nextPreferred,
       )
+      if (availabilityEpoch !== availabilityEpochRef.current || requestedGroupId !== signalGroupId || requestedRoundId !== round.id) return
       await loadSnapshot()
     } catch (submitError) {
+      if (availabilityEpoch !== availabilityEpochRef.current || requestedGroupId !== signalGroupId || requestedRoundId !== round.id) return
       setError(
         toUserFacingError(submitError, 'Unable to save your preferred time right now.'),
       )
     } finally {
       availabilityRequestRef.current = false
-      setSubmitting(false)
+      if (availabilityEpoch === availabilityEpochRef.current && requestedGroupId === signalGroupId && requestedRoundId === round.id) setSubmitting(false)
     }
   }
 
