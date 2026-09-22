@@ -159,18 +159,22 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
   }
   const releaseSelected = async () => {
     if (!selected || actionRequestRef.current) return
+    const actionEpoch = actionEpochRef.current
+    const requestedReportId = selected.reportId
     actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
-      await releaseMyModerationReport(selected.reportId)
+      await releaseMyModerationReport(requestedReportId)
+      if (actionEpoch !== actionEpochRef.current) return
       await loadPage('mine')
       setNote('')
     } catch (releaseError) {
+      if (actionEpoch !== actionEpochRef.current) return
       setError(toUserFacingError(releaseError, 'Unable to release this report.'))
     } finally {
       actionRequestRef.current = false
-      setActionLoading(false)
+      if (actionEpoch === actionEpochRef.current) setActionLoading(false)
     }
   }
 

@@ -149,18 +149,22 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
   }
   const releaseSelected = async () => {
     if (!selected || actionRequestRef.current) return
+    const actionEpoch = actionEpochRef.current
+    const requestedReportId = selected.reportId
     actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
-      await releaseMyModerationMoment(selected.reportId)
+      await releaseMyModerationMoment(requestedReportId)
+      if (actionEpoch !== actionEpochRef.current) return
       await loadPage('mine')
       setNote('')
     } catch (releaseError) {
+      if (actionEpoch !== actionEpochRef.current) return
       setError(toUserFacingError(releaseError, 'Unable to release this Moment report.'))
     } finally {
       actionRequestRef.current = false
-      setActionLoading(false)
+      if (actionEpoch === actionEpochRef.current) setActionLoading(false)
     }
   }
 
