@@ -46,6 +46,7 @@ export default function NotificationPanel({
   const refreshEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
   const openRequestRef = useRef<string | null>(null)
+  const openEpochRef = useRef(0)
 
   const unreadCount = useMemo(
     () => items.filter((item) => item.state === 'unread').length,
@@ -72,7 +73,7 @@ export default function NotificationPanel({
   useEffect(() => {
     let active = true
     queueMicrotask(() => { if (active) void refresh() })
-    return () => { active = false; refreshEpochRef.current += 1 }
+    return () => { active = false; refreshEpochRef.current += 1; openEpochRef.current += 1 }
   }, [refresh, userId, refreshToken])
 
   const loadMore = async () => {
@@ -99,21 +100,26 @@ export default function NotificationPanel({
 
   const openItem = async (item: SignalNotification) => {
     if (openRequestRef.current) return
+    const openEpoch = openEpochRef.current
+    const requestedUserId = userId
     openRequestRef.current = item.id
     setOpening(true)
     if (item.state === 'unread') {
       try {
         await markMyNotificationRead(item.id)
+        if (openEpoch !== openEpochRef.current || requestedUserId !== userId) return
         setItems((current) => current.map((entry) =>
           entry.id === item.id ? { ...entry, state: 'read', readAt: new Date().toISOString() } : entry,
         ))
       } catch (markError) {
+        if (openEpoch !== openEpochRef.current || requestedUserId !== userId) return
         setError(toUserFacingError(markError, 'Unable to update this notification right now.'))
       }
     }
 
     try {
       const target = await resolveMyNotificationTarget(item.id)
+      if (openEpoch !== openEpochRef.current || requestedUserId !== userId) return
       if (target.targetType === 'plan') {
         onOpenPlan?.(target.planId)
       } else if (target.targetType === 'signal') {
@@ -122,10 +128,11 @@ export default function NotificationPanel({
         onHistorical?.(item.type, item.relatedPlanId, item.relatedEntityId)
       }
     } catch (targetError) {
+      if (openEpoch !== openEpochRef.current || requestedUserId !== userId) return
       setError(toUserFacingError(targetError, 'Unable to open this notification right now.'))
     } finally {
       openRequestRef.current = null
-      setOpening(false)
+      if (openEpoch === openEpochRef.current && requestedUserId === userId) setOpening(false)
     }
   }
 

@@ -330,11 +330,14 @@ lock('Notification unread authority remains server counted', notifications,
   /head: true[\s\S]*?state[\s\S]*?unread|state[\s\S]*?unread[\s\S]*?head: true/,
   'Unread badges must not be inferred only from a bounded notification page.')
 lock('Notification refresh invalidates on panel lifecycle change', notificationPanel,
-  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1 \}/,
+  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1; openEpochRef\.current \+= 1 \}/,
   'Notification refreshes must be invalidated when the panel lifecycle changes or unmounts.')
 lock('Notification refresh ignores stale responses', notificationPanel,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid notification refreshes must not let an older page overwrite newer alert state.')
+lock('Notification opening rejects stale user lifecycles', notificationPanel,
+  /openEpochRef = useRef\(0\)[\s\S]*?openEpochRef\.current \+= 1[\s\S]*?openItem[\s\S]*?openEpoch = openEpochRef\.current[\s\S]*?requestedUserId = userId[\s\S]*?markMyNotificationRead[\s\S]*?openEpoch !== openEpochRef\.current \|\| requestedUserId !== userId[\s\S]*?resolveMyNotificationTarget[\s\S]*?openEpoch !== openEpochRef\.current \|\| requestedUserId !== userId/,
+  'A notification opened for one authenticated user must not navigate or mutate a replacement user lifecycle.')
 lock('Notification opening serializes rapid navigation', notificationPanel,
   /openRequestRef[\s\S]*?openItem[\s\S]*?openRequestRef\.current[\s\S]*?openRequestRef\.current = item\.id[\s\S]*?resolveMyNotificationTarget[\s\S]*?openRequestRef\.current = null/,
   'Rapid notification taps must not race read-state mutation and navigation resolution.')
