@@ -114,6 +114,7 @@ export default function MessagesView({
   const groupMessagePageRequestRef = useRef(false)
   const sendRequestRef = useRef(false)
   const groupConversationPageRequestRef = useRef(false)
+  const groupConversationEpochRef = useRef(0)
 
   const selectedPlanId =
     conversations.find(
@@ -124,6 +125,7 @@ export default function MessagesView({
   useEffect(() => {
     let cancelled = false
 
+    const requestEpoch = ++groupConversationEpochRef.current
     const loadConversations = async () => {
       setLoadingConversations(true)
       setError(null)
@@ -143,7 +145,7 @@ export default function MessagesView({
           if (deepLinked) visible = mergePlanConversations(page, [deepLinked])
         }
 
-        if (cancelled) return
+        if (cancelled || requestEpoch !== groupConversationEpochRef.current) return
         setConversations(visible)
         setHasMoreConversations(page.length === PLAN_CONVERSATION_PAGE_SIZE)
         const last = page[page.length - 1]
@@ -155,14 +157,14 @@ export default function MessagesView({
           : null
         if (target) setSelectedConversationId(target.conversationId)
       } catch (loadError) {
-        if (!cancelled) setError(toUserFacingError(loadError, 'Unable to load conversations right now.'))
+        if (!cancelled && requestEpoch === groupConversationEpochRef.current) setError(toUserFacingError(loadError, 'Unable to load conversations right now.'))
       } finally {
-        if (!cancelled) setLoadingConversations(false)
+        if (!cancelled && requestEpoch === groupConversationEpochRef.current) setLoadingConversations(false)
       }
     }
 
     void loadConversations()
-    return () => { cancelled = true }
+    return () => { cancelled = true; groupConversationEpochRef.current += 1 }
   }, [initialPlanId, lockedPlanId])
 
   useEffect(() => {
@@ -345,12 +347,14 @@ export default function MessagesView({
 
   const loadMoreConversations = async () => {
     if (!conversationCursor || groupConversationPageRequestRef.current || sendRequestRef.current) return
+    const requestEpoch = groupConversationEpochRef.current
     groupConversationPageRequestRef.current = true
     setLoadingMoreConversations(true)
     setError(null)
 
     try {
       const page = await getMyPlanConversationsPage(conversationCursor)
+      if (requestEpoch !== groupConversationEpochRef.current) return
       setConversations((current) => mergePlanConversations(current, page))
       setHasMoreConversations(page.length === PLAN_CONVERSATION_PAGE_SIZE)
       const last = page[page.length - 1]
@@ -358,10 +362,10 @@ export default function MessagesView({
         ? { createdAt: last.createdAt, conversationId: last.conversationId }
         : null)
     } catch (loadError) {
-      setError(toUserFacingError(loadError, 'Unable to load older Plan conversations right now.'))
+      if (requestEpoch === groupConversationEpochRef.current) setError(toUserFacingError(loadError, 'Unable to load older Plan conversations right now.'))
     } finally {
       groupConversationPageRequestRef.current = false
-      setLoadingMoreConversations(false)
+      if (requestEpoch === groupConversationEpochRef.current) setLoadingMoreConversations(false)
     }
   }
 

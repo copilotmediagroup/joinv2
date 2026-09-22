@@ -149,6 +149,9 @@ lock('Direct message history stays cursor-paginated', directMessagingClient + di
 lock('Group message pagination serializes and rejects stale conversation pages', messages,
   /groupMessageEpochRef[\s\S]*?groupMessagePageRequestRef[\s\S]*?requestedConversationId = selectedConversationId[\s\S]*?requestEpoch = groupMessageEpochRef\.current[\s\S]*?requestEpoch !== groupMessageEpochRef\.current/,
   'Rapid group LOAD OLDER requests must serialize and pages from an older conversation generation must be discarded.')
+lock('Group conversation loads reject stale lifecycle responses', messages,
+  /groupConversationEpochRef = useRef\(0\)[\s\S]*?requestEpoch = \+\+groupConversationEpochRef\.current[\s\S]*?requestEpoch !== groupConversationEpochRef\.current[\s\S]*?groupConversationEpochRef\.current \+= 1/,
+  'Plan conversation loads and pagination must reject responses after the messaging surface lifecycle changes.')
 lock('Group conversation pagination serializes rapid requests', messages,
   /groupConversationPageRequestRef[\s\S]*?if \(!conversationCursor \|\| groupConversationPageRequestRef\.current \|\| sendRequestRef\.current\) return[\s\S]*?groupConversationPageRequestRef\.current = true[\s\S]*?groupConversationPageRequestRef\.current = false/,
   'Rapid Plan conversation pagination must not issue duplicate cursor requests.')
