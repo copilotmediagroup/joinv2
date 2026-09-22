@@ -239,7 +239,7 @@ lock('Live outing terminal controls disable across exit modes', outing,
 lock('Live outing interactive controls freeze during terminal mutations', outing,
   /acceptFiles[\s\S]*?momentRequestRef\.current \|\| outingExitRequestRef\.current[\s\S]*?active-outing-chat[^\n]*?disabled=\{saving \|\| ending \|\| leaving\}[\s\S]*?capture=\"environment\" disabled=\{saving \|\| ending \|\| leaving\}[\s\S]*?multiple disabled=\{saving \|\| ending \|\| leaving\}[\s\S]*?textarea value=\{caption\} disabled=\{saving \|\| ending \|\| leaving\}[\s\S]*?DONE HERE/,
   'Capture inputs, edits, navigation, and completion entry must not change underneath an owned live mutation.')
-lock('Live outing attendance polling invalidates stale responses', activeOuting,
+lock('Live outing attendance polling invalidates stale responses', outing,
   /attendancePollEpochRef = useRef\(0\)[\s\S]*?const requestEpoch = \+\+attendancePollEpochRef\.current[\s\S]*?requestEpoch !== attendancePollEpochRef\.current[\s\S]*?attendancePollEpochRef\.current \+= 1/,
   'Live outing attendance polling must reject responses from an old plan or unmounted outing.')
 lock('Live outing refresh invalidates on unmount', outing,
