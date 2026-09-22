@@ -48,6 +48,7 @@ const [
   onboardingGate,
   signalAccessGate,
   mobileSafeVenueWindow,
+  immediateMomentPublication,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -95,6 +96,7 @@ const [
   read('src/features/onboarding/components/OnboardingGateView.tsx'),
   read('src/features/onboarding/components/SignalAccessGate.tsx'),
   read('supabase/migrations/20260922105000_mobile_safe_signal_venue_window.sql'),
+  read('supabase/migrations/20260922231921_restore_immediate_signal_moment_publication.sql'),
 ])
 
 const checks = []
@@ -109,6 +111,16 @@ const lock = (name, source, pattern, reason) => {
 lock('Signal venue voting window remains mobile-safe', mobileSafeVenueWindow,
   /ensure_signal_venue_round[\s\S]*?10 seconds[\s\S]*?60 seconds/,
   'A confirmed phone participant must have enough server-owned time to enter Place before automatic venue fallback.')
+lock('Signal Moment capture remains immediately published', immediateMomentPublication,
+  /capture_my_signal_moment[\s\S]*?set state='published'[\s\S]*?state='draft'[\s\S]*?signal_moment_media/,
+  'Checked-in uploads must publish to Activity immediately and repair any stranded media-backed drafts.')
+lock('Discovery count never falls back to a loading dash', app,
+  /<strong>\s*\{activeCount\}\s*<\/strong>/,
+  'Realtime Discovery social proof must always render a numeric count, including while authority refreshes.')
+lock('Secondary app surfaces keep a back path and start at top', app,
+  /previousSurfaceRef[\s\S]*?window\.scrollTo\(\{ top: 0[\s\S]*?handlePageBack[\s\S]*?page-back-button/,
+  'New top-level surfaces must start at the top and expose a consistent back control.')
+
 lock('Discovery counts remain live without manual reload', app,
   /subscribeToSignalDiscovery\(refreshLiveCounts,[\s\S]*?setInterval\([\s\S]*?visibilityState === 'visible'[\s\S]*?5_000[\s\S]*?visibilitychange[\s\S]*?focus[\s\S]*?pageshow[\s\S]*?online/,
   'Realtime + self-healing reconciliation must remain installed.')

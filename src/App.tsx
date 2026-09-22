@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Bell,
+  ArrowLeft,
   Camera,
   ImagePlus,
   MoreHorizontal,
@@ -297,10 +298,28 @@ function App() {
   const [activeSurface, setActiveSurface] =
     useState<'discover' | 'activity' | 'messages' | 'profile' | 'public-profile' | 'admin'>('discover')
   const activeSurfaceRef = useRef(activeSurface)
-  useEffect(() => { activeSurfaceRef.current = activeSurface }, [activeSurface])
+  const previousSurfaceRef = useRef<typeof activeSurface>('discover')
+  const lastSurfaceRef = useRef(activeSurface)
+  useEffect(() => {
+    if (lastSurfaceRef.current !== activeSurface) {
+      previousSurfaceRef.current = lastSurfaceRef.current
+      lastSurfaceRef.current = activeSurface
+    }
+    activeSurfaceRef.current = activeSurface
+  }, [activeSurface])
   const [publicProfileUserId, setPublicProfileUserId] = useState<string | null>(null)
   const [liveCaptureMode, setLiveCaptureMode] =
     useState<'camera' | 'upload' | null>(null)
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+  }, [activeSurface, publicProfileUserId])
+
+  const handlePageBack = useCallback(() => {
+    const previous = previousSurfaceRef.current
+    if (activeSurface === 'public-profile') setPublicProfileUserId(null)
+    setActiveSurface(previous === activeSurface ? 'discover' : previous)
+  }, [activeSurface])
+
   const [activityItems, setActivityItems] =
     useState<ActivityItem[]>([])
   const [activityLoading, setActivityLoading] =
@@ -1860,6 +1879,13 @@ function App() {
         />
       )}
 
+      {activeSurface !== 'discover' && !activeOutingPlanId && !completionPlanId ? (
+        <button type="button" className="page-back-button" onClick={handlePageBack}>
+          <ArrowLeft size={17} />
+          BACK
+        </button>
+      ) : null}
+
       <React.Suspense fallback={<div className="surface-loading">Loading…</div>}>
       {completionPlanId ? (
         <SignalCompletionView planId={completionPlanId} onDone={() => {
@@ -2108,7 +2134,7 @@ function App() {
 
                   <div className="pulse-status">
                     <strong>
-  {discoveryLoading ? '—' : activeCount}
+  {activeCount}
 </strong>
                     <span>{pulse.line}</span>
                   </div>

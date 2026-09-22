@@ -4727,3 +4727,26 @@ button:disabled,
 .profile-search-input{display:flex;align-items:center;gap:9px;margin:0 14px 12px;padding:0 12px;border:1px solid rgba(94,219,255,.18);border-radius:12px;background:rgba(255,255,255,.035);color:#6ee3ff}.profile-search-input input{width:100%;height:42px;border:0;outline:0;background:transparent;color:#f4fbff;font:inherit}.profile-search-input input::placeholder{color:rgba(255,255,255,.35)}
 .profile-search-results{max-height:calc(min(72vh,640px) - 118px);overflow-y:auto;padding:0 9px 12px}.profile-search-results>p{margin:0;padding:24px 10px;color:rgba(255,255,255,.48);font-size:11px;text-align:center}.profile-search-results>button{display:grid;grid-template-columns:46px minmax(0,1fr) 18px;align-items:center;gap:10px;width:100%;border:0;border-bottom:1px solid rgba(255,255,255,.055);padding:9px 7px;background:transparent;color:#fff;text-align:left;cursor:pointer}.profile-search-results>button:hover{border-radius:11px;background:rgba(75,210,255,.06)}.profile-search-avatar{display:grid;place-items:center;width:46px;height:46px;overflow:hidden;border:1px solid rgba(95,220,255,.32);border-radius:50%;background:#142235;color:#6ee2ff;font-weight:950}.profile-search-avatar img{width:100%;height:100%;object-fit:cover}.profile-search-results>button>span:nth-child(2){display:grid;gap:3px;min-width:0}.profile-search-results strong{overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.profile-search-results small{display:flex;align-items:center;gap:3px;color:rgba(255,255,255,.43);font-size:8px}.profile-search-results b{color:#68ddff;font-size:20px;font-weight:400}
 @media(max-width:640px){.profile-search-overlay{align-items:start;padding:66px 10px 86px}.profile-search-panel{border-radius:17px}.profile-search-results{max-height:65vh}}
+
+/* Shared page navigation: top-level secondary surfaces always expose a clear return path. */
+.page-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 14px 18px 0;
+  padding: 9px 13px;
+  border: 1px solid rgba(126, 211, 255, .28);
+  border-radius: 999px;
+  background: rgba(7, 17, 31, .88);
+  color: #dff7ff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.page-back-button:hover {
+  border-color: rgba(126, 211, 255, .56);
+  background: rgba(16, 38, 65, .94);
+}
