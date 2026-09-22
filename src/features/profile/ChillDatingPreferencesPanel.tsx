@@ -15,6 +15,7 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const saveRequestRef = useRef(false)
+  const saveEpochRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -22,7 +23,7 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
       .then((value) => { if (!cancelled) setPreferences(value) })
       .catch((value) => { if (!cancelled) setError(toUserFacingError(value, 'Unable to load Chill preferences.')) })
       .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
+    return () => { cancelled = true; saveEpochRef.current += 1 }
   }, [])
 
   if (loading || !gender) return null
@@ -37,20 +38,23 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
 
   const save = async (next: ChillDatingPreferences) => {
     if (saveRequestRef.current) return
+    const saveEpoch = saveEpochRef.current
     saveRequestRef.current = true
     setSaving(true)
     setError(null)
     try {
       const saved = await updateMyChillDatingPreferences(next)
+      if (saveEpoch !== saveEpochRef.current) return
       setPreferences((current) => {
         if (!current || current.seekingGender !== next.seekingGender || current.minAge !== next.minAge || current.maxAge !== next.maxAge || current.isEnabled !== next.isEnabled) return current
         return saved
       })
     } catch (value) {
+      if (saveEpoch !== saveEpochRef.current) return
       setError(toUserFacingError(value, 'Unable to save Chill preferences.'))
     } finally {
       saveRequestRef.current = false
-      setSaving(false)
+      if (saveEpoch === saveEpochRef.current) setSaving(false)
     }
   }
 
