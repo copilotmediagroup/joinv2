@@ -269,6 +269,9 @@ lock('Notification pagination pauses during navigation', notificationPanel,
 lock('Notification pagination serializes and rejects stale pages', notificationPanel,
   /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid notification pagination must serialize and older pages must not append after a newer refresh.')
+lock('Notification pagination deduplicates overlapping pages', notificationPanel,
+  /page\.notifications\.filter[\s\S]*?item\.id === next\.id/,
+  'Cursor overlap must not render duplicate notifications when adjacent pages share a boundary row.')
 lock('Notification history stays cursor-paginated', notifications + notificationPanel,
   /get_my_notifications_page[\s\S]*?p_before_created_at[\s\S]*?LOAD OLDER ALERTS/,
   'Notification history must remain bounded while allowing users to reach older alerts.')

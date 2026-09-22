@@ -84,7 +84,7 @@ export default function NotificationPanel({
     try {
       const page = await getMyNotificationsPage({ createdAt: last.createdAt, notificationId: last.id })
       if (requestEpoch !== refreshEpochRef.current) return
-      setItems((current) => [...current, ...page.notifications])
+      setItems((current) => [...current, ...page.notifications.filter((next) => !current.some((item) => item.id === next.id))])
       setHasMore(page.hasMore)
       setError(null)
     } catch (loadError) {
