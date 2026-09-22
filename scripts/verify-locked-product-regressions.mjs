@@ -479,6 +479,9 @@ lock('Access gate invalidates onboarding reads on lifecycle change', signalAcces
 lock('Access gate rejects stale onboarding responses', signalAccessGate,
   /resolveEpochRef[\s\S]*?requestEpoch = \+\+resolveEpochRef\.current[\s\S]*?getMyOnboardingState[\s\S]*?requestEpoch !== resolveEpochRef\.current/,
   'Session or auth changes must invalidate older onboarding reads before they can restore stale access state.')
+lock('Auth submission rejects stale gate lifecycles', authGate,
+  /submitEpochRef = useRef\(0\)[\s\S]*?submitEpochRef\.current \+= 1[\s\S]*?submitEpoch = submitEpochRef\.current[\s\S]*?submitEpoch !== submitEpochRef\.current[\s\S]*?submitEpoch === submitEpochRef\.current/,
+  'A late authentication completion must not mutate an unmounted access gate.')
 lock('Auth and onboarding submissions serialize rapid submits', authGate + onboardingGate,
   /submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false[\s\S]*?submitRequestRef[\s\S]*?handleSubmit[\s\S]*?submitRequestRef\.current[\s\S]*?submitRequestRef\.current = true[\s\S]*?submitRequestRef\.current = false/,
   'Authentication and onboarding writes must not rely only on delayed React submitting state.')

@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   signInWithPassword,
   signUpWithPassword,
@@ -20,6 +20,9 @@ export function AuthGateView({
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const submitRequestRef = useRef(false)
+  const submitEpochRef = useRef(0)
+
+  useEffect(() => () => { submitEpochRef.current += 1 }, [])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -33,6 +36,7 @@ export function AuthGateView({
       return
     }
 
+    const submitEpoch = submitEpochRef.current
     submitRequestRef.current = true
     setSubmitting(true)
     setMessage(null)
@@ -54,16 +58,18 @@ export function AuthGateView({
         return
       }
 
+      if (submitEpoch !== submitEpochRef.current) return
       setMessage(
         'Check your email to finish creating your account.',
       )
     } catch (error) {
+      if (submitEpoch !== submitEpochRef.current) return
       setMessage(
         toUserFacingError(error, 'SIGNAL could not complete that request. Please try again.'),
       )
     } finally {
       submitRequestRef.current = false
-      setSubmitting(false)
+      if (submitEpoch === submitEpochRef.current) setSubmitting(false)
     }
   }
 
