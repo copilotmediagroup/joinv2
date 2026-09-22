@@ -332,7 +332,7 @@ lock('My Energy stays out of public profile', publicProfile,
 lock('My Energy remains editable only in own profile flow', profile + profilePreferences,
   /SignalPreferencesPanel[\s\S]*?MY ENERGY[\s\S]*?SAVE MY ENERGY/,
   'Private preference editing must remain available to the owner.')
-lock('Energy preference controls freeze during save', signalPreferencesPanel,
+lock('Energy preference controls freeze during save', profilePreferences,
   /saveRequestRef\.current[\s\S]*?disabled=\{saving\}[\s\S]*?GROUPS\.map[\s\S]*?disabled=\{saving\}[\s\S]*?signal-preferences-save[\s\S]*?disabled=\{saving\}/,
   'Energy preference editor controls must freeze while the authoritative save owns the draft.')
 lock('Profile preference saves serialize rapid mutations', profilePreferences + chillDatingPreferences,
