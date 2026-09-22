@@ -39,6 +39,7 @@ export default function ProfileSearchPanel({
 
     return () => {
       cancelled = true
+      requestEpochRef.current += 1
       window.clearTimeout(timer)
     }
   }, [query])

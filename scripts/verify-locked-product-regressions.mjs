@@ -523,3 +523,7 @@ if (failed.length) {
 }
 
 console.log(`\nLocked product regression verification passed (${checks.length}/${checks.length}).`)
+
+lock('Profile search invalidates requests on lifecycle change', profileSearchPanel,
+  /cancelled = true[\s\S]*?requestEpochRef\.current \+= 1[\s\S]*?window\.clearTimeout\(timer\)/,
+  'Profile search requests must be invalidated when the query effect is replaced or the search panel unmounts.')
