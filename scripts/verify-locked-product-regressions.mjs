@@ -464,6 +464,9 @@ lock('Moderation actions serialize rapid admin mutations', moderationView + mome
 lock('Moderation releases reject stale queue lifecycles', moderationView + momentModeration,
   /releaseSelected[\s\S]*?actionEpoch = actionEpochRef\.current[\s\S]*?requestedReportId = selected\.reportId[\s\S]*?releaseMyModerationReport\(requestedReportId\)[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?releaseSelected[\s\S]*?releaseMyModerationMoment\(requestedReportId\)[\s\S]*?actionEpoch !== actionEpochRef\.current/,
   'Late moderation release completions must not refresh or mutate a replacement queue lifecycle.')
+lock('Moderation enforcement and review reject stale lifecycles', moderationView + momentModeration,
+  /runEnforcement[\s\S]*?requestedReportId = selected\.reportId[\s\S]*?requestedUserId = selected\.reportedUserId[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?finishSelected[\s\S]*?requestedReportId = selected\.reportId[\s\S]*?reviewUserReport[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?runAuthorEnforcement[\s\S]*?requestedReportId = selected\.reportId[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?reviewModerationMoment/,
+  'Enforcement and resolution completions must not mutate a replacement moderation lifecycle.')
 lock('Moderation case identity freezes during mutations', moderationView + momentModeration,
   /changeTab[\s\S]*?actionRequestRef\.current[\s\S]*?disabled=\{actionLoading\}[\s\S]*?Refresh queue[\s\S]*?actionRequestRef\.current[\s\S]*?setTab\(value\)[\s\S]*?disabled=\{actionLoading\}[\s\S]*?Refresh Moment queue[\s\S]*?actionRequestRef\.current[\s\S]*?setSelectedId\(item\.reportId\)/,
   'An in-flight moderation mutation must stay bound to the case and queue it started against.')

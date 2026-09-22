@@ -172,37 +172,45 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
     if (!selected || !canEnforce || actionRequestRef.current) return
     const reason = enforcementReason.trim()
     if (reason.length < 3) { setError('Enter an enforcement reason before taking action.'); return }
+    const actionEpoch = actionEpochRef.current
+    const requestedReportId = selected.reportId
     actionRequestRef.current = true
     setActionLoading(true); setError(null)
     try {
       await enforceMomentAuthorAccount({
-        reportId: selected.reportId, action,
+        reportId: requestedReportId, action,
         durationMinutes: action === 'suspension' ? suspensionMinutes : null, reason,
       })
+      if (actionEpoch !== actionEpochRef.current) return
       setEnforcementReason('')
     } catch (enforceError) {
+      if (actionEpoch !== actionEpochRef.current) return
       setError(toUserFacingError(enforceError, 'Unable to enforce this Moment author account.'))
-    } finally { actionRequestRef.current = false; setActionLoading(false) }
+    } finally { actionRequestRef.current = false; if (actionEpoch === actionEpochRef.current) setActionLoading(false) }
   }
 
   const finishSelected = async (state: 'dismissed' | 'actioned') => {
     if (!selected || actionRequestRef.current) return
+    const actionEpoch = actionEpochRef.current
+    const requestedReportId = selected.reportId
     actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
       await reviewModerationMoment({
-        reportId: selected.reportId,
+        reportId: requestedReportId,
         state,
         note: note.trim() || null,
       })
+      if (actionEpoch !== actionEpochRef.current) return
       await loadPage('mine')
       setNote('')
     } catch (reviewError) {
+      if (actionEpoch !== actionEpochRef.current) return
       setError(toUserFacingError(reviewError, 'Unable to finish this Moment report.'))
     } finally {
       actionRequestRef.current = false
-      setActionLoading(false)
+      if (actionEpoch === actionEpochRef.current) setActionLoading(false)
     }
   }
   return (

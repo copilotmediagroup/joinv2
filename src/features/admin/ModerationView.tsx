@@ -182,35 +182,44 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
     if (!selected || !canEnforce || actionRequestRef.current) return
     const reason = enforcementReason.trim()
     if (reason.length < 3) { setError('Enter an enforcement reason before taking action.'); return }
+    const actionEpoch = actionEpochRef.current
+    const requestedReportId = selected.reportId
+    const requestedUserId = selected.reportedUserId
     actionRequestRef.current = true
     setActionLoading(true); setError(null)
     try {
-      if (action === 'lift') await liftUserAccountRestriction(selected.reportedUserId, reason)
-      else await enforceUserAccount({ userId: selected.reportedUserId, action, durationMinutes: action === 'suspension' ? suspensionMinutes : null, reason, sourceReportId: selected.reportId })
-      setEnforcement(await getUserAccountEnforcementSummary(selected.reportedUserId))
+      if (action === 'lift') await liftUserAccountRestriction(requestedUserId, reason)
+      else await enforceUserAccount({ userId: requestedUserId, action, durationMinutes: action === 'suspension' ? suspensionMinutes : null, reason, sourceReportId: requestedReportId })
+      const summary = await getUserAccountEnforcementSummary(requestedUserId)
+      if (actionEpoch !== actionEpochRef.current) return
+      setEnforcement(summary)
       setEnforcementReason('')
-    } catch (enforceError) { setError(toUserFacingError(enforceError, 'Unable to apply this enforcement action.')) }
-    finally { actionRequestRef.current = false; setActionLoading(false) }
+    } catch (enforceError) { if (actionEpoch !== actionEpochRef.current) return; setError(toUserFacingError(enforceError, 'Unable to apply this enforcement action.')) }
+    finally { actionRequestRef.current = false; if (actionEpoch === actionEpochRef.current) setActionLoading(false) }
   }
 
   const finishSelected = async (state: 'resolved' | 'dismissed') => {
     if (!selected || actionRequestRef.current) return
+    const actionEpoch = actionEpochRef.current
+    const requestedReportId = selected.reportId
     actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
       await reviewUserReport({
-        reportId: selected.reportId,
+        reportId: requestedReportId,
         state,
         note: note.trim() || null,
       })
+      if (actionEpoch !== actionEpochRef.current) return
       await loadPage('mine')
       setNote('')
     } catch (reviewError) {
+      if (actionEpoch !== actionEpochRef.current) return
       setError(toUserFacingError(reviewError, 'Unable to finish this report.'))
     } finally {
       actionRequestRef.current = false
-      setActionLoading(false)
+      if (actionEpoch === actionEpochRef.current) setActionLoading(false)
     }
   }
 
