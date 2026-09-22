@@ -344,6 +344,9 @@ lock('My Energy remains editable only in own profile flow', profile + profilePre
 lock('Energy preference controls freeze during save', profilePreferences,
   /saveRequestRef\.current[\s\S]*?disabled=\{saving\}[\s\S]*?GROUPS\.map[\s\S]*?disabled=\{saving\}[\s\S]*?signal-preferences-save[\s\S]*?disabled=\{saving\}/,
   'Energy preference editor controls must freeze while the authoritative save owns the draft.')
+lock('Chill preference save preserves newer local edits', chillDatingPreferences,
+  /saved = await updateMyChillDatingPreferences\(next\)[\s\S]*?setPreferences\(\(current\)[\s\S]*?current\.minAge !== next\.minAge[\s\S]*?current\.maxAge !== next\.maxAge[\s\S]*?return saved/,
+  'A completed Chill save must not wipe age edits made while the request was in flight.')
 lock('Profile preference saves serialize rapid mutations', profilePreferences + chillDatingPreferences,
   /saveRequestRef[\s\S]*?save[\s\S]*?saveRequestRef\.current[\s\S]*?saveRequestRef\.current = true[\s\S]*?saveRequestRef\.current = false[\s\S]*?saveRequestRef[\s\S]*?save[\s\S]*?saveRequestRef\.current[\s\S]*?saveRequestRef\.current = true[\s\S]*?saveRequestRef\.current = false/,
   'My Energy and Chill preference writes must not rely only on delayed React saving state.')

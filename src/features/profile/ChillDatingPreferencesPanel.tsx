@@ -41,7 +41,11 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
     setSaving(true)
     setError(null)
     try {
-      setPreferences(await updateMyChillDatingPreferences(next))
+      const saved = await updateMyChillDatingPreferences(next)
+      setPreferences((current) => {
+        if (!current || current.seekingGender !== next.seekingGender || current.minAge !== next.minAge || current.maxAge !== next.maxAge || current.isEnabled !== next.isEnabled) return current
+        return saved
+      })
     } catch (value) {
       setError(toUserFacingError(value, 'Unable to save Chill preferences.'))
     } finally {
