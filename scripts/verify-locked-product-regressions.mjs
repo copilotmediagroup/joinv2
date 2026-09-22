@@ -221,6 +221,9 @@ lock('Plan governance actions reject stale Plan lifecycles', planGovernance,
 lock('Plan governance actions serialize rapid mutations', planGovernance,
   /governanceActionRef[\s\S]*?attendanceActionRef[\s\S]*?if \(attendanceActionRef\.current \|\| governanceActionRef\.current[\s\S]*?runVote[\s\S]*?governanceActionRef\.current \|\| attendanceActionRef\.current[\s\S]*?proposeTime[\s\S]*?governanceActionRef\.current \|\| attendanceActionRef\.current[\s\S]*?leave[\s\S]*?governanceActionRef\.current \|\| attendanceActionRef\.current/,
   'Check-in, governance votes, time proposals, and leave actions must be mutually exclusive under rapid input.')
+lock('Plan proposal and leave reject stale Plan lifecycles', planGovernance,
+  /proposeTime[\s\S]*?requestedPlanId = planId[\s\S]*?proposePlanTimeChange\(requestedPlanId[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?leave[\s\S]*?requestedPlanId = planId[\s\S]*?leaveMyPlan\(requestedPlanId\)[\s\S]*?actionEpoch !== actionEpochRef\.current/,
+  'Time proposal and leave completions must not mutate a replacement Plan lifecycle.')
 lock('Plan governance controls mirror shared mutation ownership', planGovernance,
   /disabled=\{attendanceBusy \|\| busy\}[\s\S]*?disabled=\{busy \|\| attendanceBusy\}[\s\S]*?disabled=\{busy \|\| attendanceBusy \|\| changesFrozen/,
   'Check-in and governance controls must visibly freeze each other while either mutation owns the Plan.')

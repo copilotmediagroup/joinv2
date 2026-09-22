@@ -211,32 +211,41 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
       setError('Choose a valid meetup time.')
       return
     }
+    const actionEpoch = actionEpochRef.current
+    const requestedPlanId = planId
     governanceActionRef.current = true
     setBusy(true)
     setError(null)
     try {
-      await proposePlanTimeChange(planId, parsed.toISOString())
+      await proposePlanTimeChange(requestedPlanId, parsed.toISOString())
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       await refresh()
     } catch (proposalError) {
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       setError(toUserFacingError(proposalError, 'Unable to propose that time right now.'))
     } finally {
       governanceActionRef.current = false
-      setBusy(false)
+      if (actionEpoch === actionEpochRef.current && requestedPlanId === planId) setBusy(false)
     }
   }
 
   const leave = async (reason: 'left' | 'safety' = 'left') => {
     if (governanceActionRef.current || attendanceActionRef.current) return
+    const actionEpoch = actionEpochRef.current
+    const requestedPlanId = planId
     governanceActionRef.current = true
     setBusy(true)
     setError(null)
     try {
-      await leaveMyPlan(planId)
+      await leaveMyPlan(requestedPlanId)
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       onLeftPlan?.(reason)
     } catch (leaveError) {
-      governanceActionRef.current = false
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       setError(toUserFacingError(leaveError, 'Unable to leave the Plan right now.'))
-      setBusy(false)
+      if (actionEpoch === actionEpochRef.current && requestedPlanId === planId) setBusy(false)
+    } finally {
+      governanceActionRef.current = false
     }
   }
 
