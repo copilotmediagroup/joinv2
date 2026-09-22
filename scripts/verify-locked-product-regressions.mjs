@@ -510,6 +510,9 @@ lock('Moment comment pagination pauses during mutations', activityView,
 lock('Moment comment pagination serializes requests', activityView,
   /commentsRequestRef[\s\S]*?commentsRequestRef\.current[\s\S]*?commentsRequestRef\.current = true[\s\S]*?setComments[\s\S]*?loadOlder[\s\S]*?commentsRequestRef\.current = false/,
   'Comment refresh and LOAD OLDER must not overlap and overwrite or duplicate the paginated thread.')
+lock('Safety actions reject stale user lifecycles', userSafetyActions,
+  /actionEpochRef = useRef\(0\)[\s\S]*?actionEpochRef\.current \+= 1[\s\S]*?requestedUserId = userId[\s\S]*?reportUser\(requestedUserId[\s\S]*?actionEpoch !== actionEpochRef\.current \|\| requestedUserId !== userId[\s\S]*?blockUser\(requestedUserId/,
+  'Report and block completions must not mutate a replacement user safety lifecycle.')
 lock('Safety report and block actions serialize rapid submissions', userSafetyActions,
   /actionRequestRef[\s\S]*?submitReport[\s\S]*?if \(actionRequestRef\.current \|\| disabled\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?confirmBlock[\s\S]*?if \(actionRequestRef\.current \|\| disabled\) return/,
   'Rapid report/block actions must share synchronous request ownership instead of relying on delayed React busy state.')

@@ -1,5 +1,5 @@
 import { Ban, Flag, ShieldAlert, X } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toUserFacingError } from '../../lib/userFacingError'
 import { blockUser, reportUser, type UserReportReason } from './userSafetyClient'
 
@@ -30,39 +30,48 @@ export default function UserSafetyActions({ userId, displayName, onBlocked, disa
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const actionRequestRef = useRef(false)
+  const actionEpochRef = useRef(0)
+
+  useEffect(() => () => { actionEpochRef.current += 1 }, [userId])
 
   const submitReport = async () => {
     if (actionRequestRef.current || disabled) return
+    const actionEpoch = actionEpochRef.current
+    const requestedUserId = userId
     actionRequestRef.current = true
     setBusy(true); onBusyChange?.(true); setError(null); setMessage(null)
     try {
-      await reportUser(userId, reason, details.trim() || null)
+      await reportUser(requestedUserId, reason, details.trim() || null)
+      if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
       setMessage('Report sent. SIGNAL will review it.')
       setMode('closed'); setDetails('')
     } catch (value) {
+      if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
       setError(toUserFacingError(value, 'Unable to send this report right now.'))
     } finally {
       actionRequestRef.current = false
-      setBusy(false)
-      onBusyChange?.(false)
+      if (actionEpoch === actionEpochRef.current && requestedUserId === userId) { setBusy(false); onBusyChange?.(false) }
     }
   }
 
   const confirmBlock = async () => {
     if (actionRequestRef.current || disabled) return
+    const actionEpoch = actionEpochRef.current
+    const requestedUserId = userId
     actionRequestRef.current = true
     setBusy(true); onBusyChange?.(true); setError(null); setMessage(null)
     try {
-      await blockUser(userId)
+      await blockUser(requestedUserId)
+      if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
       setMessage(`${displayName} is blocked.`)
       setMode('closed')
       onBlocked?.()
     } catch (value) {
+      if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
       setError(toUserFacingError(value, 'Unable to block this person right now.'))
     } finally {
       actionRequestRef.current = false
-      setBusy(false)
-      onBusyChange?.(false)
+      if (actionEpoch === actionEpochRef.current && requestedUserId === userId) { setBusy(false); onBusyChange?.(false) }
     }
   }
 
