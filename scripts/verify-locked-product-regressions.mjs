@@ -269,6 +269,9 @@ lock('Signal withdrawal serializes rapid leave actions', app,
 lock('I AM BORED automation serializes rapid starts', app,
   /boredAutomationRequestRef[\s\S]*?handleImBoredAutomation[\s\S]*?boredAutomationRequestRef\.current \|\| formationRequestRef\.current[\s\S]*?boredAutomationRequestRef\.current = true[\s\S]*?boredAutomationRequestRef\.current = false/,
   'Rapid I AM BORED taps must not issue duplicate opportunity reads before React loading state commits.')
+lock('Signal journey stage transitions reject stale async completions', app,
+  /journeyStageEpochRef = React\.useRef\(0\)[\s\S]*?stageEpoch = \+\+journeyStageEpochRef\.current[\s\S]*?stageEpoch !== journeyStageEpochRef\.current[\s\S]*?journeyStageEpochRef\.current \+= 1[\s\S]*?requestGroupId === authoritativeSignalGroupId/,
+  'Arrival and venue stage transitions must not let an older Signal response move a newer journey.')
 lock('Pre-lock formation keeps joined participant proof', app,
   /signalParticipants\.slice\(0, 4\)[\s\S]*?participant\.displayName[\s\S]*?\+ JOINED/,
   'Users must see who is joining before the Signal locks instead of jumping blindly to coordination.')

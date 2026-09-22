@@ -427,6 +427,7 @@ function App() {
   const lastRealtimeGroupIdRef = React.useRef<string | null>(null)
   const journeyRestorePromiseRef = React.useRef<Promise<void> | null>(null)
   const journeyRestoreEpochRef = React.useRef(0)
+  const journeyStageEpochRef = React.useRef(0)
   const completionHandoffRef = React.useRef(false)
   const [activeOutingPlanId, setActiveOutingPlanId] =
     useState<string | null>(null)
@@ -1055,16 +1056,20 @@ function App() {
     if (!signalThreshold || !authoritativeSignalGroupId || authoritativeRoomStage !== 'arrival') return
 
     let cancelled = false
+    const stageEpoch = ++journeyStageEpochRef.current
     void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'places')
       .then((stage) => {
-        if (cancelled) return
+        if (cancelled || stageEpoch !== journeyStageEpochRef.current) return
         setServerJourneyStage(stage)
       })
       .catch(() => {
         if (!cancelled) void restoreActiveSignal(false)
       })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      journeyStageEpochRef.current += 1
+    }
   }, [authoritativeRoomStage, authoritativeSignalGroupId, restoreActiveSignal, signalThreshold])
 
   const signalHasReachedCriticalMass =
@@ -2896,8 +2901,12 @@ function App() {
                           leavingSignal={withdrawalSubmitting}
                           onVenueLocked={(venue) => {
                             setLockedSignalVenue(venue)
-                            void advanceMySignalJourneyStage(authoritativeSignalGroupId, 'time')
-                              .then((stage) => { setServerJourneyStage(stage) })
+                            const stageEpoch = ++journeyStageEpochRef.current
+                            const requestGroupId = authoritativeSignalGroupId
+                            void advanceMySignalJourneyStage(requestGroupId, 'time')
+                              .then((stage) => {
+                                if (stageEpoch === journeyStageEpochRef.current && requestGroupId === authoritativeSignalGroupId) setServerJourneyStage(stage)
+                              })
                               .catch(() => void restoreActiveSignal(false))
                           }}
                         />
