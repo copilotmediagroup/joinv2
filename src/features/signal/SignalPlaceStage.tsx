@@ -142,7 +142,10 @@ export default function SignalPlaceStage({
       setPlacesError(null)
       void loadRound()
     })
-    return () => { active = false }
+    return () => {
+      active = false
+      roundRequestIdRef.current += 1
+    }
   }, [loadRound])
 
   useEffect(() => {

@@ -156,6 +156,7 @@ export default function SignalTimeStage({
 
     return () => {
       active = false
+      snapshotRequestIdRef.current += 1
     }
   }, [loadSnapshot])
 

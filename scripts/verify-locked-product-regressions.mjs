@@ -167,6 +167,9 @@ lock('Signal time preference control freezes during submission', signalTimeStage
 lock('Signal venue and time choices serialize rapid submissions', signalPlaceStage + signalTimeStage,
   /voteRequestRef[\s\S]*?castVote[\s\S]*?voteRequestRef\.current[\s\S]*?voteRequestRef\.current = true[\s\S]*?voteRequestRef\.current = false[\s\S]*?availabilityRequestRef[\s\S]*?toggleAvailability[\s\S]*?availabilityRequestRef\.current[\s\S]*?availabilityRequestRef\.current = true[\s\S]*?availabilityRequestRef\.current = false[\s\S]*?choosePreference[\s\S]*?availabilityRequestRef\.current/,
   'Rapid venue votes and time choices must preserve one client-owned mutation at a time.')
+lock('Venue and time stage loads invalidate on lifecycle change', signalPlaceStage + signalTimeStage,
+  /roundRequestIdRef\.current \+= 1[\s\S]*?snapshotRequestIdRef\.current \+= 1/,
+  'Venue and time stage async loads must invalidate already-started responses when their stage lifecycle ends.')
 lock('Venue-stage refresh ignores stale realtime responses', signalPlaceStage,
   /roundRequestIdRef[\s\S]*?requestId = \+\+roundRequestIdRef\.current[\s\S]*?requestId !== roundRequestIdRef\.current[\s\S]*?requestId === roundRequestIdRef\.current/,
   'Overlapping initial, realtime, and post-vote venue reads must not let an older response overwrite newer round authority.')
