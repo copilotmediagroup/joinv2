@@ -83,6 +83,7 @@ export default function SignalPlaceStage({
   const deadlockRetryCountRef = useRef(0)
   const locationPreparedRef = useRef(false)
   const roundRequestIdRef = useRef(0)
+  const deadlockRestartEpochRef = useRef(0)
 
   const loadRound = useCallback(async () => {
     const requestId = ++roundRequestIdRef.current
@@ -203,17 +204,23 @@ export default function SignalPlaceStage({
     }
     if (deadlockRestartingRef.current || deadlockRetryCountRef.current >= 1) return
 
+    const restartEpoch = ++deadlockRestartEpochRef.current
     deadlockRestartingRef.current = true
     deadlockRetryCountRef.current += 1
     setPlacesError(null)
     void restartDeadlockedSignalVenueVote(signalGroupId)
-      .then(() => loadRound())
+      .then(() => {
+        if (restartEpoch !== deadlockRestartEpochRef.current) return
+        return loadRound()
+      })
       .catch((error) => {
+        if (restartEpoch !== deadlockRestartEpochRef.current) return
         deadlockRestartingRef.current = false
         setPlacesError(
           toUserFacingError(error, 'Unable to reopen place voting right now.'),
         )
       })
+    return () => { deadlockRestartEpochRef.current += 1 }
   }, [round, signalGroupId, loadRound])
 
   const winner = useMemo(() => {
