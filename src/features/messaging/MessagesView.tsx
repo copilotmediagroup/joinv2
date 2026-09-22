@@ -268,7 +268,9 @@ export default function MessagesView({
   useEffect(() => {
     if (!selectedConversationId) return
     const idleTimers = new Map<string, ReturnType<typeof setTimeout>>()
+    let typingActive = true
     const typing = subscribeToPlanTyping(selectedConversationId, currentUserId, (userId, active) => {
+      if (!typingActive) return
       const existing = idleTimers.get(userId)
       if (existing) clearTimeout(existing)
       idleTimers.delete(userId)
@@ -284,6 +286,7 @@ export default function MessagesView({
     })
     typingPublisherRef.current = typing.setTyping
     return () => {
+      typingActive = false
       idleTimers.forEach((timer) => clearTimeout(timer))
       typing.stop()
       typingPublisherRef.current = null

@@ -225,13 +225,15 @@ export default function DirectMessagesPanel({
   useEffect(() => {
     if (!selectedId) return
     let idleTimer: ReturnType<typeof setTimeout> | null = null
+    let typingActive = true
     const typing = subscribeToDirectTyping(selectedId, currentUserId, (active) => {
+      if (!typingActive) return
       setOtherUserTyping(active)
       if (idleTimer) clearTimeout(idleTimer)
       if (active) idleTimer = setTimeout(() => setOtherUserTyping(false), 3000)
     })
     typingPublisherRef.current = typing.setTyping
-    return () => { if (idleTimer) clearTimeout(idleTimer); typing.stop(); typingPublisherRef.current = null }
+    return () => { typingActive = false; if (idleTimer) clearTimeout(idleTimer); typing.stop(); typingPublisherRef.current = null; setOtherUserTyping(false) }
   }, [currentUserId, selectedId])
 
   const send = async (event: FormEvent) => {

@@ -119,6 +119,9 @@ lock('Discovery realtime remains authenticated/private', discovery,
 lock('Live Signal navigation lock remains present', app,
   /SIGNAL LIVE[\s\S]*?activeSignalResume|activeSignalResume[\s\S]*?SIGNAL LIVE/,
   'A user in a live Signal must retain a direct route back to that Signal.')
+lock('Typing presence callbacks stay bound to conversation lifecycle', directMessagesPanel + messages,
+  /typingActive = true[\s\S]*?subscribeToDirectTyping[\s\S]*?if \(!typingActive\) return[\s\S]*?typingActive = false[\s\S]*?setOtherUserTyping\(false\)[\s\S]*?typingActive = true[\s\S]*?subscribeToPlanTyping[\s\S]*?if \(!typingActive\) return[\s\S]*?typingActive = false/,
+  'Late typing callbacks must not leak presence into a replacement direct or group conversation.')
 lock('Group chat typing presence remains present', messages,
   /subscribeToPlanTyping[\s\S]*?setTypingUserIds[\s\S]*?typingUserIds[\s\S]*?typing…/,
   'Verified live group typing presence must not disappear.')
