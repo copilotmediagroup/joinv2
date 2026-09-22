@@ -293,6 +293,9 @@ lock('People search ignores stale async responses', profileSearchPanel,
 lock('Profile identity gallery uses batched private signing', profile,
   /createProfileAvatarSignedUrls[\s\S]*?sourcePhotos\.map\(\(photo\) => photo\.objectPath\)[\s\S]*?signedUrls\.get\(photo\.objectPath\)/,
   'Opening or editing the identity gallery must not create one Storage signing request per profile photo.')
+lock('Own Signal Life pagination ignores unmounted responses', profileSignalLife,
+  /mountedRef[\s\S]*?mountedRef\.current = true[\s\S]*?mountedRef\.current = false[\s\S]*?if \(!mountedRef\.current\) return[\s\S]*?if \(mountedRef\.current\) setLoadingMore/,
+  'A paginated Signal Life response must not write after the profile gallery unmounts.')
 lock('Own Signal Life pagination serializes requests', profileSignalLife,
   /pageRequestRef[\s\S]*?pageRequestRef\.current = true[\s\S]*?if \(!last \|\| pageRequestRef\.current \|\| !hasMore\) return[\s\S]*?pageRequestRef\.current = false/,
   'Rapid LOAD MORE clicks must not issue duplicate Signal Life cursor requests or append duplicate pages.')

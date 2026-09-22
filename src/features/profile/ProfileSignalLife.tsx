@@ -11,9 +11,11 @@ export default function ProfileSignalLife() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const pageRequestRef = useRef(false)
+  const mountedRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
+    mountedRef.current = true
     pageRequestRef.current = true
     void getMyProfileSignalMoments().then((page) => {
       if (!cancelled) { setMoments(page.moments); setHasMore(page.hasMore) }
@@ -22,7 +24,7 @@ export default function ProfileSignalLife() {
         pageRequestRef.current = false
         if (!cancelled) setLoading(false)
       })
-    return () => { cancelled = true }
+    return () => { cancelled = true; mountedRef.current = false }
   }, [])
 
   async function loadMore() {
@@ -32,11 +34,12 @@ export default function ProfileSignalLife() {
     setLoadingMore(true)
     try {
       const page = await getMyProfileSignalMoments({ publishedAt: last.publishedAt, momentId: last.momentId })
+      if (!mountedRef.current) return
       setMoments((current) => [...current, ...page.moments.filter((next) => !current.some((item) => item.momentId === next.momentId))])
       setHasMore(page.hasMore)
     } finally {
       pageRequestRef.current = false
-      setLoadingMore(false)
+      if (mountedRef.current) setLoadingMore(false)
     }
   }
 
