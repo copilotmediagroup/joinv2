@@ -379,6 +379,7 @@ function App() {
   const [formationSubmitting, setFormationSubmitting] =
     useState(false)
   const formationRequestRef = useRef(false)
+  const boredAutomationRequestRef = useRef(false)
   const [formationError, setFormationError] =
     useState<string | null>(null)
   const [withdrawalSubmitting, setWithdrawalSubmitting] =
@@ -1527,11 +1528,12 @@ function App() {
   }
 
   const handleImBoredAutomation = async () => {
-    if (formationRequestRef.current || boredOpportunityLoading || formationSubmitting) return
+    if (boredAutomationRequestRef.current || formationRequestRef.current || boredOpportunityLoading || formationSubmitting) return
+    boredAutomationRequestRef.current = true
 
     const existingJourney = await getMyActiveSignalResume().catch(() => null)
     if (existingJourney?.signalIntentId || existingJourney?.planId) {
-      await restoreActiveSignal(true)
+      try { await restoreActiveSignal(true) } finally { boredAutomationRequestRef.current = false }
       return
     }
 
@@ -1556,6 +1558,7 @@ function App() {
     } catch (error) {
       setFormationError(toUserFacingError(error, 'Unable to find something right now.'))
     } finally {
+      boredAutomationRequestRef.current = false
       setBoredOpportunityLoading(false)
     }
   }

@@ -245,6 +245,9 @@ lock('Live map retains fixed destination and user markers', liveMap,
 lock('Signal withdrawal serializes rapid leave actions', app,
   /withdrawalRequestRef[\s\S]*?handleLeaveSignal[\s\S]*?withdrawalRequestRef\.current[\s\S]*?withdrawalRequestRef\.current = true[\s\S]*?withdrawMySignal[\s\S]*?withdrawalRequestRef\.current = false/,
   'Rapid Leave Signal taps must not issue duplicate withdrawal mutations or race local journey reset.')
+lock('I AM BORED automation serializes rapid starts', app,
+  /boredAutomationRequestRef[\s\S]*?handleImBoredAutomation[\s\S]*?boredAutomationRequestRef\.current \|\| formationRequestRef\.current[\s\S]*?boredAutomationRequestRef\.current = true[\s\S]*?boredAutomationRequestRef\.current = false/,
+  'Rapid I AM BORED taps must not issue duplicate opportunity reads before React loading state commits.')
 lock('Pre-lock formation keeps joined participant proof', app,
   /signalParticipants\.slice\(0, 4\)[\s\S]*?participant\.displayName[\s\S]*?\+ JOINED/,
   'Users must see who is joining before the Signal locks instead of jumping blindly to coordination.')
