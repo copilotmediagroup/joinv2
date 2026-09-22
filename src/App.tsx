@@ -1117,6 +1117,11 @@ function App() {
     }
   }
 
+  useEffect(() => {
+    if (activeSurface === 'activity') return
+    activityRequestEpochRef.current += 1
+  }, [activeSurface])
+
   const handleActivityNavigation = () => {
     if (activeOutingPlanId) { void restoreActiveSignal(true); return }
     setActiveSurface('activity')

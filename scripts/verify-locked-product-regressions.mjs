@@ -510,6 +510,9 @@ lock('Comments, blocked users, and moderation evidence batch signing', momentSoc
 lock('Activity feed refresh invalidates on view unmount', activityView,
   /cancelled = true[\s\S]*?momentRefreshEpochRef\.current \+= 1[\s\S]*?unsubscribe\(\)/,
   'Activity feed refresh and pagination responses must be invalidated when the Activity view unmounts.')
+lock('App activity refresh invalidates when leaving Activity', app,
+  /if \(activeSurface === 'activity'\) return[\s\S]*?activityRequestEpochRef\.current \+= 1/,
+  'An app-level Activity read must not write back after the user leaves the Activity surface.')
 lock('App activity refresh rejects stale responses', app,
   /activityRequestEpochRef[\s\S]*?refreshActivity[\s\S]*?requestEpoch = \+\+activityRequestEpochRef\.current[\s\S]*?requestEpoch !== activityRequestEpochRef\.current[\s\S]*?requestEpoch === activityRequestEpochRef\.current/,
   'Overlapping app-level Activity refreshes must not let an older response overwrite newer feed authority.')
