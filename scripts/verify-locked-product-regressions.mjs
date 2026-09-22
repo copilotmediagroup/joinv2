@@ -404,6 +404,9 @@ lock('Declined post-Signal connections remain retryable', stayConnected,
 lock('Connection and safety mutations share visible ownership', myConnections + userSafetyActions,
   /safetyBusyId[\s\S]*?actionRequestRef\.current \|\| safetyBusyId !== null[\s\S]*?disabled=\{busyId !== null \|\| safetyBusyId !== null\}[\s\S]*?onBusyChange[\s\S]*?actionRequestRef\.current \|\| disabled[\s\S]*?onBusyChange\?\.\(true\)[\s\S]*?onBusyChange\?\.\(false\)/,
   'Disconnect, message, block, and report actions on a connection must not race one another across component boundaries.')
+lock('Own connection actions reject stale profile completions', myConnections,
+  /actionEpochRef = useRef\(0\)[\s\S]*?actionEpochRef\.current \+= 1[\s\S]*?requestedUserId = userId[\s\S]*?getOrCreateDirectConversation[\s\S]*?actionEpoch !== actionEpochRef\.current \|\| requestedUserId !== userId[\s\S]*?disconnectMySignalConnection/,
+  'Message and disconnect completions must not navigate or mutate a replacement profile lifecycle.')
 lock('Own connection navigation and pagination freeze during mutations', myConnections,
   /loadMore[\s\S]*?pageRequestRef\.current \|\| actionRequestRef\.current \|\| safetyBusyId !== null[\s\S]*?profile-connection-identity[\s\S]*?disabled=\{busyId !== null \|\| safetyBusyId !== null\}[\s\S]*?profile-connections-load-more[\s\S]*?disabled=\{loadingMore \|\| busyId !== null \|\| safetyBusyId !== null\}/,
   'Connection mutation ownership must freeze profile navigation and pagination so disconnect/message cannot race stale list actions.')
@@ -411,7 +414,7 @@ lock('Own connection pagination serializes and rejects stale pages', myConnectio
   /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Rapid connection pagination must serialize and an older page must not append after a newer full refresh.')
 lock('Own connection refresh invalidates on panel unmount', myConnections,
-  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1 \}/,
+  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1; actionEpochRef\.current \+= 1 \}/,
   'Connection refresh and pagination responses must be invalidated when the panel unmounts.')
 lock('Own connection refresh ignores stale responses', myConnections,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,

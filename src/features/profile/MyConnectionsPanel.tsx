@@ -31,6 +31,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   const refreshEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
   const actionRequestRef = useRef(false)
+  const actionEpochRef = useRef(0)
 
   const refresh = useCallback(async () => {
     const requestEpoch = ++refreshEpochRef.current
@@ -82,38 +83,46 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   useEffect(() => {
     let active = true
     queueMicrotask(() => { if (active) void refresh() })
-    return () => { active = false; refreshEpochRef.current += 1 }
+    return () => { active = false; refreshEpochRef.current += 1; actionEpochRef.current += 1 }
   }, [refresh])
 
   const message = async (connection: MySignalConnection) => {
     if (actionRequestRef.current || safetyBusyId !== null) return
+    const actionEpoch = actionEpochRef.current
+    const requestedUserId = userId
     actionRequestRef.current = true
     setBusyId(connection.connectionId)
     setError(null)
     try {
       const conversationId = await getOrCreateDirectConversation(connection.connectionId)
+      if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
       onOpenDirectConversation?.(conversationId)
     } catch (actionError) {
+      if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
       setError(toUserFacingError(actionError, 'Unable to open a message right now.'))
     } finally {
       actionRequestRef.current = false
-      setBusyId(null)
+      if (actionEpoch === actionEpochRef.current && requestedUserId === userId) setBusyId(null)
     }
   }
 
   const disconnect = async (connection: MySignalConnection) => {
     if (actionRequestRef.current || safetyBusyId !== null) return
+    const actionEpoch = actionEpochRef.current
+    const requestedUserId = userId
     actionRequestRef.current = true
     setBusyId(connection.connectionId)
     setError(null)
     try {
       await disconnectMySignalConnection(connection.connectionId)
+      if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
       await refresh()
     } catch (actionError) {
+      if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
       setError(toUserFacingError(actionError, 'Unable to disconnect right now.'))
     } finally {
       actionRequestRef.current = false
-      setBusyId(null)
+      if (actionEpoch === actionEpochRef.current && requestedUserId === userId) setBusyId(null)
     }
   }
 
