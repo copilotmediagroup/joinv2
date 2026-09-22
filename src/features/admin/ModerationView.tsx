@@ -52,6 +52,7 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
   const queueEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
   const actionRequestRef = useRef(false)
+  const actionEpochRef = useRef(0)
 
   const selected = useMemo(
     () => items.find((item) => item.reportId === selectedId) ?? null,
@@ -99,6 +100,7 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
     return () => {
       active = false
       queueEpochRef.current += 1
+      actionEpochRef.current += 1
     }
   }, [loadPage, tab])
 
@@ -127,11 +129,13 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
 
   const takeNext = async () => {
     if (actionRequestRef.current) return
+    const actionEpoch = actionEpochRef.current
     actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
       const claimedId = await claimNextModerationReport()
+      if (actionEpoch !== actionEpochRef.current) return
       if (!claimedId) {
         setError('No unassigned reports are waiting right now.')
         await loadPage('unassigned')
@@ -146,10 +150,11 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
       setSelectedId(page.some((item) => item.reportId === claimedId) ? claimedId : page[0]?.reportId ?? null)
       setNote('')
     } catch (claimError) {
+      if (actionEpoch !== actionEpochRef.current) return
       setError(toUserFacingError(claimError, 'Unable to take the next report.'))
     } finally {
       actionRequestRef.current = false
-      setActionLoading(false)
+      if (actionEpoch === actionEpochRef.current) setActionLoading(false)
     }
   }
   const releaseSelected = async () => {

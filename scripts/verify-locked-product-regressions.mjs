@@ -455,6 +455,9 @@ lock('Auth and onboarding submissions serialize rapid submits', authGate + onboa
 lock('Auth mode remains stable during submission', authGate,
   /switchMode[\s\S]*?submitRequestRef\.current[\s\S]*?setMode\(nextMode\)/,
   'Sign-in/sign-up mode must not switch underneath an in-flight authentication request.')
+lock('Moderation claims reject stale queue lifecycles', moderationView + momentModeration,
+  /actionEpochRef = useRef\(0\)[\s\S]*?actionEpochRef\.current \+= 1[\s\S]*?claimNextModerationReport\(\)[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?actionEpochRef = useRef\(0\)[\s\S]*?claimNextModerationMoment\(\)[\s\S]*?actionEpoch !== actionEpochRef\.current/,
+  'Late moderation claim completions must not replace a newer queue lifecycle.')
 lock('Moderation actions serialize rapid admin mutations', moderationView + momentModeration,
   /actionRequestRef[\s\S]*?takeNext[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?releaseSelected[\s\S]*?actionRequestRef\.current[\s\S]*?runEnforcement[\s\S]*?actionRequestRef\.current[\s\S]*?finishSelected[\s\S]*?actionRequestRef\.current[\s\S]*?actionRequestRef[\s\S]*?takeNext[\s\S]*?actionRequestRef\.current = true/,
   'Moderation claim, release, enforcement, and resolution actions must not overlap under rapid admin input.')
@@ -462,7 +465,7 @@ lock('Moderation case identity freezes during mutations', moderationView + momen
   /changeTab[\s\S]*?actionRequestRef\.current[\s\S]*?disabled=\{actionLoading\}[\s\S]*?Refresh queue[\s\S]*?actionRequestRef\.current[\s\S]*?setTab\(value\)[\s\S]*?disabled=\{actionLoading\}[\s\S]*?Refresh Moment queue[\s\S]*?actionRequestRef\.current[\s\S]*?setSelectedId\(item\.reportId\)/,
   'An in-flight moderation mutation must stay bound to the case and queue it started against.')
 lock('Moderation queues invalidate reads on lifecycle change', moderationView + momentModeration,
-  /queueEpochRef\.current \+= 1/g,
+  /queueEpochRef\.current \+= 1[\s\S]*?actionEpochRef\.current \+= 1/g,
   'Moderation queue reads must be invalidated when a queue effect is replaced or unmounted.',
   2)
 lock('Moderation pagination pauses during case mutations', moderationView + momentModeration,

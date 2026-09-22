@@ -47,6 +47,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
   const queueEpochRef = useRef(0)
   const pageRequestRef = useRef(false)
   const actionRequestRef = useRef(false)
+  const actionEpochRef = useRef(0)
 
   const selected = useMemo(
     () => items.find((item) => item.reportId === selectedId) ?? null,
@@ -95,6 +96,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
     return () => {
       active = false
       queueEpochRef.current += 1
+      actionEpochRef.current += 1
     }
   }, [loadPage, tab])
 
@@ -117,11 +119,13 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
 
   const takeNext = async () => {
     if (actionRequestRef.current) return
+    const actionEpoch = actionEpochRef.current
     actionRequestRef.current = true
     setActionLoading(true)
     setError(null)
     try {
       const claimedId = await claimNextModerationMoment()
+      if (actionEpoch !== actionEpochRef.current) return
       if (!claimedId) {
         setError('No unassigned Moment reports are waiting right now.')
         await loadPage('unassigned')
@@ -136,10 +140,11 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
       setSelectedId(page.some((item) => item.reportId === claimedId) ? claimedId : page[0]?.reportId ?? null)
       setNote('')
     } catch (claimError) {
+      if (actionEpoch !== actionEpochRef.current) return
       setError(toUserFacingError(claimError, 'Unable to take the next Moment report.'))
     } finally {
       actionRequestRef.current = false
-      setActionLoading(false)
+      if (actionEpoch === actionEpochRef.current) setActionLoading(false)
     }
   }
   const releaseSelected = async () => {
