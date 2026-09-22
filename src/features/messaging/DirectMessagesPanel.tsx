@@ -94,7 +94,9 @@ export default function DirectMessagesPanel({
     }
   }, [])
   const hydrateSelectedThread = useCallback(async (conversationId: string) => {
+    const requestEpoch = threadRefreshEpochRef.current
     const thread = await getMyDirectThread(conversationId)
+    if (requestEpoch !== threadRefreshEpochRef.current) return
     if (thread) setThreads((current) => mergeThreads(current, [thread]))
   }, [])
 
@@ -201,7 +203,7 @@ export default function DirectMessagesPanel({
     queueMicrotask(() => {
       if (active) void hydrateSelectedThread(initialConversationId)
     })
-    return () => { active = false }
+    return () => { active = false; threadRefreshEpochRef.current += 1 }
   }, [hydrateSelectedThread, initialConversationId])
 
   useEffect(() => {
@@ -211,7 +213,7 @@ export default function DirectMessagesPanel({
     const stop = subscribeToDirectMessages(selectedId, () => {
       if (active) void refreshMessages(false)
     })
-    return () => { active = false; stop() }
+    return () => { active = false; messageRefreshEpochRef.current += 1; stop() }
   }, [refreshMessages, selectedId])
 
   useEffect(() => {
