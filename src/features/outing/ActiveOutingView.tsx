@@ -36,6 +36,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
+  const attendancePollEpochRef = useRef(0)
   const momentRequestRef = useRef(false)
   const outingExitRequestRef = useRef(false)
   const cameraInputId = `live-signal-camera-${planId}`
@@ -81,8 +82,10 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return
+      const requestEpoch = ++attendancePollEpochRef.current
       void getMyPlanAttendanceStatus(planId)
         .then((nextAttendance) => {
+          if (requestEpoch !== attendancePollEpochRef.current) return
           if (!nextAttendance.checkedIn || !['locked', 'recovery_required', 'active_outing'].includes(nextAttendance.planState)) {
             onOutingEnded('ended')
             return
@@ -91,7 +94,10 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
         })
         .catch(() => undefined)
     }, 30000)
-    return () => window.clearInterval(timer)
+    return () => {
+      attendancePollEpochRef.current += 1
+      window.clearInterval(timer)
+    }
   }, [onOutingEnded, planId])
 
   const selectedLabel = useMemo(() => files.length === 0
