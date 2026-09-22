@@ -333,6 +333,7 @@ export default function MessagesView({
       })
       setHasOlderMessages(page.hasOlder)
       requestAnimationFrame(() => {
+        if (requestEpoch !== groupMessageEpochRef.current) return
         const currentFeed = groupFeedRef.current
         if (currentFeed) currentFeed.scrollTop += currentFeed.scrollHeight - previousHeight
       })

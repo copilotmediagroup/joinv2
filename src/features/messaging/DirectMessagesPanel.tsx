@@ -153,6 +153,7 @@ export default function DirectMessagesPanel({
       })
       setHasOlderMessages(page.hasOlder)
       requestAnimationFrame(() => {
+        if (requestEpoch !== messageRefreshEpochRef.current) return
         const currentFeed = feedRef.current
         if (currentFeed) currentFeed.scrollTop += currentFeed.scrollHeight - previousHeight
       })

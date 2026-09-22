@@ -137,6 +137,9 @@ lock('Group sends reject stale conversation completions', messages,
 lock('Direct and group sends serialize rapid submissions', directMessagesPanel + messages,
   /sendRequestRef[\s\S]*?send[\s\S]*?sendRequestRef\.current[\s\S]*?sendRequestRef\.current = true[\s\S]*?sendRequestRef\.current = false[\s\S]*?sendRequestRef[\s\S]*?handleSend[\s\S]*?sendRequestRef\.current[\s\S]*?sendRequestRef\.current = true[\s\S]*?sendRequestRef\.current = false/,
   'Rapid direct and group message submits must not create duplicate sends.')
+lock('Message pagination scroll restoration rejects stale lifecycles', directMessagesPanel + messages,
+  /requestAnimationFrame\(\(\) => \{[\s\S]*?requestEpoch !== messageRefreshEpochRef\.current[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?requestEpoch !== groupMessageEpochRef\.current/,
+  'Late pagination animation frames must not scroll a replacement conversation.')
 lock('Message pagination pauses during sends', directMessagesPanel + messages,
   /sendRequestRef\.current[\s\S]*?disabled=\{loadingOlderMessages \|\| sending\}[\s\S]*?disabled=\{loadingMore \|\| sending\}[\s\S]*?sendRequestRef\.current[\s\S]*?disabled=\{loadingOlderMessages \|\| sending\}[\s\S]*?disabled=\{loadingMoreConversations \|\| sending\}/,
   'Thread and conversation pagination must not race a send mutation in either messaging surface.')
