@@ -498,6 +498,9 @@ lock('Moment interactive controls freeze during mutations', activityView,
 lock('Moment card mutations are mutually exclusive', activityView,
   /handleSignal[\s\S]*?deleteRequestRef\.current[\s\S]*?handleComment[\s\S]*?reportRequestRef\.current[\s\S]*?handleCommentDelete[\s\S]*?socialMutationRef\.current[\s\S]*?handleDelete[\s\S]*?commentDeleteRequestRef\.current[\s\S]*?handleReport[\s\S]*?deleteRequestRef\.current/,
   'Reaction, comment, comment-delete, Moment-delete, and report writes on one card must not race each other.')
+lock('Moment terminal mutations reject stale card lifecycles', activityView,
+  /handleCommentDelete[\s\S]*?requestedMomentId = moment\.momentId[\s\S]*?deleteMyMomentComment[\s\S]*?cardEpoch !== cardEpochRef\.current[\s\S]*?handleDelete[\s\S]*?deleteMySignalMoment\(requestedMomentId\)[\s\S]*?handleReport[\s\S]*?momentId: requestedMomentId[\s\S]*?cardEpoch !== cardEpochRef\.current/,
+  'Comment delete, Moment delete, and report completions must not mutate a replacement Moment card lifecycle.')
 lock('Moment comment deletion serializes rapid actions', activityView,
   /commentDeleteRequestRef[\s\S]*?handleCommentDelete[\s\S]*?commentDeleteRequestRef\.current[\s\S]*?commentDeleteRequestRef\.current = true[\s\S]*?deleteMyMomentComment[\s\S]*?commentDeleteRequestRef\.current = false/,
   'Rapid comment delete taps must not issue duplicate destructive mutations.')

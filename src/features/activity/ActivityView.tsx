@@ -234,13 +234,17 @@ function CurrentActivityCard({
 
   const handleCommentDelete = async (commentId: string) => {
     if (commentDeleteRequestRef.current || socialMutationRef.current || deleteRequestRef.current || reportRequestRef.current) return
+    const cardEpoch = cardEpochRef.current
+    const requestedMomentId = moment.momentId
     commentDeleteRequestRef.current = true
     try {
       await deleteMyMomentComment(commentId)
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       setComments((current) => current.filter((comment) => comment.commentId !== commentId))
       setCommentOverride({ baseCount: moment.commentCount, count: Math.max(0, commentCount - 1) })
       await loadComments()
     } catch (deleteError) {
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       setReportStatus(toUserFacingError(deleteError, 'Unable to delete that comment right now.'))
     } finally {
       commentDeleteRequestRef.current = false
@@ -249,43 +253,51 @@ function CurrentActivityCard({
 
   const handleDelete = async () => {
     if (deleteRequestRef.current || socialMutationRef.current || reportRequestRef.current || commentDeleteRequestRef.current || !window.confirm('Delete this Signal Moment?')) return
+    const cardEpoch = cardEpochRef.current
+    const requestedMomentId = moment.momentId
     deleteRequestRef.current = true
     setDeleting(true)
     setReportStatus(null)
     try {
-      await deleteMySignalMoment(moment.momentId)
+      await deleteMySignalMoment(requestedMomentId)
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       await onDeleted()
     } catch (error) {
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       setReportStatus(
         toUserFacingError(error, 'Unable to delete this Moment right now.'),
       )
     } finally {
       deleteRequestRef.current = false
-      setDeleting(false)
+      if (cardEpoch === cardEpochRef.current && requestedMomentId === moment.momentId) setDeleting(false)
     }
   }
 
   const handleReport = async () => {
     if (reportRequestRef.current || socialMutationRef.current || deleteRequestRef.current || commentDeleteRequestRef.current) return
+    const cardEpoch = cardEpochRef.current
+    const requestedMomentId = moment.momentId
     reportRequestRef.current = true
     setReporting(true)
     setReportStatus(null)
     try {
       await reportSignalMoment({
-        momentId: moment.momentId,
+        momentId: requestedMomentId,
         reason: reportReason,
         details: reportDetails,
       })
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       setReportStatus('Report received. Thank you.')
       setReportOpen(false)
       setReportDetails('')
     } catch (error) {
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       setReportStatus(
         toUserFacingError(error, 'Unable to report this Moment right now.'),
       )
     } finally {
       reportRequestRef.current = false
-      setReporting(false)
+      if (cardEpoch === cardEpochRef.current && requestedMomentId === moment.momentId) setReporting(false)
     }
   }
 
