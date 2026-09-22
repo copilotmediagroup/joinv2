@@ -37,6 +37,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const checkInRequestRef = useRef(false)
   const locationRefreshEpochRef = useRef(0)
   const routeRefreshEpochRef = useRef(0)
+  const routeRequestRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -176,7 +177,8 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       setRouteError(null)
       return
     }
-    if (!userPosition || routeLoading) return
+    if (!userPosition || routeRequestRef.current) return
+    routeRequestRef.current = true
     const requestEpoch = ++routeRefreshEpochRef.current
     const requestedOrigin = userPosition
     setRouteLoading(true)
@@ -193,6 +195,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       }
     }
     finally {
+      routeRequestRef.current = false
       if (requestEpoch === routeRefreshEpochRef.current) setRouteLoading(false)
     }
   }
