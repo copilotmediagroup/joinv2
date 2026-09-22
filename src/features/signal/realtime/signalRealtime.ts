@@ -388,6 +388,9 @@ export function subscribeToSignalRealtime(
   let refreshRunning = false
   let refreshQueued = false
   let reconciliationTimer: ReturnType<typeof setTimeout> | null = null
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let reconnectAttempt = 0
+  let channelGeneration = 0
 
   const clearReconciliationTimer = () => {
     if (reconciliationTimer !== null) {
@@ -465,35 +468,78 @@ export function subscribeToSignalRealtime(
     await runRefresh()
   }
 
-  emitConnectionState('connecting')
+  const clearReconnectTimer = () => {
+    if (reconnectTimer !== null) {
+      clearTimeout(reconnectTimer)
+      reconnectTimer = null
+    }
+  }
 
-  void client.realtime.setAuth().then(() => {
+  const connectChannel = async () => {
     if (stopped) return
-    channel = client
-      .channel(
-        `signal:${target.signalGroupId}`,
-        { config: { private: true } },
-      )
-      .on(
-        'broadcast',
-        { event: 'refresh' },
-        () => {
-          void runRefresh()
-        },
-      )
-      .subscribe((status) => {
-        const normalized =
-          normalizeConnectionState(status)
+    clearReconnectTimer()
+    emitConnectionState('connecting')
 
-        if (normalized) {
-          emitConnectionState(normalized)
-        }
+    try {
+      await client.realtime.setAuth()
+      if (stopped) return
 
-        if (status === 'SUBSCRIBED') {
-          void runRefresh()
-        }
-      })
-  })
+      const previousChannel = channel
+      channel = null
+      const generation = ++channelGeneration
+      if (previousChannel) await client.removeChannel(previousChannel)
+      if (stopped || generation !== channelGeneration) return
+
+      const nextChannel = client
+        .channel(`signal:${target.signalGroupId}`, { config: { private: true } })
+        .on('broadcast', { event: 'refresh' }, () => { void runRefresh() })
+        .subscribe((status) => {
+          if (stopped || generation !== channelGeneration) return
+          const normalized = normalizeConnectionState(status)
+          if (normalized) emitConnectionState(normalized)
+
+          if (status === 'SUBSCRIBED') {
+            reconnectAttempt = 0
+            void runRefresh()
+            return
+          }
+
+          if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status) && !stopped && reconnectTimer === null) {
+            const delay = Math.min(1_000 * (2 ** reconnectAttempt), 15_000)
+            reconnectAttempt += 1
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null
+              void connectChannel()
+            }, delay)
+          }
+        })
+
+      channel = nextChannel
+    } catch {
+      if (stopped || reconnectTimer !== null) return
+      const delay = Math.min(1_000 * (2 ** reconnectAttempt), 15_000)
+      reconnectAttempt += 1
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null
+        void connectChannel()
+      }, delay)
+    }
+  }
+
+  const refreshVisibleJourney = () => {
+    if (document.visibilityState === 'visible') void runRefresh()
+  }
+  const handleOnline = () => {
+    void runRefresh()
+    if (!channel && reconnectTimer === null) void connectChannel()
+  }
+
+  document.addEventListener('visibilitychange', refreshVisibleJourney)
+  window.addEventListener('focus', refreshVisibleJourney)
+  window.addEventListener('pageshow', refreshVisibleJourney)
+  window.addEventListener('online', handleOnline)
+
+  void connectChannel()
 
   /*
    * Initial authoritative read starts immediately.
@@ -510,7 +556,13 @@ export function subscribeToSignalRealtime(
       if (stopped) return
 
       stopped = true
+      channelGeneration += 1
       clearReconciliationTimer()
+      clearReconnectTimer()
+      document.removeEventListener('visibilitychange', refreshVisibleJourney)
+      window.removeEventListener('focus', refreshVisibleJourney)
+      window.removeEventListener('pageshow', refreshVisibleJourney)
+      window.removeEventListener('online', handleOnline)
 
       const activeChannel = channel
       channel = null
