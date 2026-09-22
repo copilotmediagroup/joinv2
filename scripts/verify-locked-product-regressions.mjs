@@ -243,7 +243,7 @@ lock('Plan Options remains lazy mounted', details,
   /planOptionsMounted[\s\S]*?PlanGovernancePanel[\s\S]*?PLAN OPTIONS/,
   'Opening Plan Options must not reintroduce the prior always-mounted governance collision.')
 lock('Open Details rejects stale navigation completions', app,
-  /planDetailsOpenEpochRef = useRef\(0\)[\s\S]*?openEpoch = \+\+planDetailsOpenEpochRef\.current[\s\S]*?openEpoch !== planDetailsOpenEpochRef\.current[\s\S]*?handleOpenPlanChat[\s\S]*?planDetailsOpenEpochRef\.current \+= 1[\s\S]*?handleDiscoverNavigation[\s\S]*?planDetailsOpenEpochRef\.current \+= 1/,
+  /planDetailsOpenEpochRef = useRef\(0\)[\s\S]*?openEpoch = \+\+planDetailsOpenEpochRef\.current[\s\S]*?openEpoch !== planDetailsOpenEpochRef\.current[\s\S]*?handleOpenPlanChat[\s\S]*?planDetailsOpenEpochRef\.current \+= 1[\s\S]*?handleProfileNavigation[\s\S]*?planDetailsOpenEpochRef\.current \+= 1[\s\S]*?handleSignalCenterNavigation[\s\S]*?planDetailsOpenEpochRef\.current \+= 1[\s\S]*?handleDiscoverNavigation[\s\S]*?planDetailsOpenEpochRef\.current \+= 1/,
   'A late Open Details acknowledgement must not pull the browser back after the user navigates elsewhere.')
 lock('Open Details serializes rapid plan transitions', app,
   /planDetailsOpenRequestRef[\s\S]*?handleOpenPlanDetails[\s\S]*?planDetailsOpenRequestRef\.current[\s\S]*?planDetailsOpenRequestRef\.current = true[\s\S]*?openMySignalPlanDetails[\s\S]*?planDetailsOpenRequestRef\.current = false/,

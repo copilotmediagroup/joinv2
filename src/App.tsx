@@ -1124,12 +1124,14 @@ function App() {
   }, [activeSurface])
 
   const handleActivityNavigation = () => {
+    planDetailsOpenEpochRef.current += 1
     if (activeOutingPlanId) { void restoreActiveSignal(true); return }
     setActiveSurface('activity')
     void refreshActivity()
   }
 
   const handleOpenActivityItem = () => {
+    planDetailsOpenEpochRef.current += 1
     setNotificationsOpen(false)
     // Activity is only a doorway to the caller's CURRENT server-owned journey.
     // Never hydrate live UI from a row that may have become stale after render.
@@ -1137,6 +1139,7 @@ function App() {
   }
 
   const handleMessagesNavigation = () => {
+    planDetailsOpenEpochRef.current += 1
     const livePlanId = activeOutingPlanId ?? activePlanId
     if (livePlanId) { setMessagePlanId(livePlanId); setMessageDirectConversationId(null); setActiveSurface('messages'); return }
     setMessagePlanId(null)
@@ -1183,6 +1186,7 @@ function App() {
   }
 
   const handleHistoricalNotification = (notificationType: string, relatedPlanId: string | null, relatedEntityId: string | null) => {
+    planDetailsOpenEpochRef.current += 1
     setNotificationsOpen(false)
     setFormationResult(null)
     setSignalRealtimeTarget(null)
@@ -1229,11 +1233,13 @@ function App() {
   }
 
   const handleProfileNavigation = () => {
+    planDetailsOpenEpochRef.current += 1
     if (activeOutingPlanId) { void restoreActiveSignal(true); return }
     setActiveSurface('profile')
   }
 
   const handleLogout = async () => {
+    planDetailsOpenEpochRef.current += 1
     if (logoutRequestRef.current) return
     logoutRequestRef.current = true
     setLogoutSubmitting(true)
@@ -1256,6 +1262,7 @@ function App() {
   }
 
   const handleSignalCenterNavigation = () => {
+    planDetailsOpenEpochRef.current += 1
     setActiveSurface('discover')
 
     // Re-open the already-authoritative journey immediately. Do not expose the
