@@ -399,7 +399,7 @@ lock('Safety report and block actions serialize rapid submissions', userSafetyAc
   /actionRequestRef[\s\S]*?submitReport[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?confirmBlock[\s\S]*?if \(actionRequestRef\.current\) return/,
   'Rapid report/block actions must share synchronous request ownership instead of relying on delayed React busy state.')
 lock('Safety mode controls stay frozen during mutations', userSafetyActions,
-  /disabled=\{busy\}[\s\S]*?REPORT[\s\S]*?disabled=\{busy\}[\s\S]*?BLOCK[\s\S]*?disabled=\{busy\}[\s\S]*?SEND REPORT[\s\S]*?disabled=\{busy\}[\s\S]*?CANCEL/,
+  /disabled=\{busy\}[\s\S]*?REPORT[\s\S]*?disabled=\{busy\}[\s\S]*?BLOCK[\s\S]*?<select disabled=\{busy\}[\s\S]*?<textarea disabled=\{busy\}[\s\S]*?SEND REPORT[\s\S]*?disabled=\{busy\}[\s\S]*?CANCEL/,
   'Report/block sheets must not switch or close underneath an in-flight safety mutation.')
 lock('Unblock action serializes rapid submissions', blockedPeople,
   /actionRequestRef[\s\S]*?unblock[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false/,

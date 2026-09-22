@@ -69,8 +69,8 @@ export default function UserSafetyActions({ userId, displayName, onBlocked }: Pr
     </div>
     {mode === 'report' ? <div className="user-safety-sheet">
       <header><span><ShieldAlert size={14}/> REPORT {displayName.toUpperCase()}</span><button type="button" disabled={busy} onClick={() => setMode('closed')}><X size={14}/></button></header>
-      <select value={reason} onChange={(event) => setReason(event.target.value as UserReportReason)}>{reasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
-      <textarea maxLength={2000} value={details} placeholder="What happened? (optional)" onChange={(event) => setDetails(event.target.value)} />
+      <select disabled={busy} value={reason} onChange={(event) => setReason(event.target.value as UserReportReason)}>{reasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+      <textarea disabled={busy} maxLength={2000} value={details} placeholder="What happened? (optional)" onChange={(event) => setDetails(event.target.value)} />
       <button type="button" disabled={busy} onClick={() => void submitReport()}>{busy ? 'SENDING…' : 'SEND REPORT'}</button>
     </div> : null}
     {mode === 'block' ? <div className="user-safety-sheet user-safety-block">
