@@ -161,6 +161,9 @@ lock('Group conversation pagination serializes rapid requests', messages,
 lock('Group message history stays cursor-paginated', messagingClient + messages,
   /get_my_plan_messages_page[\s\S]*?PLAN_MESSAGE_PAGE_SIZE \+ 1[\s\S]*?LOAD OLDER MESSAGES/,
   'Long-running Signal group chats must preserve older history without a fixed 200-message ceiling.')
+lock('Group message realtime callbacks stay bound to selected lifecycle', messages,
+  /messageEpoch = \+\+groupMessageEpochRef\.current[\s\S]*?onMessages:[\s\S]*?messageEpoch === groupMessageEpochRef\.current[\s\S]*?onError:[\s\S]*?messageEpoch === groupMessageEpochRef\.current[\s\S]*?groupMessageEpochRef\.current \+= 1/,
+  'Realtime group message and error callbacks must not write after their selected conversation lifecycle is replaced.')
 lock('Group chat member refresh ignores stale realtime responses', messages,
   /refreshEpoch = 0[\s\S]*?requestEpoch = \+\+refreshEpoch[\s\S]*?requestEpoch === refreshEpoch/,
   'Group chat member lists must not let older realtime reads overwrite newer membership state.')

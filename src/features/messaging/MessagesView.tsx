@@ -190,13 +190,13 @@ export default function MessagesView({
           setHasOlderMessages(page.hasOlder)
         }
       } catch (loadError) {
-        if (!cancelled) {
+        if (!cancelled && messageEpoch === groupMessageEpochRef.current) {
           setError(
             toUserFacingError(loadError, 'Unable to load messages right now.'),
           )
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && messageEpoch === groupMessageEpochRef.current) {
           setLoadingMessages(false)
         }
       }
@@ -209,7 +209,7 @@ export default function MessagesView({
         selectedConversationId,
         {
           onMessages: (nextMessages) => {
-            if (!cancelled) {
+            if (!cancelled && messageEpoch === groupMessageEpochRef.current) {
               setMessages((current) => {
                 const byId = new Map(current.map((message) => [message.messageId, message]))
                 nextMessages.forEach((message) => byId.set(message.messageId, message))
@@ -219,7 +219,7 @@ export default function MessagesView({
             }
           },
           onError: (realtimeError) => {
-            if (!cancelled) {
+            if (!cancelled && messageEpoch === groupMessageEpochRef.current) {
               setError(toUserFacingError(realtimeError, 'Messages lost connection. Reconnecting…'))
             }
           },
