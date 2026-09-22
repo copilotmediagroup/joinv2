@@ -18,9 +18,11 @@ type Props = {
   userId: string
   displayName: string
   onBlocked?: () => void
+  disabled?: boolean
+  onBusyChange?: (busy: boolean) => void
 }
 
-export default function UserSafetyActions({ userId, displayName, onBlocked }: Props) {
+export default function UserSafetyActions({ userId, displayName, onBlocked, disabled = false, onBusyChange }: Props) {
   const [mode, setMode] = useState<'closed' | 'report' | 'block'>('closed')
   const [reason, setReason] = useState<UserReportReason>('harassment')
   const [details, setDetails] = useState('')
@@ -30,9 +32,9 @@ export default function UserSafetyActions({ userId, displayName, onBlocked }: Pr
   const actionRequestRef = useRef(false)
 
   const submitReport = async () => {
-    if (actionRequestRef.current) return
+    if (actionRequestRef.current || disabled) return
     actionRequestRef.current = true
-    setBusy(true); setError(null); setMessage(null)
+    setBusy(true); onBusyChange?.(true); setError(null); setMessage(null)
     try {
       await reportUser(userId, reason, details.trim() || null)
       setMessage('Report sent. SIGNAL will review it.')
@@ -42,13 +44,14 @@ export default function UserSafetyActions({ userId, displayName, onBlocked }: Pr
     } finally {
       actionRequestRef.current = false
       setBusy(false)
+      onBusyChange?.(false)
     }
   }
 
   const confirmBlock = async () => {
-    if (actionRequestRef.current) return
+    if (actionRequestRef.current || disabled) return
     actionRequestRef.current = true
-    setBusy(true); setError(null); setMessage(null)
+    setBusy(true); onBusyChange?.(true); setError(null); setMessage(null)
     try {
       await blockUser(userId)
       setMessage(`${displayName} is blocked.`)
@@ -59,24 +62,25 @@ export default function UserSafetyActions({ userId, displayName, onBlocked }: Pr
     } finally {
       actionRequestRef.current = false
       setBusy(false)
+      onBusyChange?.(false)
     }
   }
 
   return <div className="user-safety-actions">
     <div className="user-safety-buttons">
-      <button type="button" disabled={busy} onClick={() => setMode(mode === 'report' ? 'closed' : 'report')}><Flag size={13}/> REPORT</button>
-      <button type="button" disabled={busy} onClick={() => setMode(mode === 'block' ? 'closed' : 'block')}><Ban size={13}/> BLOCK</button>
+      <button type="button" disabled={busy || disabled} onClick={() => setMode(mode === 'report' ? 'closed' : 'report')}><Flag size={13}/> REPORT</button>
+      <button type="button" disabled={busy || disabled} onClick={() => setMode(mode === 'block' ? 'closed' : 'block')}><Ban size={13}/> BLOCK</button>
     </div>
     {mode === 'report' ? <div className="user-safety-sheet">
-      <header><span><ShieldAlert size={14}/> REPORT {displayName.toUpperCase()}</span><button type="button" disabled={busy} onClick={() => setMode('closed')}><X size={14}/></button></header>
-      <select disabled={busy} value={reason} onChange={(event) => setReason(event.target.value as UserReportReason)}>{reasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
-      <textarea disabled={busy} maxLength={2000} value={details} placeholder="What happened? (optional)" onChange={(event) => setDetails(event.target.value)} />
-      <button type="button" disabled={busy} onClick={() => void submitReport()}>{busy ? 'SENDING…' : 'SEND REPORT'}</button>
+      <header><span><ShieldAlert size={14}/> REPORT {displayName.toUpperCase()}</span><button type="button" disabled={busy || disabled} onClick={() => setMode('closed')}><X size={14}/></button></header>
+      <select disabled={busy || disabled} value={reason} onChange={(event) => setReason(event.target.value as UserReportReason)}>{reasons.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select>
+      <textarea disabled={busy || disabled} maxLength={2000} value={details} placeholder="What happened? (optional)" onChange={(event) => setDetails(event.target.value)} />
+      <button type="button" disabled={busy || disabled} onClick={() => void submitReport()}>{busy ? 'SENDING…' : 'SEND REPORT'}</button>
     </div> : null}
     {mode === 'block' ? <div className="user-safety-sheet user-safety-block">
       <strong>Block {displayName}?</strong>
       <span>You’ll disconnect, private messages will close, and they won’t be able to reconnect while blocked.</span>
-      <div><button type="button" disabled={busy} onClick={() => setMode('closed')}>CANCEL</button><button type="button" disabled={busy} onClick={() => void confirmBlock()}>{busy ? 'BLOCKING…' : 'BLOCK'}</button></div>
+      <div><button type="button" disabled={busy || disabled} onClick={() => setMode('closed')}>CANCEL</button><button type="button" disabled={busy || disabled} onClick={() => void confirmBlock()}>{busy ? 'BLOCKING…' : 'BLOCK'}</button></div>
     </div> : null}
     {message ? <p className="user-safety-message">{message}</p> : null}
     {error ? <p className="user-safety-error" role="alert">{error}</p> : null}

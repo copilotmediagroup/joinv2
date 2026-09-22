@@ -23,6 +23,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [safetyBusyId, setSafetyBusyId] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [cursor, setCursor] = useState<{ connectedAt: string; connectionId: string } | null>(null)
@@ -54,7 +55,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   }, [userId])
 
   const loadMore = async () => {
-    if (!cursor || pageRequestRef.current || actionRequestRef.current) return
+    if (!cursor || pageRequestRef.current || actionRequestRef.current || safetyBusyId !== null) return
     const requestEpoch = refreshEpochRef.current
     pageRequestRef.current = true
     setLoadingMore(true)
@@ -85,7 +86,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   }, [refresh])
 
   const message = async (connection: MySignalConnection) => {
-    if (actionRequestRef.current) return
+    if (actionRequestRef.current || safetyBusyId !== null) return
     actionRequestRef.current = true
     setBusyId(connection.connectionId)
     setError(null)
@@ -101,7 +102,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
   }
 
   const disconnect = async (connection: MySignalConnection) => {
-    if (actionRequestRef.current) return
+    if (actionRequestRef.current || safetyBusyId !== null) return
     actionRequestRef.current = true
     setBusyId(connection.connectionId)
     setError(null)
@@ -123,9 +124,9 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
       {connections.map((connection) => (
         <div className="profile-connection-person" key={connection.connectionId}>
           {connection.avatarUrl ? <img src={connection.avatarUrl} alt="" /> : <div className="profile-connection-fallback">{connection.displayName.slice(0, 1).toUpperCase()}</div>}
-          <button type="button" className="profile-connection-identity" disabled={busyId !== null} onClick={() => onOpenProfile?.(connection.userId)}><strong>{connection.displayName}</strong><small>CONNECTED {formatConnectedAt(connection.connectedAt)}</small></button>
-          <div className="profile-connection-actions"><button type="button" disabled={busyId !== null} onClick={() => { void message(connection) }}><MessageCircle size={13} /> MESSAGE</button><button type="button" disabled={busyId !== null} onClick={() => { void disconnect(connection) }}><Unlink size={13} /> DISCONNECT</button></div>
-          <UserSafetyActions userId={connection.userId} displayName={connection.displayName} onBlocked={() => { void refresh() }} />
+          <button type="button" className="profile-connection-identity" disabled={busyId !== null || safetyBusyId !== null} onClick={() => onOpenProfile?.(connection.userId)}><strong>{connection.displayName}</strong><small>CONNECTED {formatConnectedAt(connection.connectedAt)}</small></button>
+          <div className="profile-connection-actions"><button type="button" disabled={busyId !== null || safetyBusyId !== null} onClick={() => { void message(connection) }}><MessageCircle size={13} /> MESSAGE</button><button type="button" disabled={busyId !== null || safetyBusyId !== null} onClick={() => { void disconnect(connection) }}><Unlink size={13} /> DISCONNECT</button></div>
+          <UserSafetyActions userId={connection.userId} displayName={connection.displayName} disabled={busyId !== null} onBusyChange={(nextBusy) => setSafetyBusyId(nextBusy ? connection.connectionId : null)} onBlocked={() => { void refresh() }} />
         </div>
       ))}
     </div>
@@ -145,7 +146,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
           <header><div><span>⚡ SIGNAL CONNECTIONS</span><h3>My Connections</h3><p>{connectionCount} {connectionCount === 1 ? 'person' : 'people'} you met through SIGNAL.</p></div><button type="button" aria-label="Close connections" onClick={() => setOpen(false)}>×</button></header>
           <div className="profile-connections-dialog-list">
             {connectionList}
-            {hasMore ? <button type="button" className="profile-connections-load-more" onClick={() => { void loadMore() }} disabled={loadingMore || busyId !== null}>{loadingMore ? 'LOADING…' : 'LOAD OLDER CONNECTIONS'}</button> : null}
+            {hasMore ? <button type="button" className="profile-connections-load-more" onClick={() => { void loadMore() }} disabled={loadingMore || busyId !== null || safetyBusyId !== null}>{loadingMore ? 'LOADING…' : 'LOAD OLDER CONNECTIONS'}</button> : null}
           </div>
         </article>
       </div> : null}

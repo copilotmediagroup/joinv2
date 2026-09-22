@@ -317,8 +317,11 @@ lock('Post-Signal connection refresh ignores stale responses', stayConnected,
 lock('Declined post-Signal connections remain retryable', stayConnected,
   /person\.state === 'none' \|\| person\.state === 'declined'[\s\S]*?CONNECT AGAIN/,
   'A declined request must not permanently remove the ability to reconnect after the Signal.')
+lock('Connection and safety mutations share visible ownership', myConnections + userSafetyActions,
+  /safetyBusyId[\s\S]*?actionRequestRef\.current \|\| safetyBusyId !== null[\s\S]*?disabled=\{busyId !== null \|\| safetyBusyId !== null\}[\s\S]*?onBusyChange[\s\S]*?actionRequestRef\.current \|\| disabled[\s\S]*?onBusyChange\?\.\(true\)[\s\S]*?onBusyChange\?\.\(false\)/,
+  'Disconnect, message, block, and report actions on a connection must not race one another across component boundaries.')
 lock('Own connection navigation and pagination freeze during mutations', myConnections,
-  /loadMore[\s\S]*?pageRequestRef\.current \|\| actionRequestRef\.current[\s\S]*?profile-connection-identity[\s\S]*?disabled=\{busyId !== null\}[\s\S]*?profile-connections-load-more[\s\S]*?disabled=\{loadingMore \|\| busyId !== null\}/,
+  /loadMore[\s\S]*?pageRequestRef\.current \|\| actionRequestRef\.current \|\| safetyBusyId !== null[\s\S]*?profile-connection-identity[\s\S]*?disabled=\{busyId !== null \|\| safetyBusyId !== null\}[\s\S]*?profile-connections-load-more[\s\S]*?disabled=\{loadingMore \|\| busyId !== null \|\| safetyBusyId !== null\}/,
   'Connection mutation ownership must freeze profile navigation and pagination so disconnect/message cannot race stale list actions.')
 lock('Own connection pagination serializes and rejects stale pages', myConnections,
   /pageRequestRef[\s\S]*?requestEpoch = refreshEpochRef\.current[\s\S]*?pageRequestRef\.current = true[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
@@ -399,10 +402,10 @@ lock('Moment comment pagination serializes requests', activityView,
   /commentsRequestRef[\s\S]*?commentsRequestRef\.current[\s\S]*?commentsRequestRef\.current = true[\s\S]*?setComments[\s\S]*?loadOlder[\s\S]*?commentsRequestRef\.current = false/,
   'Comment refresh and LOAD OLDER must not overlap and overwrite or duplicate the paginated thread.')
 lock('Safety report and block actions serialize rapid submissions', userSafetyActions,
-  /actionRequestRef[\s\S]*?submitReport[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?confirmBlock[\s\S]*?if \(actionRequestRef\.current\) return/,
+  /actionRequestRef[\s\S]*?submitReport[\s\S]*?if \(actionRequestRef\.current \|\| disabled\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?confirmBlock[\s\S]*?if \(actionRequestRef\.current \|\| disabled\) return/,
   'Rapid report/block actions must share synchronous request ownership instead of relying on delayed React busy state.')
 lock('Safety mode controls stay frozen during mutations', userSafetyActions,
-  /disabled=\{busy\}[\s\S]*?REPORT[\s\S]*?disabled=\{busy\}[\s\S]*?BLOCK[\s\S]*?<select disabled=\{busy\}[\s\S]*?<textarea disabled=\{busy\}[\s\S]*?SEND REPORT[\s\S]*?disabled=\{busy\}[\s\S]*?CANCEL/,
+  /disabled=\{busy \|\| disabled\}[\s\S]*?REPORT[\s\S]*?disabled=\{busy \|\| disabled\}[\s\S]*?BLOCK[\s\S]*?<select disabled=\{busy \|\| disabled\}[\s\S]*?<textarea disabled=\{busy \|\| disabled\}[\s\S]*?SEND REPORT[\s\S]*?disabled=\{busy \|\| disabled\}[\s\S]*?CANCEL/,
   'Report/block sheets must not switch or close underneath an in-flight safety mutation.')
 lock('Unblock action serializes rapid submissions', blockedPeople,
   /actionRequestRef[\s\S]*?unblock[\s\S]*?if \(actionRequestRef\.current\) return[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false/,
