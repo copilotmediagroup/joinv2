@@ -200,6 +200,9 @@ lock('Time-stage member refresh ignores stale realtime responses', signalTimeSta
 lock('Group messages continue following newest messages', messages,
   /shouldFollowGroupLatestRef[\s\S]*?scrollTo\(\{ top: feed\.scrollHeight[\s\S]*?feed\.scrollHeight - feed\.scrollTop - feed\.clientHeight < 80/,
   'New messages must remain visible while preserving deliberate scroll-up.')
+lock('I AM HERE rejects stale Plan lifecycle completions', details,
+  /checkInEpochRef = useRef\(0\)[\s\S]*?checkInEpochRef\.current \+= 1[\s\S]*?checkIn[\s\S]*?requestedPlanId = planId[\s\S]*?checkInToMyPlan\(requestedPlanId\)[\s\S]*?checkInEpoch !== checkInEpochRef\.current \|\| requestedPlanId !== planId/,
+  'A late check-in completion must not mutate or navigate a replacement live Plan lifecycle.')
 lock('I AM HERE serializes rapid check-in submissions', details,
   /checkInRequestRef[\s\S]*?checkIn[\s\S]*?checkInRequestRef\.current[\s\S]*?checkInRequestRef\.current = true[\s\S]*?checkInRequestRef\.current = false/,
   'Rapid check-in taps must not submit duplicate attendance mutations.')

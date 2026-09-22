@@ -35,6 +35,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
   const detailsRefreshEpochRef = useRef(0)
   const attendanceRefreshEpochRef = useRef(0)
   const checkInRequestRef = useRef(false)
+  const checkInEpochRef = useRef(0)
   const locationRefreshEpochRef = useRef(0)
   const routeRefreshEpochRef = useRef(0)
   const routeRequestRef = useRef(false)
@@ -90,6 +91,7 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
       cancelled = true
       detailsRefreshEpochRef.current += 1
       attendanceRefreshEpochRef.current += 1
+      checkInEpochRef.current += 1
       unsubscribeGovernance()
       unsubscribeLive()
     }
@@ -157,16 +159,19 @@ export default function SignalPlanDetailsView({ planId, onCheckedIn, onPlanEnded
 
   const checkIn = async () => {
     if (checkInRequestRef.current || !attendance?.canCheckIn) return
+    const checkInEpoch = checkInEpochRef.current
+    const requestedPlanId = planId
     checkInRequestRef.current = true
     setAttendanceBusy(true); setError(null)
     const requestEpoch = ++attendanceRefreshEpochRef.current
     try {
-      const next = await checkInToMyPlan(planId)
+      const next = await checkInToMyPlan(requestedPlanId)
+      if (checkInEpoch !== checkInEpochRef.current || requestedPlanId !== planId) return
       if (requestEpoch === attendanceRefreshEpochRef.current) setAttendance(next)
-      if (next.checkedIn) onCheckedIn(planId)
+      if (next.checkedIn) onCheckedIn(requestedPlanId)
     }
-    catch (e) { setError(toUserFacingError(e, 'Unable to check you in right now. Please try again.')) }
-    finally { checkInRequestRef.current = false; setAttendanceBusy(false) }
+    catch (e) { if (checkInEpoch !== checkInEpochRef.current || requestedPlanId !== planId) return; setError(toUserFacingError(e, 'Unable to check you in right now. Please try again.')) }
+    finally { checkInRequestRef.current = false; if (checkInEpoch === checkInEpochRef.current && requestedPlanId === planId) setAttendanceBusy(false) }
   }
 
   const destination = useMemo(() => {
