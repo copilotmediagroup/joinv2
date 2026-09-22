@@ -125,6 +125,9 @@ lock('Group chat typing presence remains present', messages,
 lock('Group chat typing transport remains realtime', messagingRealtime,
   /plan-typing:[\s\S]*?broadcast[\s\S]*?typing[\s\S]*?2200/,
   'Typing presence must retain realtime publish and idle clearing.')
+lock('Direct sends reject stale conversation completions', directMessagesPanel,
+  /requestedConversationId = selectedId[\s\S]*?sendEpoch = messageRefreshEpochRef\.current[\s\S]*?sendMyDirectMessage\(requestedConversationId[\s\S]*?requestedConversationId !== selectedId \|\| sendEpoch !== messageRefreshEpochRef\.current/,
+  'A direct-message send completion from an old thread must not mutate the newly selected conversation.')
 lock('Group sends reject stale conversation completions', messages,
   /requestedConversationId = selectedConversationId[\s\S]*?sendEpoch = groupMessageEpochRef\.current[\s\S]*?sendPlanMessage\([\s\S]*?requestedConversationId[\s\S]*?requestedConversationId !== selectedConversationId \|\| sendEpoch !== groupMessageEpochRef\.current/,
   'A send completion from an old group conversation must not append into the newly selected thread.')

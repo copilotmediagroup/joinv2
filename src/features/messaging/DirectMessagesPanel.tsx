@@ -237,20 +237,24 @@ export default function DirectMessagesPanel({
   const send = async (event: FormEvent) => {
     event.preventDefault()
     if (!selectedId || sendRequestRef.current || !draft.trim()) return
+    const requestedConversationId = selectedId
+    const sendEpoch = messageRefreshEpochRef.current
     sendRequestRef.current = true
     setSending(true)
     setError(null)
     try {
       shouldFollowLatestRef.current = true
-      await sendMyDirectMessage(selectedId, draft)
+      await sendMyDirectMessage(requestedConversationId, draft)
+      if (requestedConversationId !== selectedId || sendEpoch !== messageRefreshEpochRef.current) return
       typingPublisherRef.current?.(false)
       setDraft('')
       await refreshMessages()
     } catch (sendError) {
+      if (requestedConversationId !== selectedId || sendEpoch !== messageRefreshEpochRef.current) return
       setError(toUserFacingError(sendError, 'Unable to send your message right now.'))
     } finally {
       sendRequestRef.current = false
-      setSending(false)
+      if (requestedConversationId === selectedId && sendEpoch === messageRefreshEpochRef.current) setSending(false)
     }
   }
   if (selectedId) {
