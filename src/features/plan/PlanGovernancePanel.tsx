@@ -195,6 +195,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
       else await voteOnPlanChange(id, vote)
       if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       await refresh()
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
     } catch (voteError) {
       if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       setError(toUserFacingError(voteError, 'Your vote did not go through. Try again.'))
@@ -220,6 +221,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
       await proposePlanTimeChange(requestedPlanId, parsed.toISOString())
       if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       await refresh()
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
     } catch (proposalError) {
       if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       setError(toUserFacingError(proposalError, 'Unable to propose that time right now.'))

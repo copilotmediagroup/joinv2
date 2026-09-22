@@ -62,6 +62,7 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
       await requestSignalConnection(requestedPlanId, person.userId)
       if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       await refresh()
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
     } catch (actionError) {
       if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       setError(toUserFacingError(actionError, 'Unable to send that connection request right now.'))
@@ -82,6 +83,7 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
       await respondToSignalConnection(person.connectionId, accept)
       if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       await refresh()
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
     } catch (actionError) {
       if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       setError(toUserFacingError(actionError, 'Unable to update that connection right now.'))

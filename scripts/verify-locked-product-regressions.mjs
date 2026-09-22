@@ -401,6 +401,9 @@ lock('Public connections remain clickable and exact-count driven', publicProfile
 lock('Public connection modal stays paginated with batched avatars', publicProfileClient + avatarClient + publicProfile,
   /get_signal_public_profile_connections_page[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?createSignedUrls[\s\S]*?LOAD MORE CONNECTIONS/,
   'Large social graphs must remain cursor-paginated and avoid one avatar-signing request per connection.')
+lock('Mutation follow-up refreshes reject stale lifecycles', stayConnected + planGovernance + myConnections,
+  /requestSignalConnection[\s\S]*?refresh\(\)[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?voteOnPlan[\s\S]*?refresh\(\)[\s\S]*?actionEpoch !== actionEpochRef\.current[\s\S]*?disconnectMySignalConnection[\s\S]*?refresh\(\)[\s\S]*?actionEpoch !== actionEpochRef\.current/,
+  'Mutation follow-up refreshes must not continue into replacement Plan or profile lifecycles.')
 lock('Connection actions release synchronous ownership', stayConnected + myConnections,
   /connect[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?respond[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?message[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false[\s\S]*?disconnect[\s\S]*?actionRequestRef\.current = true[\s\S]*?actionRequestRef\.current = false/,
   'Connection request ownership must release after every success or failure so later actions cannot deadlock.')

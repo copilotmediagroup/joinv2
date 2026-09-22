@@ -117,6 +117,7 @@ export default function MyConnectionsPanel({ userId, onOpenDirectConversation, o
       await disconnectMySignalConnection(connection.connectionId)
       if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
       await refresh()
+      if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
     } catch (actionError) {
       if (actionEpoch !== actionEpochRef.current || requestedUserId !== userId) return
       setError(toUserFacingError(actionError, 'Unable to disconnect right now.'))
