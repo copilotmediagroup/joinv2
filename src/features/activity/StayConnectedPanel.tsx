@@ -40,7 +40,15 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
     return () => { active = false; refreshEpochRef.current += 1 }
   }, [refresh])
 
-  useEffect(() => subscribeToSignalConnections(currentUser.userId, () => { void refresh() }), [currentUser.userId, refresh])
+  useEffect(() => {
+    let active = true
+    const unsubscribe = subscribeToSignalConnections(currentUser.userId, () => { if (active) void refresh() })
+    return () => {
+      active = false
+      refreshEpochRef.current += 1
+      unsubscribe()
+    }
+  }, [currentUser.userId, refresh])
 
   const connect = async (person: SignalConnectionPerson) => {
     if (actionRequestRef.current) return
