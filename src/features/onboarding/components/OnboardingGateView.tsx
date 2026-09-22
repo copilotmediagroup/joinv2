@@ -136,7 +136,10 @@ export function OnboardingGateView({
       }
     }, 250)
 
-    return () => window.clearTimeout(timer)
+    return () => {
+      citySearchSequence.current += 1
+      window.clearTimeout(timer)
+    }
   }, [cityQuery, selectedCity])
 
   const selectedCityLabel = useMemo(() => {
