@@ -115,6 +115,7 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
   }, [canEnforce, selected])
 
   const changeTab = (nextTab: QueueTab) => {
+    if (actionRequestRef.current) return
     setTab(nextTab)
     setSelectedId(null)
   }
@@ -235,13 +236,14 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
             key={value}
             className={tab === value ? 'active' : ''}
             onClick={() => changeTab(value)}
+            disabled={actionLoading}
             role="tab"
             aria-selected={tab === value}
           >
             {label}
           </button>
         ))}
-        <button className="moderation-refresh" onClick={() => { void loadPage(tab) }} disabled={loading} aria-label="Refresh queue">
+        <button className="moderation-refresh" onClick={() => { void loadPage(tab) }} disabled={loading || actionLoading} aria-label="Refresh queue">
           <RefreshCw size={16} />
         </button>
       </div>
@@ -259,7 +261,8 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
               <button
                 key={item.reportId}
                 className={selectedId === item.reportId ? 'moderation-row selected' : 'moderation-row'}
-                onClick={() => { setSelectedId(item.reportId); setNote('') }}
+                onClick={() => { if (actionRequestRef.current) return; setSelectedId(item.reportId); setNote('') }}
+                disabled={actionLoading}
               >
                 <span className="moderation-row-topline">
                   <strong>{formatReason(item.reason)}</strong>

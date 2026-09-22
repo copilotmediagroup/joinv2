@@ -212,11 +212,11 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
           ['dismissed', 'Dismissed'],
         ] as const).map(([value, label]) => (
           <button key={value} className={tab === value ? 'active' : ''}
-            onClick={() => { setTab(value); setSelectedId(null) }} role="tab" aria-selected={tab === value}>
+            onClick={() => { if (actionRequestRef.current) return; setTab(value); setSelectedId(null) }} disabled={actionLoading} role="tab" aria-selected={tab === value}>
             {label}
           </button>
         ))}
-        <button className="moderation-refresh" onClick={() => { void loadPage(tab) }} disabled={loading} aria-label="Refresh Moment queue">
+        <button className="moderation-refresh" onClick={() => { void loadPage(tab) }} disabled={loading || actionLoading} aria-label="Refresh Moment queue">
           <RefreshCw size={16} />
         </button>
       </div>
@@ -231,7 +231,7 @@ export default function MomentModerationPanel({ canEnforce = false }: { canEnfor
           ) : items.map((item) => (
             <button key={item.reportId}
               className={selectedId === item.reportId ? 'moderation-row selected' : 'moderation-row'}
-              onClick={() => { setSelectedId(item.reportId); setNote('') }}>
+              onClick={() => { if (actionRequestRef.current) return; setSelectedId(item.reportId); setNote('') }} disabled={actionLoading}>
               <span className="moderation-row-topline">
                 <strong>{formatReason(item.reason)}</strong>
                 <span>{new Date(item.createdAt).toLocaleString()}</span>
