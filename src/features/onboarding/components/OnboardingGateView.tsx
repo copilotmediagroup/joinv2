@@ -85,6 +85,9 @@ export function OnboardingGateView({
 
   const citySearchSequence = useRef(0)
   const submitRequestRef = useRef(false)
+  const submitEpochRef = useRef(0)
+
+  useEffect(() => () => { submitEpochRef.current += 1 }, [])
 
   useEffect(() => {
     return () => {
@@ -224,6 +227,7 @@ export function OnboardingGateView({
       return
     }
 
+    const submitEpoch = submitEpochRef.current
     submitRequestRef.current = true
     setSubmitting(true)
     setMessage(null)
@@ -249,14 +253,16 @@ export function OnboardingGateView({
         homeCityId: selectedCity.id,
       })
 
+      if (submitEpoch !== submitEpochRef.current) return
       await onComplete(completed)
     } catch (error) {
+      if (submitEpoch !== submitEpochRef.current) return
       setMessage(
         toUserFacingError(error, 'SIGNAL could not finish your profile right now.'),
       )
     } finally {
       submitRequestRef.current = false
-      setSubmitting(false)
+      if (submitEpoch === submitEpochRef.current) setSubmitting(false)
     }
   }
 
