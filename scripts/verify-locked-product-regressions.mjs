@@ -392,6 +392,9 @@ lock('Profile preference saves serialize rapid mutations', profilePreferences + 
 lock('Logout serializes rapid sign-out actions', app,
   /logoutRequestRef[\s\S]*?handleLogout[\s\S]*?logoutRequestRef\.current[\s\S]*?logoutRequestRef\.current = true[\s\S]*?signOutCurrentUser[\s\S]*?logoutRequestRef\.current = false/,
   'Rapid logout taps must not issue duplicate sign-out mutations; failure must release ownership for retry.')
+lock('Access gate invalidates onboarding reads on lifecycle change', signalAccessGate,
+  /return \(\) => \{[\s\S]*?active = false[\s\S]*?resolveEpochRef\.current \+= 1[\s\S]*?\}/,
+  'Access gate onboarding reads must be invalidated when the gate effect is replaced or unmounted.')
 lock('Access gate rejects stale onboarding responses', signalAccessGate,
   /resolveEpochRef[\s\S]*?requestEpoch = \+\+resolveEpochRef\.current[\s\S]*?getMyOnboardingState[\s\S]*?requestEpoch !== resolveEpochRef\.current/,
   'Session or auth changes must invalidate older onboarding reads before they can restore stale access state.')

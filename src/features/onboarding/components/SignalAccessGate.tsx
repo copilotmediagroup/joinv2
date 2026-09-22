@@ -100,6 +100,7 @@ export function SignalAccessGate({
 
     return () => {
       active = false
+      resolveEpochRef.current += 1
     }
   }, [resolveGate])
 
