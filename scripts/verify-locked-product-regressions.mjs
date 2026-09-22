@@ -356,7 +356,7 @@ lock('Connection actions serialize rapid mutations', stayConnected + myConnectio
 lock('Connection controls mirror shared mutation ownership', stayConnected + myConnections,
   /disabled=\{busyUserId !== null\}[\s\S]*?disabled=\{busyId !== null\}/,
   'When one connection mutation owns the panel, other rows must visibly disable instead of accepting dead clicks.')
-lock('Post-Signal realtime refresh invalidates on subscription lifecycle change', stayConnectedPanel,
+lock('Post-Signal realtime refresh invalidates on subscription lifecycle change', stayConnected,
   /subscribeToSignalConnections[\s\S]*?if \(active\) void refresh\(\)[\s\S]*?active = false[\s\S]*?refreshEpochRef\.current \+= 1[\s\S]*?unsubscribe\(\)/,
   'Post-Signal realtime refreshes must be invalidated when their user subscription is replaced or unmounted.')
 lock('Post-Signal connection refresh invalidates on plan unmount', stayConnected,
