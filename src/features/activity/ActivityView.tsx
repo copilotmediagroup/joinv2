@@ -178,7 +178,7 @@ function CurrentActivityCard({
   const commentDeleteRequestRef = useRef(false)
 
   const loadComments = async (loadOlder = false) => {
-    if (commentsRequestRef.current) return
+    if (commentsRequestRef.current || socialMutationRef.current || deleteRequestRef.current || reportRequestRef.current || commentDeleteRequestRef.current) return
     commentsRequestRef.current = true
     setCommentsLoading(true)
     try {
@@ -359,7 +359,7 @@ function CurrentActivityCard({
           <button type="button" onClick={() => { const next=!commentsOpen; setCommentsOpen(next); if(next) void loadComments() }}><span>◯</span> <strong>{commentCount}</strong> COMMENT{commentCount === 1 ? '' : 'S'}</button>
         </div>
         {commentsOpen ? <div className="signal-moment-comments">
-          {commentsHaveMore ? <button type="button" className="signal-moment-comments-more" disabled={commentsLoading} onClick={() => void loadComments(true)}>{commentsLoading ? 'LOADING…' : 'LOAD OLDER COMMENTS'}</button> : null}
+          {commentsHaveMore ? <button type="button" className="signal-moment-comments-more" disabled={commentsLoading || socialBusy || deleting || reporting} onClick={() => void loadComments(true)}>{commentsLoading ? 'LOADING…' : 'LOAD OLDER COMMENTS'}</button> : null}
           {comments.map((comment) => <div key={comment.commentId} className={comment.parentCommentId ? 'signal-moment-comment is-reply' : 'signal-moment-comment'}>
             {comment.authorAvatarUrl ? <img src={comment.authorAvatarUrl} alt=""/> : <i>{comment.authorDisplayName.slice(0,1)}</i>}
             <div><p><strong>{comment.authorDisplayName}</strong> {comment.body}</p><span><button type="button" onClick={() => setReplyTo(comment.parentCommentId ? comments.find((item) => item.commentId === comment.parentCommentId) ?? comment : comment)}>REPLY</button>{comment.isMine ? <button type="button" disabled={socialBusy || deleting || reporting} onClick={() => void handleCommentDelete(comment.commentId)}>DELETE</button> : null}</span></div>

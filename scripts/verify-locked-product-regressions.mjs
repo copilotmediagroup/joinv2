@@ -380,6 +380,9 @@ lock('Moment comment deletion serializes rapid actions', activityView,
 lock('Deleted comments disappear without refresh races', activityView,
   /deleteMyMomentComment\(commentId\)[\s\S]*?setComments\(\(current\) => current\.filter\(\(comment\) => comment\.commentId !== commentId\)\)[\s\S]*?loadComments\(\)/,
   'A successful delete must remove the comment locally even when comment refresh serialization is already occupied.')
+lock('Moment comment pagination pauses during mutations', activityView,
+  /commentsRequestRef\.current \|\| socialMutationRef\.current \|\| deleteRequestRef\.current \|\| reportRequestRef\.current \|\| commentDeleteRequestRef\.current[\s\S]*?disabled=\{commentsLoading \|\| socialBusy \|\| deleting \|\| reporting\}/,
+  'Comment pagination must not race signal, comment, delete, or report mutations on the same Moment.')
 lock('Moment comment pagination serializes requests', activityView,
   /commentsRequestRef[\s\S]*?commentsRequestRef\.current[\s\S]*?commentsRequestRef\.current = true[\s\S]*?setComments[\s\S]*?loadOlder[\s\S]*?commentsRequestRef\.current = false/,
   'Comment refresh and LOAD OLDER must not overlap and overwrite or duplicate the paginated thread.')
