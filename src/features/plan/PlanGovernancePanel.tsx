@@ -61,6 +61,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
   const refreshEpochRef = useRef(0)
   const attendanceRefreshEpochRef = useRef(0)
   const governanceActionRef = useRef(false)
+  const actionEpochRef = useRef(0)
   const attendanceActionRef = useRef(false)
 
   const refresh = useCallback(async () => {
@@ -113,6 +114,7 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
       active = false
       refreshEpochRef.current += 1
       attendanceRefreshEpochRef.current += 1
+      actionEpochRef.current += 1
       unsubscribe()
     }
   }, [planId, refresh])
@@ -157,19 +159,23 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
 
   const checkIn = async () => {
     if (attendanceActionRef.current || governanceActionRef.current || !attendance?.canCheckIn) return
+    const actionEpoch = actionEpochRef.current
+    const requestedPlanId = planId
     attendanceActionRef.current = true
     setAttendanceBusy(true)
     setError(null)
     const requestEpoch = ++attendanceRefreshEpochRef.current
     try {
-      const nextAttendance = await checkInToMyPlan(planId)
+      const nextAttendance = await checkInToMyPlan(requestedPlanId)
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       if (requestEpoch === attendanceRefreshEpochRef.current) setAttendance(nextAttendance)
-      if (nextAttendance.checkedIn) onCheckedIn?.(planId)
+      if (nextAttendance.checkedIn) onCheckedIn?.(requestedPlanId)
     } catch (checkInError) {
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       setError(toUserFacingError(checkInError, 'Unable to check you in right now. Please try again.'))
     } finally {
       attendanceActionRef.current = false
-      setAttendanceBusy(false)
+      if (actionEpoch === actionEpochRef.current && requestedPlanId === planId) setAttendanceBusy(false)
     }
   }
 
@@ -179,18 +185,22 @@ export default function PlanGovernancePanel({ planId, onLeftPlan, onCheckedIn }:
     vote: PlanGovernanceVote,
   ) => {
     if (governanceActionRef.current || attendanceActionRef.current) return
+    const actionEpoch = actionEpochRef.current
+    const requestedPlanId = planId
     governanceActionRef.current = true
     setBusy(true)
     setError(null)
     try {
       if (operation === 'join') await voteOnPlanJoinRequest(id, vote)
       else await voteOnPlanChange(id, vote)
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       await refresh()
     } catch (voteError) {
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       setError(toUserFacingError(voteError, 'Your vote did not go through. Try again.'))
     } finally {
       governanceActionRef.current = false
-      setBusy(false)
+      if (actionEpoch === actionEpochRef.current && requestedPlanId === planId) setBusy(false)
     }
   }
 

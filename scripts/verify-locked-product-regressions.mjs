@@ -215,6 +215,9 @@ lock('DONE HERE remains separate from safety leave', outing,
 lock('Plan attendance polling ignores stale responses', planGovernance,
   /attendanceRefreshEpochRef[\s\S]*?requestEpoch = \+\+attendanceRefreshEpochRef\.current[\s\S]*?requestEpoch === attendanceRefreshEpochRef\.current[\s\S]*?checkInToMyPlan/,
   'Plan attendance polling and check-in must not let an older attendance read overwrite newer authority.')
+lock('Plan governance actions reject stale Plan lifecycles', planGovernance,
+  /actionEpochRef = useRef\(0\)[\s\S]*?actionEpochRef\.current \+= 1[\s\S]*?requestedPlanId = planId[\s\S]*?checkInToMyPlan\(requestedPlanId\)[\s\S]*?actionEpoch !== actionEpochRef\.current \|\| requestedPlanId !== planId[\s\S]*?runVote[\s\S]*?requestedPlanId = planId[\s\S]*?actionEpoch !== actionEpochRef\.current/,
+  'Check-in and governance vote completions must not mutate a replacement Plan lifecycle.')
 lock('Plan governance actions serialize rapid mutations', planGovernance,
   /governanceActionRef[\s\S]*?attendanceActionRef[\s\S]*?if \(attendanceActionRef\.current \|\| governanceActionRef\.current[\s\S]*?runVote[\s\S]*?governanceActionRef\.current \|\| attendanceActionRef\.current[\s\S]*?proposeTime[\s\S]*?governanceActionRef\.current \|\| attendanceActionRef\.current[\s\S]*?leave[\s\S]*?governanceActionRef\.current \|\| attendanceActionRef\.current/,
   'Check-in, governance votes, time proposals, and leave actions must be mutually exclusive under rapid input.')
