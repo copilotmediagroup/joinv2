@@ -408,6 +408,7 @@ function App() {
         ? 'open'
         : signalAgePreference
   const [signalThreshold, setSignalThreshold] = useState(false)
+  const [signalLockReveal, setSignalLockReveal] = useState(false)
   const [serverJourneyStage, setServerJourneyStage] = useState<
     'forming' | 'arrival' | 'places' | 'time' | 'plan' | 'active_outing' | 'completed'
   >('forming')
@@ -808,11 +809,10 @@ function App() {
       setBored(true)
       setActiveSurface('discover')
 
-      const coordinationReady =
-        resume.groupState === 'coordinating' ||
-        resume.groupState === 'locked' ||
-        resume.groupState === 'active_outing'
-      setSignalThreshold(coordinationReady)
+      // Resume/focus reconciliation restores server truth, but it must not
+      // fast-forward or tear down the local lock reveal. A phone can receive
+      // the locked snapshot after another client has already advanced the
+      // shared journey to places; the locked-state effect below owns presentation.
       setServerJourneyStage(resume.signalStage)
       setLockedSignalVenue(resume.lockedVenue)
       setActivePlanId(resume.planId)
@@ -944,7 +944,8 @@ function App() {
         ? 'places'
         : 'arrival'
 
-  const presentationRoomStage: 'arrival' | 'places' | 'time' = authoritativeRoomStage
+  const presentationRoomStage: 'arrival' | 'places' | 'time' =
+    signalLockReveal ? 'arrival' : authoritativeRoomStage
 
   useEffect(() => {
     if (!signalThreshold || authoritativeRoomStage !== 'time' || lockedSignalVenue) return
@@ -1056,13 +1057,20 @@ function App() {
       // animate in before revealing coordination. Server state is already locked.
       const revealTimer = window.setTimeout(() => {
         setLockedSignalVenue(null)
+        setSignalLockReveal(true)
         setSignalThreshold(true)
-
-
       }, 3200)
       return () => window.clearTimeout(revealTimer)
     }
   }, [authoritativeGroupState, authoritativeSignalGroupId, restoreActiveSignal, signalThreshold])
+
+  useEffect(() => {
+    if (!signalLockReveal) return
+    const revealTimer = window.setTimeout(() => {
+      setSignalLockReveal(false)
+    }, 2200)
+    return () => window.clearTimeout(revealTimer)
+  }, [signalLockReveal])
 
   // One owner for arrival -> places. Fresh locks wait for the reveal beat above;
   // resumed locked Signals that are already at arrival converge through the same
@@ -1379,6 +1387,7 @@ function App() {
       // Leaving is a hard local journey boundary. Do not leave any coordination
       // or Plan pointer behind that can make a departed Signal render again.
       setSignalThreshold(false)
+      setSignalLockReveal(false)
       setServerJourneyStage('forming')
       setLockedSignalVenue(null)
       setActivePlanId(null)
@@ -2812,7 +2821,7 @@ function App() {
             <motion.div
               className={[
                 'threshold-copy',
-                authoritativeRoomStage !== 'arrival'
+                presentationRoomStage !== 'arrival'
                   ? 'threshold-copy-hidden'
                   : '',
               ].filter(Boolean).join(' ')}
