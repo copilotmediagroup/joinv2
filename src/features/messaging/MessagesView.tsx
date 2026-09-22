@@ -307,7 +307,7 @@ export default function MessagesView({
 
   const loadOlderMessages = async () => {
     const oldest = messages[0]
-    if (!selectedConversationId || !oldest || groupMessagePageRequestRef.current || !hasOlderMessages) return
+    if (!selectedConversationId || !oldest || groupMessagePageRequestRef.current || sendRequestRef.current || !hasOlderMessages) return
     const requestedConversationId = selectedConversationId
     const requestEpoch = groupMessageEpochRef.current
     const feed = groupFeedRef.current
@@ -344,7 +344,7 @@ export default function MessagesView({
   }
 
   const loadMoreConversations = async () => {
-    if (!conversationCursor || groupConversationPageRequestRef.current) return
+    if (!conversationCursor || groupConversationPageRequestRef.current || sendRequestRef.current) return
     groupConversationPageRequestRef.current = true
     setLoadingMoreConversations(true)
     setError(null)
@@ -492,7 +492,7 @@ export default function MessagesView({
           ref={groupFeedRef}
           onScroll={captureGroupFollowState}
         >
-          {hasOlderMessages ? <button type="button" className="messages-load-older-thread" disabled={loadingOlderMessages} onClick={() => { void loadOlderMessages() }}>{loadingOlderMessages ? 'LOADING…' : 'LOAD OLDER MESSAGES'}</button> : null}
+          {hasOlderMessages ? <button type="button" className="messages-load-older-thread" disabled={loadingOlderMessages || sending} onClick={() => { void loadOlderMessages() }}>{loadingOlderMessages ? 'LOADING…' : 'LOAD OLDER MESSAGES'}</button> : null}
           {loadingMessages ? (
             <div className="messages-state">
               Loading messages…
@@ -687,7 +687,7 @@ export default function MessagesView({
             type="button"
             className="messages-load-more"
             onClick={() => { void loadMoreConversations() }}
-            disabled={loadingMoreConversations}
+            disabled={loadingMoreConversations || sending}
           >
             {loadingMoreConversations ? 'LOADING…' : 'LOAD OLDER PLAN CHATS'}
           </button>

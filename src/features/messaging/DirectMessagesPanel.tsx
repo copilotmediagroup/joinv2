@@ -131,7 +131,7 @@ export default function DirectMessagesPanel({
 
   const loadOlderMessages = async () => {
     const oldest = messages[0]
-    if (!selectedId || !oldest || messagePageRequestRef.current || !hasOlderMessages) return
+    if (!selectedId || !oldest || messagePageRequestRef.current || sendRequestRef.current || !hasOlderMessages) return
     const requestedConversationId = selectedId
     const requestEpoch = messageRefreshEpochRef.current
     const feed = feedRef.current
@@ -166,7 +166,7 @@ export default function DirectMessagesPanel({
 
   const loadMore = async () => {
     const last = threads[threads.length - 1]
-    if (!last || threadPageRequestRef.current) return
+    if (!last || threadPageRequestRef.current || sendRequestRef.current) return
     threadPageRequestRef.current = true
     setLoadingMore(true)
     try {
@@ -268,7 +268,7 @@ export default function DirectMessagesPanel({
         }}
       /> : null}
       <div className="messages-thread-feed" ref={feedRef} onScroll={captureFollowState}>
-        {hasOlderMessages ? <button type="button" className="direct-load-older-messages" disabled={loadingOlderMessages} onClick={() => { void loadOlderMessages() }}>{loadingOlderMessages ? 'LOADING…' : 'LOAD OLDER MESSAGES'}</button> : null}
+        {hasOlderMessages ? <button type="button" className="direct-load-older-messages" disabled={loadingOlderMessages || sending} onClick={() => { void loadOlderMessages() }}>{loadingOlderMessages ? 'LOADING…' : 'LOAD OLDER MESSAGES'}</button> : null}
         {messages.length === 0 ? <div className="messages-empty-thread">
           <MessageCircle size={26}/><strong>Start the conversation</strong>
           <span>You connected through SIGNAL.</span>
@@ -335,7 +335,7 @@ export default function DirectMessagesPanel({
       type="button"
       className="direct-load-more"
       onClick={() => { void loadMore() }}
-      disabled={loadingMore}
+      disabled={loadingMore || sending}
     >
       {loadingMore ? 'LOADING…' : 'LOAD OLDER CONVERSATIONS'}
     </button> : null}

@@ -128,6 +128,9 @@ lock('Group chat typing transport remains realtime', messagingRealtime,
 lock('Direct and group sends serialize rapid submissions', directMessagesPanel + messages,
   /sendRequestRef[\s\S]*?send[\s\S]*?sendRequestRef\.current[\s\S]*?sendRequestRef\.current = true[\s\S]*?sendRequestRef\.current = false[\s\S]*?sendRequestRef[\s\S]*?handleSend[\s\S]*?sendRequestRef\.current[\s\S]*?sendRequestRef\.current = true[\s\S]*?sendRequestRef\.current = false/,
   'Rapid direct and group message submits must not create duplicate sends.')
+lock('Message pagination pauses during sends', directMessagesPanel + messages,
+  /sendRequestRef\.current[\s\S]*?disabled=\{loadingOlderMessages \|\| sending\}[\s\S]*?disabled=\{loadingMore \|\| sending\}[\s\S]*?sendRequestRef\.current[\s\S]*?disabled=\{loadingOlderMessages \|\| sending\}[\s\S]*?disabled=\{loadingMoreConversations \|\| sending\}/,
+  'Thread and conversation pagination must not race a send mutation in either messaging surface.')
 lock('Direct message pagination serializes and rejects stale conversation pages', directMessagesPanel,
   /messagePageRequestRef[\s\S]*?requestedConversationId = selectedId[\s\S]*?requestEpoch = messageRefreshEpochRef\.current[\s\S]*?requestEpoch !== messageRefreshEpochRef\.current/,
   'Rapid LOAD OLDER requests must serialize and an older conversation page must not append after realtime refresh or thread navigation.')
