@@ -205,25 +205,31 @@ function CurrentActivityCard({
 
   const handleSignal = async () => {
     if (socialMutationRef.current || deleteRequestRef.current || reportRequestRef.current || commentDeleteRequestRef.current) return
+    const cardEpoch = cardEpochRef.current
+    const requestedMomentId = moment.momentId
     socialMutationRef.current = true
     setSocialBusy(true)
     try {
-      const next = await toggleMomentSignal(moment.momentId)
+      const next = await toggleMomentSignal(requestedMomentId)
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       setSignalOverride({ baseCount: moment.signalCount, baseSignaled: moment.didSignal, count: next.signalCount, signaled: next.signaled })
-    } finally { socialMutationRef.current = false; setSocialBusy(false) }
+    } finally { socialMutationRef.current = false; if (cardEpoch === cardEpochRef.current && requestedMomentId === moment.momentId) setSocialBusy(false) }
   }
 
   const handleComment = async () => {
     if (socialMutationRef.current || deleteRequestRef.current || reportRequestRef.current || commentDeleteRequestRef.current || !commentBody.trim()) return
+    const cardEpoch = cardEpochRef.current
+    const requestedMomentId = moment.momentId
     socialMutationRef.current = true
     setSocialBusy(true)
     try {
-      await addMomentComment(moment.momentId, commentBody, replyTo?.commentId ?? null)
+      await addMomentComment(requestedMomentId, commentBody, replyTo?.commentId ?? null)
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       setCommentOverride({ baseCount: moment.commentCount, count: commentCount + 1 })
       setCommentBody('')
       setReplyTo(null)
       await loadComments()
-    } finally { socialMutationRef.current = false; setSocialBusy(false) }
+    } finally { socialMutationRef.current = false; if (cardEpoch === cardEpochRef.current && requestedMomentId === moment.momentId) setSocialBusy(false) }
   }
 
   const handleCommentDelete = async (commentId: string) => {

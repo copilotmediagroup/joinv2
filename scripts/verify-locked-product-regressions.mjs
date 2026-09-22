@@ -486,6 +486,9 @@ lock('Plan member avatars use batched private signing', planMembersClient,
 lock('Social list avatars use batched private signing', signalConnectionsClient + signalParticipantsClient + profileSearchClient + directMessagingClient,
   /createProfileAvatarSignedUrls[\s\S]*?getMySignalParticipants[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?searchSignalProfiles[\s\S]*?createProfileAvatarSignedUrls[\s\S]*?getMyDirectThreadsPage[\s\S]*?createProfileAvatarSignedUrls/,
   'Search, participants, connections, and inbox pages must not create one Storage signing request per person.')
+lock('Moment social mutations reject stale card lifecycles', activityView,
+  /handleSignal[\s\S]*?requestedMomentId = moment\.momentId[\s\S]*?toggleMomentSignal\(requestedMomentId\)[\s\S]*?cardEpoch !== cardEpochRef\.current \|\| requestedMomentId !== moment\.momentId[\s\S]*?handleComment[\s\S]*?addMomentComment\(requestedMomentId/,
+  'Signal and comment completions must not mutate a replacement Moment card lifecycle.')
 lock('Moment social mutations serialize rapid actions', activityView,
   /socialMutationRef[\s\S]*?deleteRequestRef[\s\S]*?reportRequestRef[\s\S]*?handleSignal[\s\S]*?socialMutationRef\.current = true[\s\S]*?socialMutationRef\.current = false[\s\S]*?handleComment[\s\S]*?socialMutationRef\.current = true[\s\S]*?socialMutationRef\.current = false[\s\S]*?handleDelete[\s\S]*?deleteRequestRef\.current = true[\s\S]*?deleteRequestRef\.current = false[\s\S]*?handleReport[\s\S]*?reportRequestRef\.current = true[\s\S]*?reportRequestRef\.current = false/,
   'Moment signals, comments, deletes, and reports must synchronously own their mutation request.')
