@@ -476,7 +476,7 @@ lock('Chill preference saves reject stale panel lifecycles', chillDatingPreferen
   /saveEpochRef = useRef\(0\)[\s\S]*?saveEpochRef\.current \+= 1[\s\S]*?saveEpoch = saveEpochRef\.current[\s\S]*?updateMyChillDatingPreferences\(next\)[\s\S]*?saveEpoch !== saveEpochRef\.current/,
   'A late Chill preference save must not mutate an unmounted or replacement dating panel lifecycle.')
 lock('Chill preference save preserves newer local edits', chillDatingPreferences,
-  /saved = await updateMyChillDatingPreferences\(next\)[\s\S]*?setPreferences\(\(current\)[\s\S]*?current\.minAge !== next\.minAge[\s\S]*?current\.maxAge !== next\.maxAge[\s\S]*?return saved/,
+  /saved = await updateMyChillDatingPreferences\(next\)[\s\S]*?setPreferences\(\(current\)[\s\S]*?current\.minAge !== next\.minAge[\s\S]*?current\.maxAge !== next\.maxAge[\s\S]*?return \{ \.\.\.saved, minAge: current\.minAge, maxAge: current\.maxAge \}[\s\S]*?return saved/,
   'A completed Chill save must not wipe age edits made while the request was in flight.')
 lock('Profile preference saves serialize rapid mutations', profilePreferences + chillDatingPreferences,
   /saveRequestRef[\s\S]*?save[\s\S]*?saveRequestRef\.current[\s\S]*?saveRequestRef\.current = true[\s\S]*?saveRequestRef\.current = false[\s\S]*?saveRequestRef[\s\S]*?save[\s\S]*?saveRequestRef\.current[\s\S]*?saveRequestRef\.current = true[\s\S]*?saveRequestRef\.current = false/,

@@ -46,7 +46,11 @@ export default function ChillDatingPreferencesPanel({ gender }: { gender: Profil
       const saved = await updateMyChillDatingPreferences(next)
       if (saveEpoch !== saveEpochRef.current) return
       setPreferences((current) => {
-        if (!current || current.seekingGender !== next.seekingGender || current.minAge !== next.minAge || current.maxAge !== next.maxAge || current.isEnabled !== next.isEnabled) return current
+        // The clicked preference itself is authoritative when the save returns.
+        // Preserve only a newer age draft typed while that request was in flight.
+        if (current && (current.minAge !== next.minAge || current.maxAge !== next.maxAge)) {
+          return { ...saved, minAge: current.minAge, maxAge: current.maxAge }
+        }
         return saved
       })
     } catch (value) {
