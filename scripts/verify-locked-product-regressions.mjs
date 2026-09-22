@@ -437,6 +437,9 @@ lock('Comments, blocked users, and moderation evidence batch signing', momentSoc
 lock('App activity refresh rejects stale responses', app,
   /activityRequestEpochRef[\s\S]*?refreshActivity[\s\S]*?requestEpoch = \+\+activityRequestEpochRef\.current[\s\S]*?requestEpoch !== activityRequestEpochRef\.current[\s\S]*?requestEpoch === activityRequestEpochRef\.current/,
   'Overlapping app-level Activity refreshes must not let an older response overwrite newer feed authority.')
+lock('Activity feed pagination serializes rapid requests', activityView,
+  /momentPageRequestRef[\s\S]*?if \(!last \|\| momentPageRequestRef\.current\) return[\s\S]*?momentPageRequestRef\.current = true[\s\S]*?getSignalMomentsPage[\s\S]*?momentPageRequestRef\.current = false/,
+  'Rapid LOAD OLDER MOMENTS taps must issue one cursor request at a time.')
 lock('Activity feed refresh ordering preserves loaded history', activityView,
   /momentRefreshEpochRef[\s\S]*?requestEpoch = \+\+momentRefreshEpochRef\.current[\s\S]*?retainedOlder[\s\S]*?requestEpoch !== momentRefreshEpochRef\.current[\s\S]*?momentsLoadingMore/,
   'Realtime and manual Activity refreshes must reject stale responses without discarding already-loaded older pages.')

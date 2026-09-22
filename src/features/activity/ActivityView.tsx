@@ -390,6 +390,7 @@ export default function ActivityView({
   const [moments, setMoments] = useState<SignalMoment[]>([])
   const [momentsLoading, setMomentsLoading] = useState(true)
   const [momentsLoadingMore, setMomentsLoadingMore] = useState(false)
+  const momentPageRequestRef = useRef(false)
   const [hasMoreMoments, setHasMoreMoments] = useState(false)
   const [momentsError, setMomentsError] = useState<string | null>(null)
   const momentRealtimeTimerRef = useRef<number | null>(null)
@@ -500,7 +501,8 @@ export default function ActivityView({
 
   const loadMoreMoments = async () => {
     const last = moments[moments.length - 1]
-    if (!last || momentsLoadingMore) return
+    if (!last || momentPageRequestRef.current) return
+    momentPageRequestRef.current = true
 
     const requestEpoch = momentRefreshEpochRef.current
     setMomentsLoadingMore(true)
@@ -521,6 +523,7 @@ export default function ActivityView({
       if (requestEpoch !== momentRefreshEpochRef.current) return
       setMomentsError(toUserFacingError(loadError, 'Unable to load older Signal Moments right now.'))
     } finally {
+      momentPageRequestRef.current = false
       if (requestEpoch === momentRefreshEpochRef.current) setMomentsLoadingMore(false)
     }
   }
