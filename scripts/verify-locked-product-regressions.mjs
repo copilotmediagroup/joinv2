@@ -233,6 +233,9 @@ lock('Live outing terminal controls disable across exit modes', outing,
 lock('Live outing interactive controls freeze during terminal mutations', outing,
   /acceptFiles[\s\S]*?momentRequestRef\.current \|\| outingExitRequestRef\.current[\s\S]*?active-outing-chat[^\n]*?disabled=\{saving \|\| ending \|\| leaving\}[\s\S]*?capture=\"environment\" disabled=\{saving \|\| ending \|\| leaving\}[\s\S]*?multiple disabled=\{saving \|\| ending \|\| leaving\}[\s\S]*?textarea value=\{caption\} disabled=\{saving \|\| ending \|\| leaving\}[\s\S]*?DONE HERE/,
   'Capture inputs, edits, navigation, and completion entry must not change underneath an owned live mutation.')
+lock('Live outing refresh invalidates on unmount', outing,
+  /return \(\) => \{[\s\S]*?refreshEpochRef\.current \+= 1[\s\S]*?unsubscribeGovernance\(\)[\s\S]*?unsubscribeLive\(\)/,
+  'A live outing refresh started before navigation must not write after the outing view unmounts.')
 lock('Live outing refresh ignores stale realtime responses', outing,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Overlapping governance and live refreshes must not let older outing state overwrite newer authority.')

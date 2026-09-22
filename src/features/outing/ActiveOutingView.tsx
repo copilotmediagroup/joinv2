@@ -71,6 +71,7 @@ export default function ActiveOutingView({ planId, onOpenChat, onOutingEnded, ca
     const unsubscribeGovernance = subscribeToPlanGovernance(planId, () => { void refresh() })
     const unsubscribeLive = subscribeToLivePlanRefresh(planId, () => { void refresh() })
     return () => {
+      refreshEpochRef.current += 1
       window.clearTimeout(initial)
       unsubscribeGovernance()
       unsubscribeLive()
