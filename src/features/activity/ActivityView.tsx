@@ -229,6 +229,7 @@ function CurrentActivityCard({
       setCommentBody('')
       setReplyTo(null)
       await loadComments()
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
     } finally { socialMutationRef.current = false; if (cardEpoch === cardEpochRef.current && requestedMomentId === moment.momentId) setSocialBusy(false) }
   }
 
@@ -243,6 +244,7 @@ function CurrentActivityCard({
       setComments((current) => current.filter((comment) => comment.commentId !== commentId))
       setCommentOverride({ baseCount: moment.commentCount, count: Math.max(0, commentCount - 1) })
       await loadComments()
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
     } catch (deleteError) {
       if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       setReportStatus(toUserFacingError(deleteError, 'Unable to delete that comment right now.'))
@@ -262,6 +264,7 @@ function CurrentActivityCard({
       await deleteMySignalMoment(requestedMomentId)
       if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       await onDeleted()
+      if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
     } catch (error) {
       if (cardEpoch !== cardEpochRef.current || requestedMomentId !== moment.momentId) return
       setReportStatus(
