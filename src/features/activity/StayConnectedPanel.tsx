@@ -18,6 +18,7 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
   const [error, setError] = useState<string | null>(null)
   const refreshEpochRef = useRef(0)
   const actionRequestRef = useRef(false)
+  const actionEpochRef = useRef(0)
 
   const refresh = useCallback(async () => {
     const requestEpoch = ++refreshEpochRef.current
@@ -37,7 +38,7 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
   useEffect(() => {
     let active = true
     queueMicrotask(() => { if (active) void refresh() })
-    return () => { active = false; refreshEpochRef.current += 1 }
+    return () => { active = false; refreshEpochRef.current += 1; actionEpochRef.current += 1 }
   }, [refresh])
 
   useEffect(() => {
@@ -52,33 +53,41 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
 
   const connect = async (person: SignalConnectionPerson) => {
     if (actionRequestRef.current) return
+    const actionEpoch = actionEpochRef.current
+    const requestedPlanId = planId
     actionRequestRef.current = true
     setBusyUserId(person.userId)
     setError(null)
     try {
-      await requestSignalConnection(planId, person.userId)
+      await requestSignalConnection(requestedPlanId, person.userId)
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       await refresh()
     } catch (actionError) {
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       setError(toUserFacingError(actionError, 'Unable to send that connection request right now.'))
     } finally {
       actionRequestRef.current = false
-      setBusyUserId(null)
+      if (actionEpoch === actionEpochRef.current && requestedPlanId === planId) setBusyUserId(null)
     }
   }
 
   const respond = async (person: SignalConnectionPerson, accept: boolean) => {
     if (actionRequestRef.current || !person.connectionId) return
+    const actionEpoch = actionEpochRef.current
+    const requestedPlanId = planId
     actionRequestRef.current = true
     setBusyUserId(person.userId)
     setError(null)
     try {
       await respondToSignalConnection(person.connectionId, accept)
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       await refresh()
     } catch (actionError) {
+      if (actionEpoch !== actionEpochRef.current || requestedPlanId !== planId) return
       setError(toUserFacingError(actionError, 'Unable to update that connection right now.'))
     } finally {
       actionRequestRef.current = false
-      setBusyUserId(null)
+      if (actionEpoch === actionEpochRef.current && requestedPlanId === planId) setBusyUserId(null)
     }
   }
 

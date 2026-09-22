@@ -386,11 +386,14 @@ lock('Connection actions serialize rapid mutations', stayConnected + myConnectio
 lock('Connection controls mirror shared mutation ownership', stayConnected + myConnections,
   /disabled=\{busyUserId !== null\}[\s\S]*?disabled=\{busyId !== null\}/,
   'When one connection mutation owns the panel, other rows must visibly disable instead of accepting dead clicks.')
+lock('Post-Signal actions reject stale Plan completions', stayConnected,
+  /actionEpochRef = useRef\(0\)[\s\S]*?actionEpochRef\.current \+= 1[\s\S]*?requestedPlanId = planId[\s\S]*?requestSignalConnection\(requestedPlanId[\s\S]*?actionEpoch !== actionEpochRef\.current \|\| requestedPlanId !== planId[\s\S]*?respondToSignalConnection/,
+  'Connection request and response completions must not mutate a replacement completed-Signal lifecycle.')
 lock('Post-Signal realtime refresh invalidates on subscription lifecycle change', stayConnected,
   /subscribeToSignalConnections[\s\S]*?if \(active\) void refresh\(\)[\s\S]*?active = false[\s\S]*?refreshEpochRef\.current \+= 1[\s\S]*?unsubscribe\(\)/,
   'Post-Signal realtime refreshes must be invalidated when their user subscription is replaced or unmounted.')
 lock('Post-Signal connection refresh invalidates on plan unmount', stayConnected,
-  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1 \}/,
+  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1; actionEpochRef\.current \+= 1 \}/,
   'A completed connection refresh from an old completion panel must not write after that Plan unmounts.')
 lock('Post-Signal connection refresh ignores stale responses', stayConnected,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
