@@ -317,6 +317,7 @@ function App() {
   const [notificationToast, setNotificationToast] = useState<SignalNotification | null>(null)
   const notificationToastTimerRef = useRef<number | null>(null)
   const notificationUnreadEpochRef = useRef(0)
+  const notificationToastEpochRef = useRef(0)
 
   useEffect(() => {
     let active = true
@@ -331,8 +332,9 @@ function App() {
     const unsubscribe = subscribeToMyNotifications(currentUser.userId, () => {
       void refreshUnread()
       setNotificationRefreshToken((current) => current + 1)
+      const toastEpoch = ++notificationToastEpochRef.current
       void getMyNotifications(1).then(([latest]) => {
-        if (!active || !latest || latest.state !== 'unread') return
+        if (!active || toastEpoch !== notificationToastEpochRef.current || !latest || latest.state !== 'unread') return
         setNotificationToast(latest)
         if (notificationToastTimerRef.current !== null) window.clearTimeout(notificationToastTimerRef.current)
         notificationToastTimerRef.current = window.setTimeout(() => setNotificationToast(null), 6500)
@@ -341,6 +343,7 @@ function App() {
     return () => {
       active = false
       notificationUnreadEpochRef.current += 1
+      notificationToastEpochRef.current += 1
       unsubscribe()
       if (notificationToastTimerRef.current !== null) window.clearTimeout(notificationToastTimerRef.current)
     }

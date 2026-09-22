@@ -263,6 +263,9 @@ lock('I AM BORED automation serializes rapid starts', app,
 lock('Pre-lock formation keeps joined participant proof', app,
   /signalParticipants\.slice\(0, 4\)[\s\S]*?participant\.displayName[\s\S]*?\+ JOINED/,
   'Users must see who is joining before the Signal locks instead of jumping blindly to coordination.')
+lock('Notification toast rejects stale realtime fetches', app,
+  /notificationToastEpochRef = useRef\(0\)[\s\S]*?const toastEpoch = \+\+notificationToastEpochRef\.current[\s\S]*?toastEpoch !== notificationToastEpochRef\.current[\s\S]*?notificationToastEpochRef\.current \+= 1/,
+  'Notification toast fetches must reject older realtime responses and invalidate on user lifecycle changes.')
 lock('Notification unread refresh rejects stale realtime responses', app,
   /notificationUnreadEpochRef[\s\S]*?requestEpoch = \+\+notificationUnreadEpochRef\.current[\s\S]*?requestEpoch === notificationUnreadEpochRef\.current[\s\S]*?notificationUnreadEpochRef\.current \+= 1/,
   'Overlapping unread-count refreshes must not let an older realtime response overwrite a newer badge count.')
