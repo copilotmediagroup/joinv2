@@ -80,6 +80,7 @@ export default function SignalPreferencesPanel() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const saveRequestRef = useRef(false)
+  const saveEpochRef = useRef(0)
 
   useEffect(() => {
     let cancelled = false
@@ -96,7 +97,7 @@ export default function SignalPreferencesPanel() {
       .finally(() => {
         if (!cancelled) setLoading(false)
       })
-    return () => { cancelled = true }
+    return () => { cancelled = true; saveEpochRef.current += 1 }
   }, [])
 
   const selectedLabels = useMemo(() => GROUPS.flatMap((group) => {
@@ -108,19 +109,22 @@ export default function SignalPreferencesPanel() {
 
   const save = async () => {
     if (saveRequestRef.current) return
+    const saveEpoch = saveEpochRef.current
     saveRequestRef.current = true
     setSaving(true)
     setError(null)
     try {
       const next = await updateMySignalPreferences(draft)
+      if (saveEpoch !== saveEpochRef.current) return
       setSaved(next)
       setDraft(next)
       setEditing(false)
     } catch (saveError) {
+      if (saveEpoch !== saveEpochRef.current) return
       setError(toUserFacingError(saveError, 'Unable to save energy preferences right now.'))
     } finally {
       saveRequestRef.current = false
-      setSaving(false)
+      if (saveEpoch === saveEpochRef.current) setSaving(false)
     }
   }
 

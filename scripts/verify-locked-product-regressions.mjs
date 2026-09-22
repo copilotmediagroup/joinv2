@@ -452,6 +452,9 @@ lock('My Energy stays out of public profile', publicProfile,
 lock('My Energy remains editable only in own profile flow', profile + profilePreferences,
   /SignalPreferencesPanel[\s\S]*?MY ENERGY[\s\S]*?SAVE MY ENERGY/,
   'Private preference editing must remain available to the owner.')
+lock('Energy preference saves reject stale panel lifecycles', profilePreferences,
+  /saveEpochRef = useRef\(0\)[\s\S]*?saveEpochRef\.current \+= 1[\s\S]*?saveEpoch = saveEpochRef\.current[\s\S]*?updateMySignalPreferences\(draft\)[\s\S]*?saveEpoch !== saveEpochRef\.current/,
+  'A late energy preference save must not mutate an unmounted or replacement panel lifecycle.')
 lock('Energy preference controls freeze during save', profilePreferences,
   /saveRequestRef\.current[\s\S]*?disabled=\{saving\}[\s\S]*?GROUPS\.map[\s\S]*?disabled=\{saving\}[\s\S]*?signal-preferences-save[\s\S]*?disabled=\{saving\}/,
   'Energy preference editor controls must freeze while the authoritative save owns the draft.')
