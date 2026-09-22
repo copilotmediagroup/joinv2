@@ -326,6 +326,9 @@ lock('Connection actions serialize rapid mutations', stayConnected + myConnectio
 lock('Connection controls mirror shared mutation ownership', stayConnected + myConnections,
   /disabled=\{busyUserId !== null\}[\s\S]*?disabled=\{busyId !== null\}/,
   'When one connection mutation owns the panel, other rows must visibly disable instead of accepting dead clicks.')
+lock('Post-Signal connection refresh invalidates on plan unmount', stayConnected,
+  /return \(\) => \{ active = false; refreshEpochRef\.current \+= 1 \}/,
+  'A completed connection refresh from an old completion panel must not write after that Plan unmounts.')
 lock('Post-Signal connection refresh ignores stale responses', stayConnected,
   /refreshEpochRef[\s\S]*?requestEpoch = \+\+refreshEpochRef\.current[\s\S]*?requestEpoch !== refreshEpochRef\.current/,
   'Realtime and action-triggered refreshes must not let an older post-Signal connection response overwrite newer state.')

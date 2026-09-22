@@ -37,7 +37,7 @@ export default function StayConnectedPanel({ planId }: { planId: string }) {
   useEffect(() => {
     let active = true
     queueMicrotask(() => { if (active) void refresh() })
-    return () => { active = false }
+    return () => { active = false; refreshEpochRef.current += 1 }
   }, [refresh])
 
   useEffect(() => subscribeToSignalConnections(currentUser.userId, () => { void refresh() }), [currentUser.userId, refresh])
