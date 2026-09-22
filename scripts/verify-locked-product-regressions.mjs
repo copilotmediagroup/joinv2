@@ -49,6 +49,7 @@ const [
   signalAccessGate,
   mobileSafeVenueWindow,
   immediateMomentPublication,
+  mobileSafeTimeWindow,
 ] = await Promise.all([
   read('src/App.tsx'),
   read('src/features/messaging/MessagesView.tsx'),
@@ -97,6 +98,7 @@ const [
   read('src/features/onboarding/components/SignalAccessGate.tsx'),
   read('supabase/migrations/20260922105000_mobile_safe_signal_venue_window.sql'),
   read('supabase/migrations/20260922231921_restore_immediate_signal_moment_publication.sql'),
+  read('supabase/migrations/20260922232556_mobile_safe_signal_time_window.sql'),
 ])
 
 const checks = []
@@ -111,6 +113,9 @@ const lock = (name, source, pattern, reason) => {
 lock('Signal venue voting window remains mobile-safe', mobileSafeVenueWindow,
   /ensure_signal_venue_round[\s\S]*?10 seconds[\s\S]*?60 seconds/,
   'A confirmed phone participant must have enough server-owned time to enter Place before automatic venue fallback.')
+lock('Signal time coordination window remains mobile-safe', mobileSafeTimeWindow,
+  /ensure_signal_time_round[\s\S]*?10 seconds[\s\S]*?60 seconds/,
+  'A mobile participant must not receive a time picker with only a couple seconds left to respond.')
 lock('Signal Moment capture remains immediately published', immediateMomentPublication,
   /capture_my_signal_moment[\s\S]*?set state='published'[\s\S]*?state='draft'[\s\S]*?signal_moment_media/,
   'Checked-in uploads must publish to Activity immediately and repair any stranded media-backed drafts.')
