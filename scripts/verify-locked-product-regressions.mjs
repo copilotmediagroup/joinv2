@@ -410,6 +410,10 @@ lock('Moderation actions serialize rapid admin mutations', moderationView + mome
 lock('Moderation case identity freezes during mutations', moderationView + momentModeration,
   /changeTab[\s\S]*?actionRequestRef\.current[\s\S]*?disabled=\{actionLoading\}[\s\S]*?Refresh queue[\s\S]*?actionRequestRef\.current[\s\S]*?setTab\(value\)[\s\S]*?disabled=\{actionLoading\}[\s\S]*?Refresh Moment queue[\s\S]*?actionRequestRef\.current[\s\S]*?setSelectedId\(item\.reportId\)/,
   'An in-flight moderation mutation must stay bound to the case and queue it started against.')
+lock('Moderation queues invalidate reads on lifecycle change', moderationView + momentModeration,
+  /queueEpochRef\.current \+= 1/g,
+  'Moderation queue reads must be invalidated when a queue effect is replaced or unmounted.',
+  2)
 lock('Moderation pagination pauses during case mutations', moderationView + momentModeration,
   /actionRequestRef\.current[\s\S]*?disabled=\{loadingMore \|\| actionLoading\}/,
   'Queue pagination must not race claim, release, enforcement, or review writes while a case mutation owns the panel.')

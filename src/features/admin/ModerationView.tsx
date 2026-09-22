@@ -94,7 +94,12 @@ export default function ModerationView({ canEnforce = false }: { canEnforce?: bo
     }
   }, [])
   useEffect(() => {
-    void Promise.resolve().then(() => loadPage(tab))
+    let active = true
+    void Promise.resolve().then(() => { if (active) void loadPage(tab) })
+    return () => {
+      active = false
+      queueEpochRef.current += 1
+    }
   }, [loadPage, tab])
 
   useEffect(() => {
