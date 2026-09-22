@@ -320,6 +320,9 @@ lock('Signal Life stays cursor-paginated with batched media signing', profileMom
 lock('Public profile messaging serializes and rejects stale profile navigation', app,
   /publicProfileMessageRequestRef[\s\S]*?onMessage=\{async[\s\S]*?publicProfileMessageRequestRef\.current[\s\S]*?requestedUserId = publicProfileUserId[\s\S]*?getOrCreateDirectConversationWithUser\(requestedUserId\)[\s\S]*?publicProfileUserId !== requestedUserId[\s\S]*?publicProfileMessageRequestRef\.current = false/,
   'Rapid MESSAGE taps or profile switches must not navigate into the wrong direct conversation.')
+lock('Public profile pagination ignores unmounted responses', publicProfile,
+  /const mountedRef = useRef\(true\)[\s\S]*?mountedRef\.current = false[\s\S]*?if \(!mountedRef\.current \|\| requestedUserId !== activeUserIdRef\.current\) return/,
+  'Public profile pagination must not write after the profile view unmounts.')
 lock('Public profile pagination serializes rapid requests', publicProfile,
   /momentsPageRequestRef[\s\S]*?momentsPageRequestRef\.current = true[\s\S]*?connectionsPageRequestRef[\s\S]*?connectionsPageRequestRef\.current = true/,
   'Rapid public-profile LOAD MORE actions must not issue duplicate Moment or connection cursor requests.')

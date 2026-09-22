@@ -24,8 +24,14 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
   const [connectionsHaveMore, setConnectionsHaveMore] = useState(false)
   const [connectionsLoadingMore, setConnectionsLoadingMore] = useState(false)
   const activeUserIdRef = useRef(userId)
+  const mountedRef = useRef(true)
   const momentsPageRequestRef = useRef(false)
   const connectionsPageRequestRef = useRef(false)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   useEffect(() => {
     activeUserIdRef.current = userId
@@ -52,12 +58,12 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
     setMomentsLoadingMore(true)
     try {
       const page = await getPublicProfileMoments(requestedUserId, { publishedAt: last.publishedAt, momentId: last.momentId })
-      if (requestedUserId !== activeUserIdRef.current) return
+      if (!mountedRef.current || requestedUserId !== activeUserIdRef.current) return
       setMoments((current) => [...current, ...page.moments.filter((next) => !current.some((item) => item.momentId === next.momentId))])
       setMomentsHaveMore(page.hasMore)
     } finally {
       momentsPageRequestRef.current = false
-      if (requestedUserId === activeUserIdRef.current) setMomentsLoadingMore(false)
+      if (mountedRef.current && requestedUserId === activeUserIdRef.current) setMomentsLoadingMore(false)
     }
   }
 
@@ -69,12 +75,12 @@ export default function PublicProfileView({ userId, onBack, onMessage, onOpenPro
     setConnectionsLoadingMore(true)
     try {
       const page = await getPublicProfileConnections(requestedUserId, { connectedAt: last.connectedAt, connectionId: last.connectionId })
-      if (requestedUserId !== activeUserIdRef.current) return
+      if (!mountedRef.current || requestedUserId !== activeUserIdRef.current) return
       setConnections((current) => [...current, ...page.connections.filter((next) => !current.some((item) => item.connectionId === next.connectionId))])
       setConnectionsHaveMore(page.hasMore)
     } finally {
       connectionsPageRequestRef.current = false
-      if (requestedUserId === activeUserIdRef.current) setConnectionsLoadingMore(false)
+      if (mountedRef.current && requestedUserId === activeUserIdRef.current) setConnectionsLoadingMore(false)
     }
   }
 
