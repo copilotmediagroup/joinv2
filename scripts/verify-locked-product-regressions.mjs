@@ -342,6 +342,13 @@ lock('I AM BORED automation serializes rapid starts', app,
 lock('Signal journey stage transitions reject stale async completions', app,
   /journeyStageEpochRef = React\.useRef\(0\)[\s\S]*?stageEpoch = \+\+journeyStageEpochRef\.current[\s\S]*?stageEpoch !== journeyStageEpochRef\.current[\s\S]*?journeyStageEpochRef\.current \+= 1[\s\S]*?requestGroupId === authoritativeSignalGroupId/,
   'Arrival and venue stage transitions must not let an older Signal response move a newer journey.')
+lock('Signal lock reveal starts immediately while coordination initializes', app,
+  /authoritativeGroupState === 'locked'[\s\S]*?setSignalLockReveal\(true\)[\s\S]*?setSignalThreshold\(true\)[\s\S]*?2200/,
+  'A locked Signal must show its lock animation immediately instead of hiding behind a multi-second pre-reveal delay.')
+lock('Peer-ended Signal reconciles the surviving browser', app,
+  /signalRealtimeSnapshot\.group\.state !== 'cancelled'[\s\S]*?signalRealtimeSnapshot\.group\.journeyStage !== 'completed'[\s\S]*?journeyRestoreEpochRef\.current \+= 1[\s\S]*?setSignalLockReveal\(false\)[\s\S]*?restoreActiveSignal\(true\)/,
+  'When another member ends the Signal, this browser must purge the dead journey and return to authoritative navigation.')
+
 lock('Mobile lock reveal cannot be skipped by server stage convergence', app,
   /signalLockReveal[\s\S]*?presentationRoomStage[\s\S]*?signalLockReveal \? 'arrival' : authoritativeRoomStage[\s\S]*?setSignalLockReveal\(true\)[\s\S]*?setSignalThreshold\(true\)[\s\S]*?setSignalLockReveal\(false\)/,
   'A phone receiving a later shared journey stage must still present the local lock and finding-place experience before coordination.')

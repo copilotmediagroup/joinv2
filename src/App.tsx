@@ -1071,15 +1071,12 @@ function App() {
       previousGroupState !== 'locked' &&
       !signalThreshold
     ) {
-      // Product beat: critical mass should be felt, not skipped. Keep the live
-      // forming roster on screen long enough for the newly joined person to
-      // animate in before revealing coordination. Server state is already locked.
-      const revealTimer = window.setTimeout(() => {
-        setLockedSignalVenue(null)
-        setSignalLockReveal(true)
-        setSignalThreshold(true)
-      }, 3200)
-      return () => window.clearTimeout(revealTimer)
+      // Lock is the presentation boundary. Reveal it immediately instead of
+      // leaving mobile users staring at the pre-lock screen for several seconds.
+      // Coordination may initialize behind this short local animation.
+      setLockedSignalVenue(null)
+      setSignalLockReveal(true)
+      setSignalThreshold(true)
     }
   }, [authoritativeGroupState, authoritativeSignalGroupId, restoreActiveSignal, signalThreshold])
 
@@ -1090,6 +1087,24 @@ function App() {
     }, 2200)
     return () => window.clearTimeout(revealTimer)
   }, [signalLockReveal])
+
+  useEffect(() => {
+    if (
+      !signalRealtimeSnapshot ||
+      (signalRealtimeSnapshot.group.state !== 'cancelled' &&
+        signalRealtimeSnapshot.group.journeyStage !== 'completed')
+    ) return
+
+    // A peer can end a two-person Chill journey from another device. The
+    // surviving browser must immediately reconcile that terminal server truth
+    // instead of leaving a dead FINDING THE PLACE / coordination shell visible.
+    journeyRestoreEpochRef.current += 1
+    journeyRestorePromiseRef.current = null
+    queueMicrotask(() => {
+      setSignalLockReveal(false)
+      void restoreActiveSignal(true)
+    })
+  }, [restoreActiveSignal, signalRealtimeSnapshot])
 
   // One owner for arrival -> places. Fresh locks wait for the reveal beat above;
   // resumed locked Signals that are already at arrival converge through the same
