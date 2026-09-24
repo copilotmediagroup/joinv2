@@ -431,6 +431,9 @@ function App() {
   const [serverJourneyStage, setServerJourneyStage] = useState<
     'forming' | 'arrival' | 'places' | 'time' | 'plan' | 'active_outing' | 'completed'
   >('forming')
+  const [localJourneyStageOverride, setLocalJourneyStageOverride] = useState<
+    'places' | null
+  >(null)
 
   const [lockedSignalVenue, setLockedSignalVenue] =
     useState<LockedSignalVenue | null>(null)
@@ -949,10 +952,27 @@ function App() {
     activeSignalResume?.signalGroupId ??
     null
 
+  // A successful journey mutation is stronger than a stale phone websocket
+  // snapshot. Hold the local places handoff until Realtime observes that same
+  // server stage (or a later one), then return ownership to server snapshots.
   const authoritativeJourneyStage =
+    localJourneyStageOverride ??
     signalRealtimeSnapshot?.group.journeyStage ??
     activeSignalResume?.signalStage ??
     serverJourneyStage
+
+  useEffect(() => {
+    if (!localJourneyStageOverride || !signalRealtimeSnapshot) return
+    const stageRank: Record<string, number> = {
+      forming: 0, arrival: 1, places: 2, time: 3, plan: 4, active_outing: 5, completed: 6,
+    }
+    if (
+      (stageRank[signalRealtimeSnapshot.group.journeyStage] ?? -1) >=
+      (stageRank[localJourneyStageOverride] ?? Number.MAX_SAFE_INTEGER)
+    ) {
+      queueMicrotask(() => setLocalJourneyStageOverride(null))
+    }
+  }, [localJourneyStageOverride, signalRealtimeSnapshot])
 
   const authoritativeRoomStage: 'arrival' | 'places' | 'time' =
     authoritativeJourneyStage === 'time' ||
@@ -1126,6 +1146,7 @@ function App() {
       .then((stage) => {
         if (cancelled || stageEpoch !== journeyStageEpochRef.current) return
         setServerJourneyStage(stage)
+        if (stage === 'places') setLocalJourneyStageOverride('places')
       })
       .catch(() => {
         if (!cancelled) void restoreActiveSignal(false)
