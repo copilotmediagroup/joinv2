@@ -4750,3 +4750,27 @@ button:disabled,
   border-color: rgba(126, 211, 255, .56);
   background: rgba(16, 38, 65, .94);
 }
+
+/* Signal lock presentation is intentionally lightweight: server readiness owns
+   the transition to Place, not a timed cinematic sequence. */
+.room-next-spinner {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  margin-right: 13px;
+  border: 2px solid rgba(105, 212, 255, .22);
+  border-top-color: #69d4ff;
+  border-radius: 50%;
+  animation: signalFindingPlaceSpin .8s linear infinite;
+}
+
+.room-next > span:last-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+@keyframes signalFindingPlaceSpin {
+  to { transform: rotate(360deg); }
+}

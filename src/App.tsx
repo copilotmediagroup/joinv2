@@ -427,13 +427,9 @@ function App() {
         ? 'open'
         : signalAgePreference
   const [signalThreshold, setSignalThreshold] = useState(false)
-  const [signalLockReveal, setSignalLockReveal] = useState(false)
   const [serverJourneyStage, setServerJourneyStage] = useState<
     'forming' | 'arrival' | 'places' | 'time' | 'plan' | 'active_outing' | 'completed'
   >('forming')
-  const [localJourneyStageOverride, setLocalJourneyStageOverride] = useState<
-    'places' | null
-  >(null)
 
   const [lockedSignalVenue, setLockedSignalVenue] =
     useState<LockedSignalVenue | null>(null)
@@ -952,27 +948,10 @@ function App() {
     activeSignalResume?.signalGroupId ??
     null
 
-  // A successful journey mutation is stronger than a stale phone websocket
-  // snapshot. Hold the local places handoff until Realtime observes that same
-  // server stage (or a later one), then return ownership to server snapshots.
   const authoritativeJourneyStage =
-    localJourneyStageOverride ??
     signalRealtimeSnapshot?.group.journeyStage ??
     activeSignalResume?.signalStage ??
     serverJourneyStage
-
-  useEffect(() => {
-    if (!localJourneyStageOverride || !signalRealtimeSnapshot) return
-    const stageRank: Record<string, number> = {
-      forming: 0, arrival: 1, places: 2, time: 3, plan: 4, active_outing: 5, completed: 6,
-    }
-    if (
-      (stageRank[signalRealtimeSnapshot.group.journeyStage] ?? -1) >=
-      (stageRank[localJourneyStageOverride] ?? Number.MAX_SAFE_INTEGER)
-    ) {
-      queueMicrotask(() => setLocalJourneyStageOverride(null))
-    }
-  }, [localJourneyStageOverride, signalRealtimeSnapshot])
 
   const authoritativeRoomStage: 'arrival' | 'places' | 'time' =
     authoritativeJourneyStage === 'time' ||
@@ -984,7 +963,7 @@ function App() {
         : 'arrival'
 
   const presentationRoomStage: 'arrival' | 'places' | 'time' =
-    signalLockReveal ? 'arrival' : authoritativeRoomStage
+    authoritativeRoomStage
 
   useEffect(() => {
     if (!signalThreshold || authoritativeRoomStage !== 'time' || lockedSignalVenue) return
@@ -1076,37 +1055,19 @@ function App() {
     return () => { cancelled = true }
   }, [authoritativeSignalGroupId, signalParticipantRosterVersion])
 
-  const previousSignalGroupStateRef =
-    useRef<typeof authoritativeGroupState>(null)
-
   useEffect(() => {
-    const previousGroupState =
-      previousSignalGroupStateRef.current
+    const shouldShowSignalJourney =
+      authoritativeGroupState === 'locked' ||
+      authoritativeGroupState === 'coordinating' ||
+      authoritativeGroupState === 'active_outing'
 
-    previousSignalGroupStateRef.current =
-      authoritativeGroupState
-
-    if (
-      authoritativeGroupState === 'locked' &&
-      previousGroupState !== 'locked' &&
-      !signalThreshold
-    ) {
-      // Lock is the presentation boundary. Reveal it immediately instead of
-      // leaving mobile users staring at the pre-lock screen for several seconds.
-      // Coordination may initialize behind this short local animation.
-      setLockedSignalVenue(null)
-      setSignalLockReveal(true)
-      setSignalThreshold(true)
+    if (shouldShowSignalJourney && !signalThreshold) {
+      queueMicrotask(() => {
+        setLockedSignalVenue(null)
+        setSignalThreshold(true)
+      })
     }
-  }, [authoritativeGroupState, authoritativeSignalGroupId, restoreActiveSignal, signalThreshold])
-
-  useEffect(() => {
-    if (!signalLockReveal) return
-    const revealTimer = window.setTimeout(() => {
-      setSignalLockReveal(false)
-    }, 2200)
-    return () => window.clearTimeout(revealTimer)
-  }, [signalLockReveal])
+  }, [authoritativeGroupState, signalThreshold])
 
   useEffect(() => {
     if (
@@ -1121,7 +1082,6 @@ function App() {
     journeyRestoreEpochRef.current += 1
     journeyRestorePromiseRef.current = null
     queueMicrotask(() => {
-      setSignalLockReveal(false)
       void restoreActiveSignal(true)
     })
   }, [restoreActiveSignal, signalRealtimeSnapshot])
@@ -1130,12 +1090,11 @@ function App() {
   // resumed locked Signals that are already at arrival converge through the same
   // path. There is no separate user-controlled NEXT transition.
   useEffect(() => {
-    // The lock reveal is a real presentation boundary, not decoration. Keep the
-    // shared journey at arrival until every client has had its local reveal beat;
-    // Place can preload location independently without racing this transition.
+    // Arrival is now a simple intentional loading surface. Advance authority
+    // immediately; the UI remains FINDING THE PLACE until the server confirms
+    // the places stage and venue data can render.
     if (
       !signalThreshold ||
-      signalLockReveal ||
       !authoritativeSignalGroupId ||
       authoritativeRoomStage !== 'arrival'
     ) return
@@ -1146,7 +1105,6 @@ function App() {
       .then((stage) => {
         if (cancelled || stageEpoch !== journeyStageEpochRef.current) return
         setServerJourneyStage(stage)
-        if (stage === 'places') setLocalJourneyStageOverride('places')
       })
       .catch(() => {
         if (!cancelled) void restoreActiveSignal(false)
@@ -1156,7 +1114,7 @@ function App() {
       cancelled = true
       journeyStageEpochRef.current += 1
     }
-  }, [authoritativeRoomStage, authoritativeSignalGroupId, restoreActiveSignal, signalLockReveal, signalThreshold])
+  }, [authoritativeRoomStage, authoritativeSignalGroupId, restoreActiveSignal, signalThreshold])
 
   const signalHasReachedCriticalMass =
     authoritativeGroupState === 'confirming' ||
@@ -1450,7 +1408,6 @@ function App() {
       // Leaving is a hard local journey boundary. Do not leave any coordination
       // or Plan pointer behind that can make a departed Signal render again.
       setSignalThreshold(false)
-      setSignalLockReveal(false)
       setServerJourneyStage('forming')
       setLockedSignalVenue(null)
       setActivePlanId(null)
@@ -2819,113 +2776,10 @@ function App() {
             <div className="threshold-vignette" />
 
             <motion.div
-              className="threshold-lock"
-              initial={{ opacity: 0, scale: 0.72 }}
-              animate={{
-                opacity: [0, 1, 1, 0],
-                scale: [0.72, 1.08, 1, 1.8],
-              }}
-              transition={{
-                duration: 0.9,
-                times: [0, 0.28, 0.65, 1],
-              }}
-            >
-              <span>🔒</span>
-            </motion.div>
-
-            <div className="threshold-tunnel">
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-              <i />
-            </div>
-
-            <motion.div
-              className="threshold-frequency"
-              initial={{ scaleX: 0, opacity: 0 }}
-              animate={{
-                scaleX: [0, 1, 1, 0.18, 1],
-                opacity: [0, 1, 1, 1, 1],
-              }}
-              transition={{
-                duration: 1.65,
-                times: [0, 0.18, 0.55, 0.72, 1],
-              }}
-            >
-              <span />
-            </motion.div>
-
-            <div className="threshold-people">
-              {Array.from({
-                length: Math.min(
-                  authoritativeFormationCount,
-                  4,
-                ),
-              }).map((_, index) => (
-                <motion.span
-                  className="aligned-avatar"
-                  key={index}
-                  aria-hidden="true"
-                  initial={{
-                    opacity: 0,
-                    scale: 0.3,
-                    y: 35,
-                  }}
-                  animate={{
-                    opacity: [0, 1, 1, 0],
-                    scale: [0.3, 1, 0.82, 0.25],
-                    y: [35, 0, -5, -20],
-                  }}
-                  transition={{
-                    duration: 1.25,
-                    delay: 0.35 + index * 0.07,
-                  }}
-                >
-                  ⚡
-                </motion.span>
-              ))}
-            </div>
-
-            <motion.div
-              className={[
-                'threshold-copy',
-                presentationRoomStage !== 'arrival'
-                  ? 'threshold-copy-hidden'
-                  : '',
-              ].filter(Boolean).join(' ')}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{
-                opacity: [0, 0, 1, 1],
-                y: [14, 14, 0, 0],
-              }}
-              transition={{
-                duration: 1.45,
-                times: [0, 0.48, 0.7, 1],
-              }}
-            >
-              <span>YOUR SIGNAL IS LIVE</span>
-              <strong>
-                {authoritativeFormationCount}{' '}
-                {authoritativeFormationCount === 1
-                  ? 'PERSON'
-                  : 'PEOPLE'}{' '}
-                · ONE SIGNAL
-              </strong>
-            </motion.div>
-
-            <motion.div
               className="threshold-room"
-              initial={{ opacity: 0, scale: 0.94 }}
-              animate={{
-                opacity: [0, 0, 1],
-                scale: [0.94, 0.94, 1],
-              }}
-              transition={{
-                duration: 2.05,
-                times: [0, 0.78, 1],
-              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.16 }}
             >
               <div className="threshold-room-inner">
                 <span className="room-kicker">
@@ -2987,8 +2841,11 @@ function App() {
                       transition={{ duration: 0.2 }}
                       aria-live="polite"
                     >
-                      <small>SIGNAL LOCKED</small>
-                      <strong>FINDING THE PLACE</strong>
+                      <span className="room-next-spinner" aria-hidden="true" />
+                      <span>
+                        <small>SIGNAL LOCKED</small>
+                        <strong>FINDING THE PLACE...</strong>
+                      </span>
                     </motion.div>
                   ) : presentationRoomStage === 'places' ? (
                     <motion.div
