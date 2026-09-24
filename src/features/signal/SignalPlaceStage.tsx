@@ -11,7 +11,6 @@ import { Check, MapPin, Star, Zap } from 'lucide-react'
 import {
   castSignalVenueVote,
   fetchSignalPlaces,
-  SignalGroupLocationPendingError,
   SignalNoUsableVenueError,
   submitMySignalLocation,
   reconcileSignalVenueRound,
@@ -25,9 +24,6 @@ import type {
 } from './places/contract'
 import './SignalPlaceStage.css'
 import { toUserFacingError } from '../../lib/userFacingError'
-
-const GROUP_LOCATION_WAIT_ATTEMPTS = 4
-const GROUP_LOCATION_WAIT_MS = 2500
 
 type SignalPlaceStageProps = {
   signalGroupId: string
@@ -102,29 +98,15 @@ export default function SignalPlaceStage({
   const loadRound = useCallback(async () => {
     const requestId = ++roundRequestIdRef.current
     try {
-      let next: SignalPlacesResponse
-      try {
-        next = await fetchSignalPlaces({ signalGroupId, limit: 3, allowCityFallback: true })
-      } catch (error) {
-        if (!(error instanceof SignalGroupLocationPendingError)) throw error
-
-        let resolved: SignalPlacesResponse | null = null
-        for (let attempt = 0; attempt < GROUP_LOCATION_WAIT_ATTEMPTS; attempt += 1) {
-          await new Promise((resolve) => window.setTimeout(resolve, GROUP_LOCATION_WAIT_MS))
-          try {
-            resolved = await fetchSignalPlaces({ signalGroupId, limit: 3, allowCityFallback: false })
-            break
-          } catch (retryError) {
-            if (!(retryError instanceof SignalGroupLocationPendingError)) throw retryError
-          }
-        }
-
-        next = resolved ?? await fetchSignalPlaces({
-          signalGroupId,
-          limit: 3,
-          allowCityFallback: true,
-        })
-      }
+      const next = await fetchSignalPlaces({
+        signalGroupId,
+        limit: 3,
+        // Rendering Place must never wait for every phone to deliver GPS.
+        // The server uses the midpoint when locations are already available,
+        // otherwise city authority opens the round immediately; late GPS can
+        // refresh only before a round has been persisted.
+        allowCityFallback: true,
+      })
       if (requestId !== roundRequestIdRef.current) return
       setSnapshot(next)
       setNoUsableVenue(next.places.length === 0)
