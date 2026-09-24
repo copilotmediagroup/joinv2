@@ -1789,11 +1789,26 @@ function App() {
       <div className="ambient ambient-a" />
       <div className="ambient ambient-b" />
 
-      {notificationToast && (
-        <button type="button" className="notification-toast" onClick={() => { setNotificationsOpen(true); setNotificationToast(null) }} aria-label="Open notification">
+      {notificationToast && !hasActiveSignalJourney && !signalThreshold && (
+        <motion.button
+          type="button"
+          className="notification-toast"
+          onClick={() => { setNotificationsOpen(true); setNotificationToast(null) }}
+          aria-label="Open notification"
+          drag
+          dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+          dragElastic={0.72}
+          whileDrag={{ scale: 0.985 }}
+          onDragEnd={(_, info) => {
+            if (Math.abs(info.offset.x) >= 70 || info.offset.y <= -45) {
+              setNotificationToast(null)
+            }
+          }}
+        >
+          <span className="notification-toast-handle" aria-hidden="true" />
           <strong>{notificationToast.title}</strong>
           {notificationToast.body && <span>{notificationToast.body}</span>}
-        </button>
+        </motion.button>
       )}
 
       {!isOnline && (

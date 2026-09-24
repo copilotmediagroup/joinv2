@@ -4774,3 +4774,19 @@ button:disabled,
 @keyframes signalFindingPlaceSpin {
   to { transform: rotate(360deg); }
 }
+
+.notification-toast {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.notification-toast-handle {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 34px;
+  height: 3px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(210, 237, 255, .28);
+}

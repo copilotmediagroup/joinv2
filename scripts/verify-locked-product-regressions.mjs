@@ -355,6 +355,13 @@ lock('Peer-ended Signal reconciles the surviving browser', app,
 lock('Pre-lock formation keeps joined participant proof', app,
   /signalParticipants\.slice\(0, 4\)[\s\S]*?participant\.displayName[\s\S]*?\+ JOINED/,
   'Users must see who is joining before the Signal locks instead of jumping blindly to coordination.')
+lock('Signal coordination suppresses floating notification banners', app,
+  /notificationToast && !hasActiveSignalJourney && !signalThreshold/,
+  'Signal matching and coordination must use the journey screen itself instead of top-of-screen notification popups.')
+lock('Notification banners remain swipe dismissible', app,
+  /className="notification-toast"[\s\S]*?drag[\s\S]*?onDragEnd[\s\S]*?Math\.abs\(info\.offset\.x\) >= 70[\s\S]*?info\.offset\.y <= -45[\s\S]*?setNotificationToast\(null\)/,
+  'Ordinary notification banners must support iPhone-style swipe dismissal without opening the notification panel.')
+
 lock('Notification toast rejects stale realtime fetches', app,
   /notificationToastEpochRef = useRef\(0\)[\s\S]*?const toastEpoch = \+\+notificationToastEpochRef\.current[\s\S]*?toastEpoch !== notificationToastEpochRef\.current[\s\S]*?notificationToastEpochRef\.current \+= 1/,
   'Notification toast fetches must reject older realtime responses and invalidate on user lifecycle changes.')
