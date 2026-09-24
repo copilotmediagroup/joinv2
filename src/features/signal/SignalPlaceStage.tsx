@@ -85,20 +85,26 @@ export default function SignalPlaceStage({
   const locationPreparedRef = useRef(false)
   const roundRequestIdRef = useRef(0)
   const deadlockRestartEpochRef = useRef(0)
+  const loadRoundRef = useRef<(() => Promise<void>) | null>(null)
+
+  const prepareLocation = useCallback(() => {
+    if (locationPreparedRef.current) return
+    locationPreparedRef.current = true
+    // Physical GPS is useful venue intelligence, but it must never block the
+    // Place screen. Phones can take seconds to wake high-accuracy location.
+    void submitMySignalLocation(signalGroupId)
+      .then((submitted) => {
+        if (submitted) void loadRoundRef.current?.()
+      })
+      .catch(() => {})
+  }, [signalGroupId])
 
   const loadRound = useCallback(async () => {
     const requestId = ++roundRequestIdRef.current
     try {
-      let allowCityFallback = true
-      if (!locationPreparedRef.current) {
-        locationPreparedRef.current = true
-        await submitMySignalLocation(signalGroupId).catch(() => false)
-        allowCityFallback = false
-      }
-
       let next: SignalPlacesResponse
       try {
-        next = await fetchSignalPlaces({ signalGroupId, limit: 3, allowCityFallback })
+        next = await fetchSignalPlaces({ signalGroupId, limit: 3, allowCityFallback: true })
       } catch (error) {
         if (!(error instanceof SignalGroupLocationPendingError)) throw error
 
@@ -137,11 +143,19 @@ export default function SignalPlaceStage({
   }, [signalGroupId])
 
   useEffect(() => {
+    loadRoundRef.current = loadRound
+    return () => {
+      if (loadRoundRef.current === loadRound) loadRoundRef.current = null
+    }
+  }, [loadRound])
+
+  useEffect(() => {
     let active = true
     queueMicrotask(() => {
       if (!active) return
       setPlacesLoading(true)
       setPlacesError(null)
+      prepareLocation()
       void loadRound()
     })
     return () => {
@@ -149,7 +163,7 @@ export default function SignalPlaceStage({
       roundRequestIdRef.current += 1
       voteEpochRef.current += 1
     }
-  }, [loadRound])
+  }, [loadRound, prepareLocation])
 
   useEffect(() => {
     return subscribeToSignalVenueRound(signalGroupId, () => {

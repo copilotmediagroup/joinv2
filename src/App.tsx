@@ -1110,7 +1110,15 @@ function App() {
   // resumed locked Signals that are already at arrival converge through the same
   // path. There is no separate user-controlled NEXT transition.
   useEffect(() => {
-    if (!signalThreshold || !authoritativeSignalGroupId || authoritativeRoomStage !== 'arrival') return
+    // The lock reveal is a real presentation boundary, not decoration. Keep the
+    // shared journey at arrival until every client has had its local reveal beat;
+    // Place can preload location independently without racing this transition.
+    if (
+      !signalThreshold ||
+      signalLockReveal ||
+      !authoritativeSignalGroupId ||
+      authoritativeRoomStage !== 'arrival'
+    ) return
 
     let cancelled = false
     const stageEpoch = ++journeyStageEpochRef.current
@@ -1127,7 +1135,7 @@ function App() {
       cancelled = true
       journeyStageEpochRef.current += 1
     }
-  }, [authoritativeRoomStage, authoritativeSignalGroupId, restoreActiveSignal, signalThreshold])
+  }, [authoritativeRoomStage, authoritativeSignalGroupId, restoreActiveSignal, signalLockReveal, signalThreshold])
 
   const signalHasReachedCriticalMass =
     authoritativeGroupState === 'confirming' ||
