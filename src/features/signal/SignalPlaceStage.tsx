@@ -80,6 +80,7 @@ export default function SignalPlaceStage({
   const deadlockRetryCountRef = useRef(0)
   const locationPreparedRef = useRef(false)
   const roundRequestIdRef = useRef(0)
+  const roundLoadPromiseRef = useRef<Promise<void> | null>(null)
   const deadlockRestartEpochRef = useRef(0)
   const loadRoundRef = useRef<(() => Promise<void>) | null>(null)
 
@@ -95,33 +96,48 @@ export default function SignalPlaceStage({
       .catch(() => {})
   }, [signalGroupId])
 
-  const loadRound = useCallback(async () => {
+  const loadRound = useCallback((): Promise<void> => {
+    // Lock, Realtime subscription, GPS completion and the 2.5s authority
+    // backstop can all invalidate Place at nearly the same instant. On mobile
+    // that previously launched overlapping signal-places initializers for the
+    // same group. Coalesce them: one browser owns one venue initialization/read
+    // at a time and every invalidation joins that same promise.
+    if (roundLoadPromiseRef.current) return roundLoadPromiseRef.current
+
     const requestId = ++roundRequestIdRef.current
-    try {
-      const next = await fetchSignalPlaces({
-        signalGroupId,
-        limit: 3,
-        // Rendering Place must never wait for every phone to deliver GPS.
-        // The server uses the midpoint when locations are already available,
-        // otherwise city authority opens the round immediately; late GPS can
-        // refresh only before a round has been persisted.
-        allowCityFallback: true,
-      })
-      if (requestId !== roundRequestIdRef.current) return
-      setSnapshot(next)
-      setNoUsableVenue(next.places.length === 0)
-      setPlacesError(null)
-      setSecondsLeft(secondsUntil(next.round.closesAt))
-    } catch (error) {
-      if (requestId !== roundRequestIdRef.current) return
-      const terminalVenueFailure = error instanceof SignalNoUsableVenueError
-      setNoUsableVenue(terminalVenueFailure)
-      setPlacesError(
-        toUserFacingError(error, 'Unable to load places right now.'),
-      )
-    } finally {
-      if (requestId === roundRequestIdRef.current) setPlacesLoading(false)
-    }
+    const request: Promise<void> = (async () => {
+      try {
+        const next = await fetchSignalPlaces({
+          signalGroupId,
+          limit: 3,
+          // Rendering Place must never wait for every phone to deliver GPS.
+          // The server uses the midpoint when locations are already available,
+          // otherwise city authority opens the round immediately; late GPS can
+          // refresh only before a round has been persisted.
+          allowCityFallback: true,
+        })
+        if (requestId !== roundRequestIdRef.current) return
+        setSnapshot(next)
+        setNoUsableVenue(next.places.length === 0)
+        setPlacesError(null)
+        setSecondsLeft(secondsUntil(next.round.closesAt))
+      } catch (error) {
+        if (requestId !== roundRequestIdRef.current) return
+        const terminalVenueFailure = error instanceof SignalNoUsableVenueError
+        setNoUsableVenue(terminalVenueFailure)
+        setPlacesError(
+          toUserFacingError(error, 'Unable to load places right now.'),
+        )
+      } finally {
+        if (requestId === roundRequestIdRef.current) setPlacesLoading(false)
+      }
+    })()
+
+    roundLoadPromiseRef.current = request
+    void request.then(() => {
+      if (roundLoadPromiseRef.current === request) roundLoadPromiseRef.current = null
+    })
+    return request
   }, [signalGroupId])
 
   useEffect(() => {
