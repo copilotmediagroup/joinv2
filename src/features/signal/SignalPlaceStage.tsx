@@ -81,6 +81,7 @@ export default function SignalPlaceStage({
   const locationPreparedRef = useRef(false)
   const roundRequestIdRef = useRef(0)
   const roundLoadPromiseRef = useRef<Promise<void> | null>(null)
+  const roundLoadQueuedRef = useRef(false)
   const deadlockRestartEpochRef = useRef(0)
   const loadRoundRef = useRef<(() => Promise<void>) | null>(null)
 
@@ -102,7 +103,14 @@ export default function SignalPlaceStage({
     // that previously launched overlapping signal-places initializers for the
     // same group. Coalesce them: one browser owns one venue initialization/read
     // at a time and every invalidation joins that same promise.
-    if (roundLoadPromiseRef.current) return roundLoadPromiseRef.current
+    if (roundLoadPromiseRef.current) {
+      // Do not drop authority invalidations that arrive while initialization is
+      // in flight. Queue exactly one follow-up read after the current request
+      // settles. This keeps mobile single-flight without letting a GPS/realtime
+      // update disappear behind the initializer.
+      roundLoadQueuedRef.current = true
+      return roundLoadPromiseRef.current
+    }
 
     const requestId = ++roundRequestIdRef.current
     const request: Promise<void> = (async () => {
@@ -135,7 +143,12 @@ export default function SignalPlaceStage({
 
     roundLoadPromiseRef.current = request
     void request.then(() => {
-      if (roundLoadPromiseRef.current === request) roundLoadPromiseRef.current = null
+      if (roundLoadPromiseRef.current !== request) return
+      roundLoadPromiseRef.current = null
+      if (roundLoadQueuedRef.current) {
+        roundLoadQueuedRef.current = false
+        void loadRoundRef.current?.()
+      }
     })
     return request
   }, [signalGroupId])
