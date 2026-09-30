@@ -1559,6 +1559,18 @@ function App() {
       setFormationResult(result)
       setWithdrawalError(null)
 
+      // The formation response is already authoritative for the lock boundary.
+      // On slower phones, do not wait for a later Realtime render/effect pass to
+      // release the formation shell. Move directly into the responsive Place
+      // shell as part of the same successful lock update.
+      if (
+        result.groupState === 'locked' ||
+        result.groupState === 'coordinating'
+      ) {
+        setLockedSignalVenue(null)
+        setSignalThreshold(true)
+      }
+
       setSignalRealtimeTarget({
         signalIntentId:
           result.signalIntentId,
