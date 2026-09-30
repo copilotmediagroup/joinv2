@@ -106,16 +106,47 @@ export async function fetchSignalPlaces(
   if (sessionError) throw new Error('Unable to verify your Signal session')
   if (!session) throw new Error('You must be signed in to choose a Signal venue')
 
-  const { data, error } = await supabase.functions.invoke('signal-places', { body: request })
-  if (error) {
-    const message = await getFunctionErrorMessage(error)
-    if (message.includes('group_location_pending')) throw new SignalGroupLocationPendingError()
-    if (message.includes('No open venue has a usable meetup time in this Signal window')) throw new SignalNoUsableVenueError()
-    if (message.includes('signal_stage_mismatch:')) throw new SignalStageMismatchError(message.split('signal_stage_mismatch:')[1]?.trim() || 'unknown')
-    throw new Error(message)
+  // Start the initializer immediately, but do not make a slower phone wait for
+  // its Edge Function request when another participant has already persisted
+  // the authoritative venue round. A lightweight PostgREST RPC races the Edge
+  // request and observes that shared round directly from PostgreSQL.
+  let stopped = false
+  const existingRound = (async (): Promise<SignalPlacesResponse | null> => {
+    for (let attempt = 0; attempt < 12 && !stopped; attempt += 1) {
+      const { data, error } = await supabase.rpc('get_my_signal_venue_round', {
+        p_signal_group_id: request.signalGroupId,
+      })
+      if (!error && data && typeof data === 'object') {
+        return data as SignalPlacesResponse
+      }
+      if (attempt < 11) await coordinationDelay(250)
+    }
+    return null
+  })()
+
+  const initializedRound = supabase.functions
+    .invoke('signal-places', { body: request })
+    .then(async ({ data, error }) => {
+      if (error) {
+        const message = await getFunctionErrorMessage(error)
+        if (message.includes('group_location_pending')) throw new SignalGroupLocationPendingError()
+        if (message.includes('No open venue has a usable meetup time in this Signal window')) throw new SignalNoUsableVenueError()
+        if (message.includes('signal_stage_mismatch:')) throw new SignalStageMismatchError(message.split('signal_stage_mismatch:')[1]?.trim() || 'unknown')
+        throw new Error(message)
+      }
+      if (!data || typeof data !== 'object') throw new Error('Signal Places returned an invalid response')
+      return data as SignalPlacesResponse
+    })
+
+  try {
+    const winner = await Promise.race([
+      initializedRound,
+      existingRound.then((round) => round ?? initializedRound),
+    ])
+    return winner
+  } finally {
+    stopped = true
   }
-  if (!data || typeof data !== 'object') throw new Error('Signal Places returned an invalid response')
-  return data as SignalPlacesResponse
 }
 
 const COORDINATION_MUTATION_TIMEOUT_MS = 12_000
