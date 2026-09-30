@@ -729,45 +729,30 @@ Deno.serve(async (request: Request) => {
       }))
     }
 
-    let searchRadiusMiles = 12
-    let rawPlaces = await fetchRawPlaces(19312.1)
-    let places = await scorePlaces(rawPlaces, searchRadiusMiles)
-    let eligiblePlaces = places.filter((place) =>
+    // Venue discovery is on the post-lock critical path. Run the broad activity
+    // search and its experience-lane searches concurrently instead of serially
+    // waiting for 12mi -> 17mi -> supplemental waves. One Google network wave
+    // now supplies the candidate pool; ranking/availability policy remains unchanged.
+    const searchRadiusMiles = 17
+    const searchIntents = [
+      query,
+      ...supplementalSearchIntents(activity.slug, venueTimeBand),
+    ]
+    const searchBatches = await Promise.all(
+      searchIntents.map((intent) => fetchRawPlaces(27358.8, intent)),
+    )
+    const mergedByPlaceId = new Map<string, unknown>()
+    for (const place of searchBatches.flat()) {
+      const placeId = typeof (place as { id?: unknown })?.id === 'string'
+        ? (place as { id: string }).id : ''
+      if (placeId && !mergedByPlaceId.has(placeId)) mergedByPlaceId.set(placeId, place)
+    }
+    const rawPlaces = [...mergedByPlaceId.values()]
+    const places = await scorePlaces(rawPlaces, searchRadiusMiles)
+    const eligiblePlaces = places.filter((place) =>
       place.placeId.length > 0 && place.supportsSignalWindow && place.hasMinimumOpenTime &&
       (!requireOpenNow || place.openNow === true),
     )
-
-    if (eligiblePlaces.length < 2) {
-      searchRadiusMiles = 17
-      rawPlaces = await fetchRawPlaces(27358.8)
-      places = await scorePlaces(rawPlaces, searchRadiusMiles)
-      eligiblePlaces = places.filter((place) =>
-        place.placeId.length > 0 && place.supportsSignalWindow && place.hasMinimumOpenTime &&
-        (!requireOpenNow || place.openNow === true),
-      )
-    }
-
-    // A broad Places text search can collapse a category into only one or two Google
-    // result types. If that happens, deliberately source additional experience lanes,
-    // then dedupe by Google place id before applying the same availability/quality gates.
-    if (eligiblePlaces.length < 3) {
-      const supplementalBatches = await Promise.all(
-        supplementalSearchIntents(activity.slug, venueTimeBand)
-          .map((intent) => fetchRawPlaces(searchRadiusMiles * 1609.34, intent)),
-      )
-      const mergedByPlaceId = new Map<string, unknown>()
-      for (const place of [...rawPlaces, ...supplementalBatches.flat()]) {
-        const placeId = typeof (place as { id?: unknown })?.id === 'string'
-          ? (place as { id: string }).id : ''
-        if (placeId && !mergedByPlaceId.has(placeId)) mergedByPlaceId.set(placeId, place)
-      }
-      rawPlaces = [...mergedByPlaceId.values()]
-      places = await scorePlaces(rawPlaces, searchRadiusMiles)
-      eligiblePlaces = places.filter((place) =>
-        place.placeId.length > 0 && place.supportsSignalWindow && place.hasMinimumOpenTime &&
-        (!requireOpenNow || place.openNow === true),
-      )
-    }
 
     const slateSize = Math.min(Math.max(limit, 2), 3)
     // Every activity returns a deliberately varied slate when eligible inventory allows it.
