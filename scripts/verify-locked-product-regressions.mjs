@@ -345,9 +345,9 @@ lock('Signal journey stage transitions reject stale async completions', app,
 lock('Signal lock uses one intentional Finding Place surface', app,
   /shouldShowSignalJourney[\s\S]*?setSignalThreshold\(true\)/,
   'Locked Signals must immediately enter the Signal journey surface.')
-lock('Signal arrival presents Finding Place until venue authority advances', app,
-  /FINDING THE PLACE\.\.\.[\s\S]*?advanceMySignalJourneyStage\(authoritativeSignalGroupId, 'places'\)|advanceMySignalJourneyStage\(authoritativeSignalGroupId, 'places'\)[\s\S]*?FINDING THE PLACE\.\.\./,
-  'Arrival must remain an intentional Finding Place surface while server authority prepares venue coordination.')
+lock('Signal lock mounts Place before realtime journey handoff', app,
+  /presentationRoomStage: 'places' \| 'time'[\s\S]*?authoritativeRoomStage === 'time' \? 'time' : 'places'[\s\S]*?presentationRoomStage === 'places'[\s\S]*?<SignalPlaceStage/,
+  'A locked Signal must mount Place immediately; mobile must not wait for a second arrival-to-places realtime transition before venue loading begins.')
 lock('Peer-ended Signal reconciles the surviving browser', app,
   /signalRealtimeSnapshot\.group\.state !== 'cancelled'[\s\S]*?signalRealtimeSnapshot\.group\.journeyStage !== 'completed'[\s\S]*?journeyRestoreEpochRef\.current \+= 1[\s\S]*?restoreActiveSignal\(true\)/,
   'When another member ends the Signal, this browser must purge the dead journey and return to authoritative navigation.')

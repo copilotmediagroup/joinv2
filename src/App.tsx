@@ -962,8 +962,11 @@ function App() {
         ? 'places'
         : 'arrival'
 
-  const presentationRoomStage: 'arrival' | 'places' | 'time' =
-    authoritativeRoomStage
+  // Presentation no longer waits for the arrival -> places realtime handoff.
+  // Once a Signal is locked, mount Place immediately and let SignalPlaceStage
+  // own its loading -> ready transition from server venue authority.
+  const presentationRoomStage: 'places' | 'time' =
+    authoritativeRoomStage === 'time' ? 'time' : 'places'
 
   useEffect(() => {
     if (!signalThreshold || authoritativeRoomStage !== 'time' || lockedSignalVenue) return
@@ -2846,23 +2849,7 @@ function App() {
                 </div>
 
                 <AnimatePresence mode="wait">
-                  {presentationRoomStage === 'arrival' ? (
-                    <motion.div
-                      key="signal-arrival"
-                      className="room-next"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      aria-live="polite"
-                    >
-                      <span className="room-next-spinner" aria-hidden="true" />
-                      <span>
-                        <small>SIGNAL LOCKED</small>
-                        <strong>FINDING THE PLACE...</strong>
-                      </span>
-                    </motion.div>
-                  ) : presentationRoomStage === 'places' ? (
+                  {presentationRoomStage === 'places' ? (
                     <motion.div
                       key="signal-places"
                       initial={{ opacity: 0, y: 14, scale: 0.985 }}
