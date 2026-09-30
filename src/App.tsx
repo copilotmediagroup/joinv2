@@ -73,8 +73,9 @@ import {
 import {
   withdrawMySignal,
 } from './features/signal/withdrawal/signalWithdrawalClient'
-import type {
-  LockedSignalVenue,
+import SignalPlaceStage from './features/signal/SignalPlaceStage'
+import SignalTimeStage, {
+  type LockedSignalVenue,
 } from './features/signal/SignalTimeStage'
 
 const ActivityView = React.lazy(
@@ -97,12 +98,6 @@ const ActiveOutingView = React.lazy(
 )
 const SignalPlanDetailsView = React.lazy(
   () => import('./features/outing/SignalPlanDetailsView'),
-)
-const SignalPlaceStage = React.lazy(
-  () => import('./features/signal/SignalPlaceStage'),
-)
-const SignalTimeStage = React.lazy(
-  () => import('./features/signal/SignalTimeStage'),
 )
 
 type Pulse = {
