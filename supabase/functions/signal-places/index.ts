@@ -680,7 +680,10 @@ Deno.serve(async (request: Request) => {
               : [],
           } : null,
           photoName,
-          photoUrl: await placePhotoUrl(apiKey, photoName),
+          // Photo media resolution is presentation enrichment, not venue
+          // eligibility. Do not fan out up to 20 Google media requests while
+          // the locked Signal is waiting for its authoritative venue round.
+          photoUrl: null as string | null,
           photoAttributions: Array.isArray(photo?.authorAttributions)
             ? photo.authorAttributions.map(
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -770,7 +773,17 @@ Deno.serve(async (request: Request) => {
     // Every activity returns a deliberately varied slate when eligible inventory allows it.
     // Ranking still chooses the best candidate inside each experience lane.
     const slate = diversifiedVenueSlate(eligiblePlaces, activity.slug, venueTimeBand, slateSize)
-    const ranked = slate.map((place, index) => ({ ...place, signalRank: index + 1 }))
+    // Resolve media only for the final 1-3 choices, concurrently. Previously
+    // scorePlaces awaited a media lookup for every raw Google candidate (and
+    // repeated that work on expanded/supplemental searches), keeping the
+    // venue round nonexistent for several seconds after Signal lock.
+    const hydratedSlate = await Promise.all(
+      slate.map(async (place) => ({
+        ...place,
+        photoUrl: await placePhotoUrl(apiKey, place.photoName),
+      })),
+    )
+    const ranked = hydratedSlate.map((place, index) => ({ ...place, signalRank: index + 1 }))
 
     // A Signal only needs one genuinely usable venue to keep coordination moving.
     // Requiring two candidates turned a healthy single-option result into a dead-end,
